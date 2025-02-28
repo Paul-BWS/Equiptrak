@@ -2,21 +2,25 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, FileText, User, Trash2 } from "lucide-react";
+import { Trash2, ClipboardCheck, Eye, MapPin, Phone } from "lucide-react";
 import { CustomerDialogs } from "./CustomerDialogs";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./ui/alert-dialog";
 import { CustomerDetailsModal } from "@/components/CustomerDetailsModal";
+import { useTheme } from "@/components/theme-provider";
 
-export function CustomerList() {
-  const [searchQuery, setSearchQuery] = useState("");
+interface CustomerListProps {
+  searchQuery?: string;
+}
+
+export function CustomerList({ searchQuery = "" }: CustomerListProps) {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editCustomer, setEditCustomer] = useState<any>(null);
   const [deleteCustomerId, setDeleteCustomerId] = useState<string | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const { toast } = useToast();
+  const { theme } = useTheme();
 
   const { data: customers, isLoading, refetch } = useQuery({
     queryKey: ["customers"],
@@ -63,112 +67,148 @@ export function CustomerList() {
     }
   };
 
-  const filteredCustomers = customers?.filter(customer => 
-    customer.company_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (customer.address && customer.address.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (customer.city && customer.city.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (customer.postcode && customer.postcode.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const openGoogleMaps = (address: string) => {
+    const formattedAddress = encodeURIComponent(address);
+    window.open(`https://www.google.com/maps/search/?api=1&query=${formattedAddress}`, '_blank');
+  };
+
+  const callPhoneNumber = (phoneNumber: string) => {
+    window.location.href = `tel:${phoneNumber}`;
+  };
+
+  const filteredCustomers = customers?.filter(customer => {
+    const searchLower = searchQuery.toLowerCase();
+    return (
+      customer.company_name.toLowerCase().includes(searchLower) ||
+      (customer.address && customer.address.toLowerCase().includes(searchLower)) ||
+      (customer.city && customer.city.toLowerCase().includes(searchLower)) ||
+      (customer.county && customer.county.toLowerCase().includes(searchLower)) ||
+      (customer.postcode && customer.postcode.toLowerCase().includes(searchLower)) ||
+      (customer.telephone && customer.telephone.includes(searchQuery))
+    );
+  });
+
+  if (isLoading) {
+    return <div className="text-center py-8">Loading customers...</div>;
+  }
+
+  if (!filteredCustomers?.length) {
+    return (
+      <div className="text-center py-8">
+        {searchQuery ? "No customers match your search" : "No customers found"}
+      </div>
+    );
+  }
+
+  // Style for icon buttons
+  const iconButtonStyle = {
+    backgroundColor: 'white',
+    color: '#7b96d4',
+    border: '1px solid #e2e8f0'
+  };
+
+  const deleteButtonStyle = {
+    backgroundColor: 'white',
+    color: '#ef4444',
+    border: '1px solid #e2e8f0'
+  };
 
   return (
     <div className="space-y-4">
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search customers..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10 bg-white"
-        />
-      </div>
-      
-      {/* Desktop Table Header */}
-      <div className="hidden md:grid grid-cols-4 gap-4 py-2 px-4 font-medium text-muted-foreground">
-        <div>Company Name</div>
-        <div>Location</div>
-        <div>Telephone</div>
-        <div className="text-right">Actions</div>
-      </div>
-      
-      {/* Customer List */}
-      <div className="space-y-3 md:space-y-0">
-        {isLoading ? (
-          <div className="text-center py-4">Loading customers...</div>
-        ) : filteredCustomers && filteredCustomers.length > 0 ? (
-          filteredCustomers.map((customer) => (
+      <div className="grid grid-cols-1 gap-4">
+        {filteredCustomers.map((customer) => {
+          const fullAddress = [customer.address, customer.city, customer.county, customer.postcode]
+            .filter(Boolean)
+            .join(", ");
+            
+          return (
             <div 
               key={customer.id} 
-              className="md:grid md:grid-cols-4 md:gap-4 md:py-3 md:px-4 md:border-b md:border-border md:hover:bg-muted/50 md:transition-colors"
+              className="bg-white border rounded-lg overflow-hidden hover:shadow-md transition-shadow"
             >
-              {/* Mobile View */}
-              <Link 
-                to={`/admin/customer/${customer.id}`}
-                className="md:hidden block bg-white rounded-lg border border-gray-200 overflow-hidden mb-3"
-              >
-                <div className="p-4 font-medium text-lg">
-                  {customer.company_name}
-                </div>
+              <div className="p-4">
+                <h3 className="text-lg font-medium mb-3">{customer.company_name}</h3>
                 
-                <div className="px-4 pb-4 space-y-1 text-sm text-muted-foreground">
-                  <div>
-                    {[
-                      customer.address,
-                      customer.city,
-                      customer.county,
-                      customer.postcode
-                    ].filter(Boolean).join(', ')}
+                <div className="flex flex-wrap items-center justify-between">
+                  <div className="flex items-center gap-6 flex-grow">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-muted-foreground">
+                        {[customer.address, customer.city, customer.postcode]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </p>
+                      {fullAddress && (
+                        <Button 
+                          variant="outline" 
+                          size="icon"
+                          onClick={() => openGoogleMaps(fullAddress)}
+                          style={iconButtonStyle}
+                          className="h-7 w-7"
+                        >
+                          <MapPin className="h-3.5 w-3.5" />
+                          <span className="sr-only">View on Map</span>
+                        </Button>
+                      )}
+                    </div>
+                    
+                    {customer.telephone && (
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm text-muted-foreground">{customer.telephone}</p>
+                        <Button 
+                          variant="outline" 
+                          size="icon"
+                          onClick={() => callPhoneNumber(customer.telephone)}
+                          style={iconButtonStyle}
+                          className="h-7 w-7"
+                        >
+                          <Phone className="h-3.5 w-3.5" />
+                          <span className="sr-only">Call</span>
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                  <div>{customer.telephone || '-'}</div>
+                  
+                  <div className="flex items-center gap-2 ml-auto">
+                    <Link to={`/admin/customer/${customer.id}`}>
+                      <Button 
+                        variant="outline" 
+                        size="icon"
+                        style={iconButtonStyle}
+                      >
+                        <Eye className="h-4 w-4" />
+                        <span className="sr-only">View</span>
+                      </Button>
+                    </Link>
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      onClick={() => {
+                        setEditCustomer(customer);
+                        setIsAddOpen(true);
+                      }}
+                      style={iconButtonStyle}
+                    >
+                      <ClipboardCheck className="h-4 w-4" />
+                      <span className="sr-only">Edit</span>
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      onClick={() => setDeleteCustomerId(customer.id)}
+                      style={deleteButtonStyle}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span className="sr-only">Delete</span>
+                    </Button>
+                  </div>
                 </div>
-              </Link>
-              
-              {/* Desktop View */}
-              <div className="hidden md:block">{customer.company_name}</div>
-              <div className="hidden md:block">
-                {[
-                  customer.city,
-                  customer.county,
-                  customer.postcode
-                ].filter(Boolean).join(', ')}
-              </div>
-              <div className="hidden md:block">{customer.telephone || '-'}</div>
-              <div className="hidden md:flex justify-end gap-2">
-                <Link 
-                  to={`/admin/customer/${customer.id}`}
-                  className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3"
-                >
-                  <User className="h-4 w-4 mr-2" />
-                  Details
-                </Link>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => {
-                    setEditCustomer(customer);
-                    setIsAddOpen(true);
-                  }}
-                >
-                  <User className="h-4 w-4" />
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="text-destructive hover:text-destructive"
-                  onClick={() => setDeleteCustomerId(customer.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
               </div>
             </div>
-          ))
-        ) : (
-          <div className="text-center py-4">No customers found</div>
-        )}
+          );
+        })}
       </div>
-      
-      {/* Add/Edit Dialog */}
-      {editCustomer ? (
+
+      {editCustomer && (
         <CustomerDialogs.Edit
           open={isAddOpen}
           onOpenChange={(open) => {
@@ -177,14 +217,8 @@ export function CustomerList() {
           }}
           customer={editCustomer}
         />
-      ) : (
-        <CustomerDialogs.Add
-          open={isAddOpen}
-          onOpenChange={setIsAddOpen}
-        />
       )}
       
-      {/* Delete Confirmation */}
       <AlertDialog open={!!deleteCustomerId} onOpenChange={(open) => !open && setDeleteCustomerId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

@@ -1,33 +1,145 @@
-import { EquipmentTypeNav } from "@/components/EquipmentTypeNav";
+import { useParams, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
-export default function EquipmentTypes() {
+// Import icons for different equipment types
+import { 
+  Wrench, // For Service
+  Zap, // For Welder Validation
+  Lightbulb, // For Headlight Beam Setter
+  Fan, // For Air Con Machines and Air Vent
+  Gauge, // For Pressure Gauges
+  CircleDot, // For Tyres Gauge (using CircleDot as a substitute for circle-gauge)
+  Forklift, // For LOLER Lifting
+  Weight, // For Paint Scales
+  ArrowLeftRight, // For Spot Welder (using ArrowLeftRight as a substitute for between-horizontal-end)
+  Ruler, // For JIG Measuring
+  Thermometer, // For Temperature Gauges
+  Drill, // For Rivet Tools
+  ClipboardCheck, // For PUWER Inspection
+  Cloud, // For Local Exhaust Ventilation LEV and Clean Air
+  Cylinder, // For Gas Equipment CP7
+  HardHat, // For Safety Equipment
+  Circle, // For Torque Wrench (using Circle as a substitute for radius)
+  Flame // For Tank Inspection (using Flame as a substitute for fire-extinguisher)
+} from "lucide-react";
+
+export function EquipmentTypes() {
+  const { customerId } = useParams<{ customerId: string }>();
   const navigate = useNavigate();
-  const { customerId } = useParams();
+  const { toast } = useToast();
+
+  // Fetch customer details for the header
+  const { data: customer, isLoading } = useQuery({
+    queryKey: ["customer-details", customerId],
+    queryFn: async () => {
+      if (!customerId) {
+        throw new Error("No customer ID provided");
+      }
+      
+      const { data, error } = await supabase
+        .from("companies")
+        .select("*")
+        .eq("id", customerId)
+        .single();
+        
+      if (error) {
+        throw error;
+      }
+      
+      return data;
+    },
+  });
+
+  // Define equipment types with icons
+  const equipmentTypes = [
+    { 
+      id: "service", 
+      name: "Service", 
+      icon: <Wrench className="h-8 w-8" />,
+      onClick: () => navigate(`/admin/service/${customerId}`)
+    },
+    { id: "welder-validation", name: "Welder Validation", icon: <Zap className="h-8 w-8" /> },
+    { id: "headlight-beam", name: "Headlight Beam Setter", icon: <Lightbulb className="h-8 w-8" /> },
+    { id: "compressor", name: "Compressor", icon: <Fan className="h-8 w-8" /> },
+    { id: "pressure-gauges", name: "Pressure Gauges", icon: <Gauge className="h-8 w-8" /> },
+    { id: "tyres-gauge", name: "Tyres Gauge", icon: <CircleDot className="h-8 w-8" /> },
+    { id: "loler-lifting", name: "LOLER Lifting", icon: <Forklift className="h-8 w-8" /> },
+    { id: "air-con", name: "Air Con Machines", icon: <Fan className="h-8 w-8" /> },
+    { id: "paint-scales", name: "Paint Scales", icon: <Weight className="h-8 w-8" /> },
+    { id: "spot-welder", name: "Spot Welder", icon: <ArrowLeftRight className="h-8 w-8" /> },
+    { id: "jig-measuring", name: "JIG Measuring", icon: <Ruler className="h-8 w-8" /> },
+    { id: "temperature-gauges", name: "Temperature Gauges", icon: <Thermometer className="h-8 w-8" /> },
+    { id: "rivet-tools", name: "Rivet Tools", icon: <Drill className="h-8 w-8" /> },
+    { id: "puwer-inspection", name: "PUWER Inspection", icon: <ClipboardCheck className="h-8 w-8" /> },
+    { id: "lev", name: "Local Exhaust Ventilation", icon: <Cloud className="h-8 w-8" /> },
+    { id: "gas-equipment", name: "Gas Equipment CP7", icon: <Cylinder className="h-8 w-8" /> },
+    { id: "safety-equipment", name: "Safety Equipment", icon: <HardHat className="h-8 w-8" /> },
+    { id: "torque-wrench", name: "Torque Wrench", icon: <Circle className="h-8 w-8" /> },
+    { id: "clean-air", name: "Clean Air", icon: <Cloud className="h-8 w-8" /> },
+    { id: "tank-inspection", name: "Tank Inspection", icon: <Flame className="h-8 w-8" /> },
+  ];
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-6">
+        <div className="flex items-center mb-6">
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => navigate(`/admin/customer/${customerId}`)}
+            className="mr-4"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <h1 className="text-2xl font-bold">Loading...</h1>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="bg-card rounded-lg border border-border/50 p-6 space-y-6">
-        <Button
-          variant="outline"
-          onClick={() => navigate("/admin")}
-          className="mb-4 gap-2 -ml-2 bg-muted hover:bg-muted/80"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </Button>
-
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Equipment Types</h2>
-          <p className="text-muted-foreground mt-2">
-            Select an equipment type to view or manage
-          </p>
+    <div className="bg-[#f5f5f5] min-h-screen -mt-6 -mx-4 px-4 pt-6">
+      <div className="container mx-auto py-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div className="flex items-center">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => navigate(`/admin/customer/${customerId}`)}
+              className="mr-4"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold">Equipment Types</h1>
+              {customer && (
+                <p className="text-muted-foreground">{customer.company_name}</p>
+              )}
+            </div>
+          </div>
         </div>
-
-        <EquipmentTypeNav customerId={customerId} />
+        
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {equipmentTypes.map((type) => (
+            <Button
+              key={type.id}
+              variant="outline"
+              className="h-auto py-6 flex flex-col items-center justify-center gap-3 bg-white hover:bg-gray-50"
+              onClick={type.onClick || (() => navigate(`/admin/customer/${customerId}/equipment/${type.id}`))}
+            >
+              {type.icon}
+              <span>{type.name}</span>
+            </Button>
+          ))}
+        </div>
       </div>
     </div>
   );
 }
+
+export default EquipmentTypes;

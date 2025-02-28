@@ -3,16 +3,15 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { ServiceRecordsTable } from "@/components/service/components/ServiceRecordsTable";
-import { AddServiceCertificateModal } from "@/components/service/components/AddServiceCertificateModal";
+import { AddServiceButton } from "@/components/service/AddServiceButton";
 import { toast } from "sonner";
 
 export function AdminService() {
   // Get the customerId from URL params
   const { customerId } = useParams<{ customerId: string }>();
   const navigate = useNavigate();
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   
   console.log("AdminService - customerId:", customerId);
   
@@ -81,13 +80,8 @@ export function AdminService() {
           </Button>
           <h1 className="text-3xl font-bold">{customer?.company_name || "Customer"} Service Records</h1>
         </div>
-        <Button 
-          onClick={() => setIsAddModalOpen(true)}
-          className="bg-primary text-primary-foreground hover:bg-primary/90"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Certificate
-        </Button>
+        
+        <AddServiceButton customerId={customerId || ""} />
       </div>
 
       <div className="bg-card p-6 rounded-lg border border-border/50">
@@ -99,12 +93,6 @@ export function AdminService() {
           </div>
         )}
       </div>
-      
-      <AddServiceCertificateModal 
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        customerId={customerId || ""}
-      />
     </div>
   );
 }

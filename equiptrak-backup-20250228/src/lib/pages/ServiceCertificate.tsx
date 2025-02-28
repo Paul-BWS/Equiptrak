@@ -4,11 +4,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { CertificateHeader } from '@/components/service/certificate/CertificateHeader';
 import { CertificateCustomerInfo } from '@/components/service/certificate/CertificateCustomerInfo';
-import { CertificateFooter } from '@/components/service/certificate/CertificateFooter';
 import { PrintControls } from '@/components/service/certificate/layout/PrintControls';
 import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { CertificateEquipment } from '@/components/service/certificate/CertificateEquipment';
 
 export default function ServiceCertificate() {
   const { serviceId, customerId } = useParams();
@@ -115,36 +113,40 @@ export default function ServiceCertificate() {
         className="print:hidden sticky top-0 z-10 mb-6 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
       />
       <div className="print:absolute print:inset-0 print:m-0 print:p-0 print:w-[210mm] print:h-[297mm] print:overflow-hidden">
-        <div className="w-[210mm] h-[297mm] bg-white text-black p-[12mm] print:p-[12mm] mx-auto">
-          <CertificateHeader certificateNumber={serviceRecord.certificate_number} />
+        <div className="w-[210mm] h-[297mm] bg-white text-black p-[12mm] print:p-[12mm] mx-auto flex flex-col">
+          {/* Header section */}
+          <div className="flex-none">
+            <CertificateHeader certificateNumber={serviceRecord.certificate_number} />
 
-          <div className="grid grid-cols-2 gap-8 mb-8 mt-6">
-            <CertificateCustomerInfo
-              companyName={serviceRecord.company?.company_name}
-              address={serviceRecord.company?.address}
-              city={serviceRecord.company?.city}
-              postcode={serviceRecord.company?.postcode}
-            />
-            <div>
-              <h2 className="text-lg font-semibold text-blue-600 mb-4">Service Information</h2>
-              <div className="space-y-2">
-                <div className="grid grid-cols-2">
-                  <span className="font-medium">Test Date:</span>
-                  <span>{new Date(serviceRecord.test_date).toLocaleDateString()}</span>
-                </div>
-                <div className="grid grid-cols-2">
-                  <span className="font-medium">Retest Date:</span>
-                  <span>{new Date(serviceRecord.retest_date).toLocaleDateString()}</span>
-                </div>
-                <div className="grid grid-cols-2">
-                  <span className="font-medium">Engineer:</span>
-                  <span>{serviceRecord.engineer_name}</span>
+            <div className="grid grid-cols-2 gap-8 mb-8 mt-6">
+              <CertificateCustomerInfo
+                companyName={serviceRecord.company?.company_name}
+                address={serviceRecord.company?.address}
+                city={serviceRecord.company?.city}
+                postcode={serviceRecord.company?.postcode}
+              />
+              <div>
+                <h2 className="text-lg font-semibold text-blue-600 mb-4">Service Information</h2>
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2">
+                    <span className="font-medium">Test Date:</span>
+                    <span>{new Date(serviceRecord.test_date).toLocaleDateString()}</span>
+                  </div>
+                  <div className="grid grid-cols-2">
+                    <span className="font-medium">Retest Date:</span>
+                    <span>{new Date(serviceRecord.retest_date).toLocaleDateString()}</span>
+                  </div>
+                  <div className="grid grid-cols-2">
+                    <span className="font-medium">Engineer:</span>
+                    <span>{serviceRecord.engineer_name}</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="mb-8">
+          {/* Equipment section - will expand as needed */}
+          <div className="flex-grow">
             <h2 className="text-lg font-semibold text-blue-600 mb-4">Equipment</h2>
             <table className="w-full border-collapse">
               <thead>
@@ -172,7 +174,31 @@ export default function ServiceCertificate() {
             </table>
           </div>
 
-          <CertificateFooter notes={serviceRecord.notes || "Equipment has been tested in accordance with the Electricity at Work Regulations 1989 and is safe for use until the retest date shown."} />
+          {/* Footer section - always at bottom */}
+          <div className="flex-none mt-auto">
+            <div className="border-t border-gray-300 pt-6 mt-6">
+              <div className="grid grid-cols-2 gap-8">
+                <div>
+                  <h2 className="text-lg font-semibold text-blue-600 mb-4">Declaration</h2>
+                  <p className="text-sm">
+                    I hereby certify that the equipment listed above has been tested in accordance with 
+                    the Electricity at Work Regulations 1989 and is safe for use until the retest date shown.
+                  </p>
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-blue-600 mb-4">Signature</h2>
+                  <div className="h-16 border-b border-gray-300"></div>
+                  <p className="mt-2 text-sm">Authorized Engineer</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="text-sm text-center text-gray-500 mt-8">
+              <p className="font-semibold">BWS Electrical Services Ltd</p>
+              <p>Unit 1, Riverside Industrial Estate, Littlehampton, West Sussex, BN17 5DF</p>
+              <p>Tel: 01903 734 343 | Email: info@bwselectrical.co.uk</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

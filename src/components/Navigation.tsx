@@ -11,8 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ThemeToggle } from "./ThemeToggle";
-import { Users, Settings, LogOut, Wrench, MessageSquare, UserCircle, ClipboardList, Home, Plus } from "lucide-react";
+import { Users, Settings, LogOut, Wrench, MessageSquare, UserCircle, ClipboardList, Home, Plus, ClipboardCheck } from "lucide-react";
 import { toast } from "sonner";
 import { useTheme } from "./theme-provider";
 import { CustomerDialogs } from "./CustomerDialogs";
@@ -87,8 +86,6 @@ export function Navigation() {
           </div>
           
           <div className="flex items-center gap-4">
-            <ThemeToggle />
-            
             <Button 
               variant="ghost" 
               size="sm"
@@ -135,7 +132,7 @@ export function Navigation() {
           </div>
           
           <div className="flex items-center gap-4">
-            <ThemeToggle />
+            {/* Removed ThemeToggle component */}
             
             {/* Desktop Sign Out */}
             <div className="hidden md:flex items-center gap-2">

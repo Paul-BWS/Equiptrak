@@ -17,10 +17,10 @@ import {
   AlertTriangle,
   Cylinder,
   Shield,
-  Scale,
+  Scale
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { cn } from "@/lib/utils";
+import { Link } from "react-router-dom";
 
 interface EquipmentTypeNavProps {
   customerId?: string;
@@ -33,9 +33,9 @@ export function EquipmentTypeNav({ customerId }: EquipmentTypeNavProps) {
   const equipmentTypes = [
     { icon: Wrench, label: "Service", path: `${basePath}/service` },
     { icon: Flame, label: "Spot Welder", path: `${basePath}/spot-welders` },
-    { icon: AirVent, label: "Compressor", path: `${basePath}/compressors` },
+    { icon: AirVent, label: "Compressor", path: `${basePath}/equipment/compressors` },
     { icon: Zap, label: "Welder Validation", path: `${basePath}/equipment/welder-validation` },
-    { icon: Hammer, label: "Rivet Tools", path: `${basePath}/rivet-tools` },
+    { icon: Hammer, label: "Rivet Tools", path: `${basePath}/equipment/rivet-tools` },
     { icon: Fan, label: "Air Con Machines", path: `${basePath}/equipment/air-con` },
     { icon: PaintBucket, label: "Paint Scales", path: `${basePath}/equipment/paint-scales` },
     { icon: Car, label: "Tyres Gauge", path: `${basePath}/equipment/tyres-gauge` },
@@ -54,33 +54,34 @@ export function EquipmentTypeNav({ customerId }: EquipmentTypeNavProps) {
     { icon: Scale, label: "LOLER", path: `${basePath}/loler` },
   ];
 
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {equipmentTypes.map((type) => {
-        const Icon = type.icon;
-        return (
-          <div
-            key={type.path}
-            onClick={() => navigate(type.path)}
-            className={cn(
-              "group relative",
-              "bg-background hover:bg-accent dark:bg-muted dark:hover:bg-accent",
-              "rounded-xl border border-border hover:border-primary",
-              "p-6 cursor-pointer transition-all duration-300",
-              "flex flex-col items-center justify-center gap-4",
-              "min-h-[200px]",
-              "shadow-sm hover:shadow-md hover:-translate-y-1"
-            )}
-          >
-            <Icon 
-              className="w-16 h-16 text-muted-foreground group-hover:text-primary transition-colors duration-300" 
-              strokeWidth={1.5} 
-            />
+  // Function to render the icon with the correct color
+  const renderColoredIcon = (IconComponent: any) => {
+    return (
+      <div style={{ color: "#7b96d4" }}>
+        <IconComponent 
+          size={32} 
+          color="#7b96d4" 
+          style={{ 
+            color: "#7b96d4", 
+            stroke: "#7b96d4" 
+          }} 
+        />
+      </div>
+    );
+  };
 
-            <span className="text-lg font-medium text-center text-muted-foreground group-hover:text-primary transition-colors duration-300">
-              {type.label}
-            </span>
-          </div>
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      {equipmentTypes.map((type) => {
+        return (
+          <Link
+            key={type.path}
+            to={type.path}
+            className="flex flex-col items-center justify-center p-6 bg-white rounded-lg border hover:shadow-md transition-shadow"
+          >
+            {renderColoredIcon(type.icon)}
+            <span className="mt-2 text-center text-muted-foreground">{type.label}</span>
+          </Link>
         );
       })}
     </div>

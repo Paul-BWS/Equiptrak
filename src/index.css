@@ -4,7 +4,7 @@
  
 @layer base {
   :root {
-    --background: 0 0% 98%; /* Light grey background */
+    --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
@@ -27,25 +27,25 @@
   }
  
   .dark {
-    --background: 222.2 84% 4.9%;
+    --background: 215 10% 14%; /* #1D2125 */
     --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
+    --card: 214 9% 15%; /* #1E2227 */
     --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
+    --popover: 215 10% 14%; /* #1D2125 */
     --popover-foreground: 210 40% 98%;
-    --primary: 84 70% 62%; /* #a6e15a - Green for dark mode */
+    --primary: 222 60% 66%; /* #7b96d4 - Blue for dark mode too */
     --primary-foreground: 210 40% 98%;
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 358 100% 68%; /* #FD7575 */
     --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
+    --muted: 217 10% 18%;
     --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
+    --accent: 217 10% 18%;
     --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 84 70% 62%; /* Match primary */
+    --border: 217 10% 25%;
+    --input: 217 10% 25%;
+    --ring: 222 60% 66%; /* Match primary */
   }
 
   @media print {
@@ -258,4 +258,34 @@
     overflow: hidden;
     margin-bottom: 0.75rem;
   }
+}
+
+/* Custom button styles for dark mode */
+.dark .bg-primary {
+  background-color: #7b96d4;
+  color: #1D2125;
+}
+
+.dark .bg-secondary {
+  background-color: #FD7575;
+  color: white;
+}
+
+.dark .bg-card, 
+.dark .bg-white {
+  background-color: #1E2227;
+}
+
+/* Ensure text is readable on the green buttons */
+.dark .text-primary-foreground {
+  color: #1D2125;
+}
+
+/* Hover states */
+.dark .hover\:bg-primary\/90:hover {
+  background-color: #95cb51;
+}
+
+.dark .hover\:bg-secondary\/90:hover {
+  background-color: #e66969;
 }

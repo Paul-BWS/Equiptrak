@@ -1,5 +1,5 @@
 import { useForm } from "react-hook-form";
-import { format, addYears, addDays } from "date-fns";
+import { format, addDays } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,7 +8,6 @@ import { ServiceRecord } from "@/types/database";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ServiceEngineerSelect } from "@/components/service/components/ServiceEngineerSelect";
-import { useTheme } from "@/components/theme-provider";
 import { useQueryClient } from "@tanstack/react-query";
 import { getStatus } from "@/utils/serviceStatus";
 
@@ -48,7 +47,6 @@ export function ViewServiceForm({
   onSuccess,
   onCancel
 }: ViewServiceFormProps) {
-  const { theme } = useTheme();
   const queryClient = useQueryClient();
   const { register, handleSubmit, setValue, watch } = useForm<FormValues>({
     defaultValues: {
@@ -129,37 +127,16 @@ export function ViewServiceForm({
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* Header Section */}
-      <div className="p-4 rounded-lg bg-card border border-border/50">
-        <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label className="text-[#94a3b8] font-medium">Certificate Number</Label>
-              <div className="p-2 bg-muted rounded-md font-mono">
-                {serviceRecord.certificate_number}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-[#94a3b8] font-medium">Test Date</Label>
-              <Input
-                type="date"
-                {...register("test_date")}
-                onChange={handleTestDateChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-[#94a3b8] font-medium">Retest Date</Label>
-              <Input
-                type="date"
-                value={format(retestDate, "yyyy-MM-dd")}
-                disabled
-              />
-            </div>
-          </div>
-
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 p-4">
+      {/* Certificate and Engineer Section */}
+      <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+        <div className="grid grid-cols-2 gap-6">
           <div className="space-y-2">
-            <Label className="text-[#94a3b8] font-medium">Engineer</Label>
+            <Label className="text-gray-500 font-medium">Certificate Number</Label>
+            <div className="font-medium text-lg">{serviceRecord.certificate_number}</div>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-gray-500 font-medium">Engineer Name</Label>
             <ServiceEngineerSelect
               selectedEngineer={watch("engineer_name")}
               setSelectedEngineer={(value) => setValue("engineer_name", value)}
@@ -167,60 +144,72 @@ export function ViewServiceForm({
             />
           </div>
         </div>
-      </div>
-
-      {/* Equipment Section */}
-      <div className="p-4 rounded-lg bg-card border border-border/50">
-        <h3 className="text-lg font-medium mb-4 text-[#94a3b8]">Equipment Details</h3>
-        <div className="grid grid-cols-1 gap-4">
-          {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
-            <div key={num} className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-[#94a3b8] font-medium">Equipment {num} Name</Label>
-                <Input
-                  {...register(`equipment${num}_name` as keyof FormValues)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-[#94a3b8] font-medium">Serial Number</Label>
-                <Input
-                  {...register(`equipment${num}_serial` as keyof FormValues)}
-                />
-              </div>
-            </div>
-          ))}
+        
+        <div className="grid grid-cols-2 gap-6 mt-6">
+          <div className="space-y-2">
+            <Label className="text-gray-500 font-medium">Test Date</Label>
+            <Input
+              type="date"
+              {...register("test_date")}
+              onChange={handleTestDateChange}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-gray-500 font-medium">Retest Date</Label>
+            <Input
+              type="date"
+              value={format(retestDate, "yyyy-MM-dd")}
+              disabled
+              className="bg-gray-50"
+            />
+          </div>
         </div>
       </div>
-
+      
+      {/* Equipment Details Section */}
+      <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+        <h3 className="text-lg font-medium mb-4">Equipment Details</h3>
+        
+        {/* Single header for all equipment */}
+        <div className="grid grid-cols-2 gap-6 mb-2">
+          <div className="font-medium text-gray-500">Name</div>
+          <div className="font-medium text-gray-500">Serial</div>
+        </div>
+        
+        {/* Equipment 1-8 */}
+        {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
+          <div key={num} className="grid grid-cols-2 gap-6 py-2 border-t border-gray-100">
+            <Input
+              {...register(`equipment${num}_name` as keyof FormValues)}
+              placeholder={`Equipment ${num}`}
+            />
+            <Input
+              {...register(`equipment${num}_serial` as keyof FormValues)}
+              placeholder="Serial Number"
+            />
+          </div>
+        ))}
+      </div>
+      
       {/* Notes Section */}
-      <div className="p-4 rounded-lg bg-card border border-border/50">
-        <div className="space-y-2">
-          <Label className="text-[#94a3b8] font-medium">Notes</Label>
-          <Textarea
-            {...register("notes")}
-            className="min-h-[100px] resize-none"
-          />
-        </div>
+      <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+        <Label className="text-gray-500 font-medium mb-2 block">Status</Label>
+        <div className="font-medium mb-4">{serviceRecord.status}</div>
+        
+        <Label className="text-gray-500 font-medium mb-2 block">Notes</Label>
+        <Textarea
+          {...register("notes")}
+          className="min-h-[100px] resize-none"
+        />
       </div>
-
-      {/* Footer */}
-      <div className="flex justify-end gap-4">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-        >
-          Cancel
-        </Button>
+      
+      {/* Footer with save button */}
+      <div className="flex justify-end space-x-4 mt-6">
         <Button 
           type="submit"
-          style={{ 
-            backgroundColor: theme === 'dark' ? '#a6e15a' : '#FFFFFF',
-            color: theme === 'dark' ? '#1a1a1a' : '#000000',
-            border: theme === 'light' ? '1px solid #e2e8f0' : 'none'
-          }}
+          className="bg-blue-600 hover:bg-blue-700 text-white"
         >
-          Save Changes
+          Save
         </Button>
       </div>
     </form>

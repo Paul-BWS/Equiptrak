@@ -6,6 +6,7 @@ import Dashboard from "@/pages/Dashboard";
 import Admin from "@/pages/Admin";
 import AdminService from "@/pages/AdminService";
 import AdminCustomerDetails from "@/pages/AdminCustomerDetails";
+import { EquipmentTypes } from "@/pages/EquipmentTypes";
 import NotFound from "@/pages/NotFound";
 import { Toaster } from "@/components/ui/toaster";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -25,8 +26,9 @@ function App() {
             <Route element={<Layout />}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
-              <Route path="/admin/service/:customerId" element={<AdminRoute><AdminService /></AdminRoute>} />
               <Route path="/admin/customer/:customerId" element={<AdminRoute><AdminCustomerDetails /></AdminRoute>} />
+              <Route path="/admin/customer/:customerId/equipment-types" element={<AdminRoute><EquipmentTypes /></AdminRoute>} />
+              <Route path="/admin/service/:customerId" element={<AdminRoute><AdminService /></AdminRoute>} />
               <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>

@@ -36,11 +36,11 @@ export function AddServiceModal({
           Add Service
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl bg-gray-100">
+        <DialogHeader className="bg-white p-4 rounded-t-lg border border-gray-200">
           <DialogTitle>Add Service Record</DialogTitle>
           <DialogDescription>
-            Add up to 6 pieces of equipment to this service record.
+            Add a new service record to the system
           </DialogDescription>
         </DialogHeader>
         <AddServiceForm
