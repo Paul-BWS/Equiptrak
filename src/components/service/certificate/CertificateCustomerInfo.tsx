@@ -1,26 +1,29 @@
-interface CustomerInfoProps {
-  companyName?: string | null;
-  address?: string | null;
-  city?: string | null;
-  postcode?: string | null;
+interface CertificateCustomerInfoProps {
+  companyName?: string;
+  address?: string;
+  city?: string;
+  postcode?: string;
 }
 
 export function CertificateCustomerInfo({ 
   companyName, 
   address, 
   city, 
-  postcode
-}: CustomerInfoProps) {
+  postcode 
+}: CertificateCustomerInfoProps) {
   return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold text-blue-600">Customer</h2>
-      <div className="space-y-2">
-        <p className="text-base font-medium">{companyName}</p>
-        <div className="text-sm text-gray-600">
-          <p>{address}</p>
-          <p>{city}</p>
-          <p>{postcode}</p>
-        </div>
+    <div>
+      <h3 className="text-lg font-bold mb-2">Customer</h3>
+      <div className="space-y-1">
+        {companyName && <p className="font-medium">{companyName}</p>}
+        {address && <p>{address}</p>}
+        {city && <p>{city}</p>}
+        {postcode && <p>{postcode}</p>}
+        
+        {/* Display a message if no company details are available */}
+        {!companyName && !address && !city && !postcode && (
+          <p className="text-gray-500 italic">No customer details available</p>
+        )}
       </div>
     </div>
   );

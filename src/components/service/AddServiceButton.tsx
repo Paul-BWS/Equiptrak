@@ -30,7 +30,13 @@ const ENGINEERS = [
   "Fernando Goulart"
 ];
 
-export function AddServiceButton({ customerId }: { customerId: string }) {
+interface AddServiceButtonProps {
+  customerId: string;
+  className?: string;
+  children?: React.ReactNode;
+}
+
+export function AddServiceButton({ customerId, className, children }: AddServiceButtonProps) {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -197,10 +203,14 @@ export function AddServiceButton({ customerId }: { customerId: string }) {
           setOpen(true);
           generateCertificateNumber();
         }}
-        className="bg-[#7b96d4] hover:bg-[#6a85c3] text-white gap-2"
+        className={`bg-[#7b96d4] hover:bg-[#6a85c3] text-white ${className}`}
       >
-        <Plus className="h-4 w-4" />
-        Add Service
+        {children || (
+          <>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Service Record
+          </>
+        )}
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>

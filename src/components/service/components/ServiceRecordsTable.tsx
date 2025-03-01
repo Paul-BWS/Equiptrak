@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ClipboardCheck, Trash2, Eye, Calendar, User, RefreshCw } from "lucide-react";
+import { ClipboardCheck, Trash2, Eye, Calendar, User, RefreshCw, FileText, Printer } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -134,7 +134,6 @@ export function ServiceRecordsTable({ customerId, searchQuery = "" }: ServiceRec
 
   return (
     <div className="space-y-4">
-      <div className="bg-red-500 text-white p-4 text-center">TEST CHANGE - REMOVE ME</div>
       <div className="grid grid-cols-1 gap-4">
         {filteredRecords.map((record) => (
           <div 
@@ -205,12 +204,19 @@ export function ServiceRecordsTable({ customerId, searchQuery = "" }: ServiceRec
                     size="icon"
                     onClick={(e) => {
                       e.stopPropagation(); // Prevent triggering the row click
-                      navigate(`/admin/service/${record.id}/edit`);
+                      console.log("Certificate button clicked for record:", record);
+                      console.log("Record ID:", record.id);
+                      console.log("Navigating to:", `/certificate/${record.id}`);
+                      
+                      // Try to navigate with a timeout to see if that helps
+                      setTimeout(() => {
+                        navigate(`/certificate/${record.id}`);
+                      }, 100);
                     }}
                     style={iconButtonStyle}
                   >
-                    <ClipboardCheck className="h-4 w-4" />
-                    <span className="sr-only">Edit</span>
+                    <Printer className="h-4 w-4" />
+                    <span className="sr-only">View Certificate</span>
                   </Button>
                   <Button 
                     variant="outline" 

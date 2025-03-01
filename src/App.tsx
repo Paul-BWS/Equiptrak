@@ -1,18 +1,20 @@
 import { Routes, Route } from "react-router-dom";
 import { Layout } from "@/components/Layout";
-import { AdminRoute } from "@/components/AdminRoute";
 import Login from "@/pages/Login";
-import Dashboard from "@/pages/Dashboard";
-import Admin from "@/pages/Admin";
-import AdminService from "@/pages/AdminService";
-import AdminCustomerDetails from "@/pages/AdminCustomerDetails";
+import { AdminPage } from "@/pages/AdminPage";
+import { AdminCustomerDetails } from "@/pages/AdminCustomerDetails";
 import { EquipmentTypes } from "@/pages/EquipmentTypes";
+import AdminService from "@/pages/AdminService";
 import NotFound from "@/pages/NotFound";
 import { Toaster } from "@/components/ui/toaster";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/components/theme-provider";
-import CustomerDetailsPage from "@/pages/CustomerDetailsPage";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import ServiceCertificate from "@/pages/ServiceCertificate";
+import ServiceCertificatePage from "@/pages/ServiceCertificatePage";
+import EditServicePage from "@/pages/EditServicePage";
+import QRCodePrintPage from "@/pages/QRCodePrintPage";
 
 const queryClient = new QueryClient();
 
@@ -21,19 +23,23 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="system" storageKey="ui-theme">
         <AuthProvider>
-          <Routes>
-            <Route path="/" element={<Login />} />
-            <Route path="/login" element={<Login />} />
-            <Route element={<Layout />}>
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
-              <Route path="/admin/customer/:customerId" element={<AdminRoute><AdminCustomerDetails /></AdminRoute>} />
-              <Route path="/admin/customer/:customerId/equipment-types" element={<AdminRoute><EquipmentTypes /></AdminRoute>} />
-              <Route path="/admin/service/:customerId" element={<AdminRoute><AdminService /></AdminRoute>} />
-              <Route path="*" element={<NotFound />} />
-            </Route>
-          </Routes>
-          <Toaster />
+          <div className="min-h-screen bg-background">
+            <Routes>
+              <Route path="/" element={<Login />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/certificate/:recordId" element={<ServiceCertificatePage />} />
+              <Route path="/certificate/:recordId/qr" element={<QRCodePrintPage />} />
+              <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+                <Route path="/admin" element={<AdminPage />} />
+                <Route path="/admin/customer/:customerId" element={<AdminCustomerDetails />} />
+                <Route path="/admin/customer/:customerId/equipment-types" element={<EquipmentTypes />} />
+                <Route path="/admin/service/:customerId" element={<AdminService />} />
+                <Route path="/admin/service/:recordId/edit" element={<EditServicePage />} />
+                <Route path="*" element={<NotFound />} />
+              </Route>
+            </Routes>
+            <Toaster />
+          </div>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>

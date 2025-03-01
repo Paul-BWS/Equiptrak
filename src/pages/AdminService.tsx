@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Plus } from "lucide-react";
 import { ServiceRecordsTable } from "@/components/service/components/ServiceRecordsTable";
 import { AddServiceButton } from "@/components/service/AddServiceButton";
 import { toast } from "sonner";
@@ -13,7 +13,9 @@ export function AdminService() {
   const { customerId } = useParams<{ customerId: string }>();
   const navigate = useNavigate();
   
-  console.log("AdminService - customerId:", customerId);
+  useEffect(() => {
+    console.log("AdminService - customerId:", customerId);
+  }, [customerId]);
   
   // Fetch customer data
   const { data: customer, error: customerError, isLoading: isCustomerLoading } = useQuery({
@@ -67,21 +69,17 @@ export function AdminService() {
   
   // Render the service page
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => navigate(`/admin`)}
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-          <h1 className="text-3xl font-bold">{customer?.company_name || "Customer"} Service Records</h1>
-        </div>
-        
-        <AddServiceButton customerId={customerId || ""} />
+    <div className="container mx-auto py-6 space-y-6 relative pb-20">
+      <div className="flex items-center gap-4">
+        <Button 
+          variant="primaryBlue"
+          size="icon"
+          onClick={() => navigate(`/admin/customer/${customerId}`)}
+          className="mr-4"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <h1 className="text-3xl font-bold">Service Records</h1>
       </div>
 
       <div className="bg-card p-6 rounded-lg border border-border/50">
@@ -92,6 +90,16 @@ export function AdminService() {
             Error: No customer ID provided
           </div>
         )}
+      </div>
+      
+      {/* Floating Action Button */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <AddServiceButton 
+          customerId={customerId || ""} 
+          className="h-14 w-14 rounded-full shadow-lg p-0"
+        >
+          <Plus className="h-6 w-6" />
+        </AddServiceButton>
       </div>
     </div>
   );

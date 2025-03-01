@@ -11,56 +11,60 @@ import { CertificateFooter } from '@/components/service/certificate/CertificateF
 import { PrintControls } from '@/components/service/certificate/layout/PrintControls';
 
 export default function ServiceCertificatePage() {
-  const { serviceId } = useParams();
+  const { recordId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const { data: serviceRecord, isLoading, error } = useQuery({
-    queryKey: ['serviceRecord', serviceId],
+    queryKey: ['serviceRecord', recordId],
     queryFn: async () => {
-      console.log('Attempting to fetch service record with ID:', serviceId);
+      console.log('Attempting to fetch service record with ID:', recordId);
       
-      if (!serviceId) {
-        console.error('No serviceId provided');
+      if (!recordId) {
+        console.error('No recordId provided');
         throw new Error('No service ID provided');
       }
 
-      const { data, error } = await supabase
+      // First, get the service record
+      const { data: serviceData, error: serviceError } = await supabase
         .from('service_records')
-        .select(`
-          *,
-          engineers (
-            name
-          ),
-          equipment (
-            customer_id,
-            profiles (
-              company_name,
-              email,
-              address,
-              city,
-              postcode
-            )
-          )
-        `)
-        .eq('id', serviceId)
-        .maybeSingle();
+        .select('*')
+        .eq('id', recordId)
+        .single();
 
-      if (error) {
-        console.error('Supabase error:', error);
-        throw error;
+      if (serviceError) {
+        console.error('Supabase error fetching service record:', serviceError);
+        throw serviceError;
       }
 
-      if (!data) {
-        console.error('No data found for serviceId:', serviceId);
+      if (!serviceData) {
+        console.error('No service record found for recordId:', recordId);
         throw new Error('Service record not found');
       }
 
-      console.log('Successfully fetched service record:', data);
-      return data;
+      // Then, get the company details
+      const { data: companyData, error: companyError } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('id', serviceData.company_id)
+        .single();
+
+      if (companyError) {
+        console.error('Supabase error fetching company:', companyError);
+        // Don't throw here, we'll just return the service data without company info
+      }
+
+      // Combine the data
+      const combinedData = {
+        ...serviceData,
+        companies: companyData || null
+      };
+
+      console.log('Successfully fetched service record with company data:', combinedData);
+      return combinedData;
     },
     retry: 1,
-    enabled: !!serviceId,
+    enabled: !!recordId,
   });
 
   const handlePrint = () => {
@@ -68,13 +72,17 @@ export default function ServiceCertificatePage() {
   };
 
   const handleBack = () => {
-    // Navigate back to the customer's service list using the customer_id from the equipment
-    if (serviceRecord?.equipment?.customer_id) {
-      navigate(`/admin/customer/${serviceRecord.equipment.customer_id}/service`);
+    // Navigate back to the customer's service list using the company_id
+    if (serviceRecord?.company_id) {
+      navigate(`/admin/service/${serviceRecord.company_id}`);
     } else {
-      // Fallback to the main service list if no customer_id is available
-      navigate('/admin/service');
+      // Fallback to the main service list if no company_id is available
+      navigate('/admin');
     }
+  };
+
+  const handlePrintQR = () => {
+    navigate(`/certificate/${recordId}/qr`);
   };
 
   if (error) {
@@ -97,43 +105,54 @@ export default function ServiceCertificatePage() {
     return <div>Certificate not found</div>;
   }
 
+  console.log('Rendering certificate with data:', {
+    companyName: serviceRecord.companies?.company_name,
+    address: serviceRecord.companies?.address,
+    city: serviceRecord.companies?.city,
+    postcode: serviceRecord.companies?.postcode,
+    engineerName: serviceRecord.engineer_name
+  });
+
   return (
     <div className="min-h-screen print:min-h-0 print:h-auto print:bg-white bg-background">
       <PrintControls 
         onBack={handleBack}
         onPrint={handlePrint}
-        customerEmail={serviceRecord.equipment?.profiles?.email}
+        onPrintQR={handlePrintQR}
         certificateNumber={serviceRecord.certificate_number}
-        customerName={serviceRecord.equipment?.profiles?.company_name}
+        customerName={serviceRecord.companies?.company_name}
         equipmentName="Service Equipment"
         className="print:hidden sticky top-0 z-10 mb-6 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
       />
       <div className="print:absolute print:inset-0 print:m-0 print:p-0 print:w-[210mm] print:h-[297mm] print:overflow-hidden">
-        <div className="w-[210mm] h-[297mm] bg-white text-black p-[12mm] print:p-[12mm] mx-auto flex flex-col">
+        <div className="w-[210mm] h-[297mm] bg-white text-black p-[15mm] print:p-[15mm] mx-auto flex flex-col">
           <div className="flex-1">
             <CertificateHeader certificateNumber={serviceRecord.certificate_number} />
 
             <div className="grid grid-cols-2 gap-8 mb-8 mt-6">
               <CertificateCustomerInfo
-                companyName={serviceRecord.equipment?.profiles?.company_name}
-                address={serviceRecord.equipment?.profiles?.address}
-                city={serviceRecord.equipment?.profiles?.city}
-                postcode={serviceRecord.equipment?.profiles?.postcode}
+                companyName={serviceRecord.companies?.company_name}
+                address={serviceRecord.companies?.address}
+                city={serviceRecord.companies?.city}
+                postcode={serviceRecord.companies?.postcode}
               />
               <CertificateServiceInfo
                 testDate={serviceRecord.test_date}
                 retestDate={serviceRecord.retest_date}
-                engineerName={serviceRecord.engineers?.name}
+                engineerName={serviceRecord.engineer_name}
               />
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-6 max-w-3xl mx-auto">
               <CertificateEquipment serviceRecord={serviceRecord} />
               <CertificateStandardTests />
             </div>
           </div>
 
-          <CertificateFooter notes={serviceRecord.notes} />
+          <CertificateFooter 
+            notes={serviceRecord.notes} 
+            certificateId={recordId || ''} 
+          />
         </div>
       </div>
     </div>

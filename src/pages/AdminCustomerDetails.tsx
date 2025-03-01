@@ -2,7 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FileText, User, Trash2, MessageSquare, MapPin, Wrench, Phone, Mail, ClipboardList, ClipboardCheck, Plus } from "lucide-react";
+import { ArrowLeft, FileText, User, Trash2, MessageSquare, MapPin, Wrench, Phone, Mail, ClipboardList, ClipboardCheck, Plus, Search, PencilRuler, Pencil, Trash } from "lucide-react";
 import { useState, useEffect } from "react";
 import { CustomerDialogs } from "@/components/CustomerDialogs";
 import { useToast } from "@/hooks/use-toast";
@@ -10,6 +10,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { EquipmentList } from "@/components/equipment/EquipmentList";
+import { ServiceRecordsTable } from "@/components/service/components/ServiceRecordsTable";
 
 export function AdminCustomerDetails() {
   const { customerId } = useParams<{ customerId: string }>();
@@ -19,6 +21,7 @@ export function AdminCustomerDetails() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("details");
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Check if the screen is mobile size
   useEffect(() => {
@@ -108,58 +111,80 @@ export function AdminCustomerDetails() {
   }
 
   return (
-    <div className="bg-[#f5f5f5] min-h-screen -mt-6 -mx-4 px-4 pt-6">
+    <div className="bg-[#f5f5f5] min-h-screen -mt-6 -mx-4 px-4 pt-6 pb-20 md:pb-6 relative">
       <div className="container mx-auto py-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div className="flex items-center">
             <Button 
-              variant="ghost" 
+              variant="primaryBlue"
               size="icon"
               onClick={() => navigate("/admin")}
               className="mr-4"
             >
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeft className="h-5 w-5" />
             </Button>
             <h1 className="text-[24px] font-bold">{customer.company_name}</h1>
           </div>
           
-          <div className="flex items-center gap-2">
+          {/* Desktop buttons - hidden on mobile */}
+          <div className="hidden md:flex items-center gap-2">
             <Button 
-              variant="outline"
+              variant="primaryBlue"
+              size="icon"
               onClick={() => setIsEditOpen(true)}
-              className="flex items-center gap-2"
             >
-              <ClipboardCheck className="h-4 w-4" />
-              Edit Customer
+              <Pencil className="h-5 w-5" />
             </Button>
             <Button 
-              variant="outline"
+              variant="primaryBlue"
+              size="icon"
               onClick={() => setIsDeleteDialogOpen(true)}
-              className="flex items-center gap-2"
             >
-              <Trash2 className="h-4 w-4" />
-              Delete
+              <Trash className="h-5 w-5" />
             </Button>
           </div>
         </div>
         
-        <Tabs defaultValue="details" className="space-y-4" onValueChange={setActiveTab}>
-          <TabsList className="bg-white border">
-            <TabsTrigger value="details" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <User className="h-4 w-4 mr-2" />
-              Details
+        <Tabs 
+          defaultValue="details" 
+          className="space-y-6"
+          onValueChange={(value) => setActiveTab(value)}
+        >
+          <TabsList className="grid grid-cols-4 mb-6">
+            <TabsTrigger 
+              value="details" 
+              onClick={() => setActiveTab("details")}
+              className="flex flex-col items-center py-2 px-1"
+            >
+              <User className="h-5 w-5 mb-1" />
+              <span className="hidden sm:inline">Details</span>
             </TabsTrigger>
-            <TabsTrigger value="equipment" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <ClipboardList className="h-4 w-4 mr-2" />
-              All Equipment
+            
+            <TabsTrigger 
+              value="equipment" 
+              onClick={() => setActiveTab("equipment")}
+              className="flex flex-col items-center py-2 px-1"
+            >
+              <PencilRuler className="h-5 w-5 mb-1" />
+              <span className="hidden sm:inline">Equipment</span>
             </TabsTrigger>
-            <TabsTrigger value="location" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <MapPin className="h-4 w-4 mr-2" />
-              Location
+            
+            <TabsTrigger 
+              value="service" 
+              onClick={() => setActiveTab("service")}
+              className="flex flex-col items-center py-2 px-1"
+            >
+              <FileText className="h-5 w-5 mb-1" />
+              <span className="hidden sm:inline">Service</span>
             </TabsTrigger>
-            <TabsTrigger value="messages" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <MessageSquare className="h-4 w-4 mr-2" />
-              Messages
+            
+            <TabsTrigger 
+              value="messages" 
+              onClick={() => setActiveTab("messages")}
+              className="flex flex-col items-center py-2 px-1"
+            >
+              <MessageSquare className="h-5 w-5 mb-1" />
+              <span className="hidden sm:inline">Messages</span>
             </TabsTrigger>
           </TabsList>
           
@@ -217,26 +242,11 @@ export function AdminCustomerDetails() {
             </div>
           </TabsContent>
           
-          <TabsContent value="equipment" className="mt-6">
-            <div className="bg-[#f5f5f5] rounded-lg border overflow-hidden">
-              <div className="p-6">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-                  <h2 className="text-xl font-semibold">Equipment</h2>
-                  
-                  <Button 
-                    onClick={() => navigate(`/admin/customer/${customerId}/equipment-types`)}
-                    className="w-full md:w-auto"
-                  >
-                    <ClipboardList className="h-4 w-4 mr-2" />
-                    Equipment Types
-                  </Button>
-                </div>
-                
-                {/* Equipment list will go here */}
-                <div className="bg-white rounded-md p-6 text-center border">
-                  <p className="text-muted-foreground">Equipment list will be displayed here</p>
-                </div>
-              </div>
+          <TabsContent value="equipment" className="space-y-6">
+            <div className="bg-white rounded-lg p-6 shadow-sm">
+              <h2 className="text-xl font-semibold mb-4">Equipment</h2>
+              
+              <EquipmentList customerId={customerId || ""} />
             </div>
           </TabsContent>
           
@@ -297,6 +307,38 @@ export function AdminCustomerDetails() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Mobile buttons - fixed at bottom, hidden on desktop */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t p-4 flex items-center justify-around z-10">
+          <Button 
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsEditOpen(true)}
+            className="h-12 w-12 rounded-full bg-[#f5f5f5]"
+          >
+            <Pencil className="h-5 w-5 text-[#7b96d4]" />
+          </Button>
+          <Button 
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsDeleteDialogOpen(true)}
+            className="h-12 w-12 rounded-full bg-[#f5f5f5]"
+          >
+            <Trash className="h-5 w-5 text-[#7b96d4]" />
+          </Button>
+        </div>
+
+        {/* Floating Action Button for Equipment - only visible in Equipment tab */}
+        {activeTab === "equipment" && (
+          <div className="fixed bottom-6 right-6 z-50">
+            <Button 
+              onClick={() => navigate(`/admin/customer/${customerId}/equipment-types`)}
+              className="h-14 w-14 rounded-full shadow-lg p-0 bg-[#7b96d4] hover:bg-[#6a85c3] text-white"
+            >
+              <Plus className="h-6 w-6" />
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

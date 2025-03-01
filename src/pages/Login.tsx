@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, Lock, Phone, ExternalLink } from "lucide-react";
+import { Mail, Lock, Phone, ExternalLink, Loader2 } from "lucide-react";
 
 export function Login() {
   const [email, setEmail] = useState("");
@@ -88,10 +88,18 @@ export function Login() {
             
             <Button 
               type="submit" 
-              className="w-full bg-[#a6e15a] hover:bg-[#95cc50] text-white"
+              variant="primaryBlue"
+              className="w-full"
               disabled={isLoading}
             >
-              {isLoading ? "Signing in..." : "Sign In"}
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                "Sign In"
+              )}
             </Button>
           </form>
           

@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Printer, Mail, X } from 'lucide-react';
+import { ArrowLeft, Printer, Mail, X, QrCode } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from "@/lib/utils";
@@ -8,6 +8,7 @@ interface PrintControlsProps {
   onBack?: () => void;
   onClose?: () => void;
   onPrint: () => void;
+  onPrintQR?: () => void;
   customerEmail?: string;
   certificateNumber?: string;
   customerName?: string;
@@ -20,6 +21,7 @@ export function PrintControls({
   onBack, 
   onClose,
   onPrint, 
+  onPrintQR,
   customerEmail,
   certificateNumber,
   customerName,
@@ -81,6 +83,12 @@ export function PrintControls({
             </Button>
           )}
           <div className="flex gap-2">
+            {onPrintQR && (
+              <Button variant="outline" size="sm" onClick={onPrintQR} className="flex items-center gap-2">
+                <QrCode className="h-4 w-4" />
+                Print QR
+              </Button>
+            )}
             <Button 
               onClick={onPrint}
               variant="outline"

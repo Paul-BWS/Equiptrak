@@ -6,6 +6,8 @@ import { Eye, Pencil, Trash2, MapPin, Phone } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 
 interface CustomerListProps {
   searchQuery?: string;
@@ -17,7 +19,7 @@ export function CustomerList({ searchQuery = "" }: CustomerListProps) {
   const { toast } = useToast();
 
   const { data: customers, isLoading, refetch } = useQuery({
-    queryKey: ["customers"],
+    queryKey: ["companies"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("companies")
@@ -95,6 +97,19 @@ export function CustomerList({ searchQuery = "" }: CustomerListProps) {
 
   return (
     <div className="space-y-4">
+      <div className="relative max-w-md mb-6">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input 
+          type="search" 
+          placeholder="Search customers..." 
+          className="pl-10"
+          value={searchQuery}
+          onChange={(e) => {
+            // Handle search query change
+          }}
+        />
+      </div>
+
       <div className="grid grid-cols-1 gap-4">
         {filteredCustomers.map((customer) => (
           <div 

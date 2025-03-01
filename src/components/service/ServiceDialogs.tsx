@@ -13,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useQuery } from "@tanstack/react-query";
 
 interface AddServiceDialogProps {
   open: boolean;
@@ -176,6 +177,19 @@ function AddServiceDialog({ open, onOpenChange, customerId, customerName }: AddS
       setIsSubmitting(false);
     }
   };
+
+  const { data: customers } = useQuery({
+    queryKey: ["customers-for-service"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("companies")
+        .select("id, company_name")
+        .order("company_name");
+        
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
