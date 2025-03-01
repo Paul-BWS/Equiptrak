@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Plus, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { CustomerList } from "@/components/CustomerList";
+import { CustomerList } from "@/components/customers/CustomerList";
 import { CustomerDialogs } from "@/components/CustomerDialogs";
 
 export function Admin() {

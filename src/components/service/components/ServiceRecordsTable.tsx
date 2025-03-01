@@ -134,11 +134,13 @@ export function ServiceRecordsTable({ customerId, searchQuery = "" }: ServiceRec
 
   return (
     <div className="space-y-4">
+      <div className="bg-red-500 text-white p-4 text-center">TEST CHANGE - REMOVE ME</div>
       <div className="grid grid-cols-1 gap-4">
         {filteredRecords.map((record) => (
           <div 
             key={record.id} 
-            className="bg-white border rounded-lg overflow-hidden hover:shadow-md transition-shadow"
+            className="bg-white border rounded-lg overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+            onClick={() => setSelectedServiceId(record.id)}
           >
             <div className="p-4">
               <h3 className="text-lg font-medium mb-3">
@@ -146,7 +148,7 @@ export function ServiceRecordsTable({ customerId, searchQuery = "" }: ServiceRec
               </h3>
               
               <div className="flex flex-wrap items-center justify-between">
-                <div className="flex items-center gap-6">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
                   {/* Engineer with icon */}
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4 text-muted-foreground" />
@@ -184,11 +186,15 @@ export function ServiceRecordsTable({ customerId, searchQuery = "" }: ServiceRec
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-2 ml-auto">
+                {/* Only show buttons on desktop */}
+                <div className="hidden sm:flex items-center gap-2 ml-auto">
                   <Button 
                     variant="outline" 
                     size="icon"
-                    onClick={() => setSelectedServiceId(record.id)}
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent triggering the row click
+                      setSelectedServiceId(record.id);
+                    }}
                     style={iconButtonStyle}
                   >
                     <Eye className="h-4 w-4" />
@@ -197,7 +203,10 @@ export function ServiceRecordsTable({ customerId, searchQuery = "" }: ServiceRec
                   <Button 
                     variant="outline" 
                     size="icon"
-                    onClick={() => navigate(`/admin/service/${record.id}/edit`)}
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent triggering the row click
+                      navigate(`/admin/service/${record.id}/edit`);
+                    }}
                     style={iconButtonStyle}
                   >
                     <ClipboardCheck className="h-4 w-4" />
@@ -206,7 +215,10 @@ export function ServiceRecordsTable({ customerId, searchQuery = "" }: ServiceRec
                   <Button 
                     variant="outline" 
                     size="icon"
-                    onClick={() => setDeleteRecordId(record.id)}
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent triggering the row click
+                      setDeleteRecordId(record.id);
+                    }}
                     style={deleteButtonStyle}
                   >
                     <Trash2 className="h-4 w-4" />
