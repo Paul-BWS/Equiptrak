@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ClipboardCheck, Trash2, Eye, Calendar, User, RefreshCw, FileText, Printer } from "lucide-react";
+import { ClipboardCheck, Trash2, Eye, Calendar, User, RefreshCw, FileText, Printer, QrCode } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -120,6 +120,14 @@ export function ServiceRecordsTable({ customerId, searchQuery = "" }: ServiceRec
     );
   });
 
+  const handlePrintCertificate = (serviceId) => {
+    navigate(`/certificate/${serviceId}`);
+  };
+  
+  const handlePrintQRCode = (serviceId) => {
+    navigate(`/certificate/${serviceId}/qr`);
+  };
+
   if (isLoading) {
     return <div className="text-center py-8">Loading service records...</div>;
   }
@@ -204,19 +212,24 @@ export function ServiceRecordsTable({ customerId, searchQuery = "" }: ServiceRec
                     size="icon"
                     onClick={(e) => {
                       e.stopPropagation(); // Prevent triggering the row click
-                      console.log("Certificate button clicked for record:", record);
-                      console.log("Record ID:", record.id);
-                      console.log("Navigating to:", `/certificate/${record.id}`);
-                      
-                      // Try to navigate with a timeout to see if that helps
-                      setTimeout(() => {
-                        navigate(`/certificate/${record.id}`);
-                      }, 100);
+                      handlePrintCertificate(record.id);
                     }}
                     style={iconButtonStyle}
                   >
                     <Printer className="h-4 w-4" />
                     <span className="sr-only">View Certificate</span>
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent triggering the row click
+                      handlePrintQRCode(record.id);
+                    }}
+                    style={iconButtonStyle}
+                  >
+                    <QrCode className="h-4 w-4" />
+                    <span className="sr-only">Print QR Code</span>
                   </Button>
                   <Button 
                     variant="outline" 
@@ -231,6 +244,48 @@ export function ServiceRecordsTable({ customerId, searchQuery = "" }: ServiceRec
                     <span className="sr-only">Delete</span>
                   </Button>
                 </div>
+              </div>
+              
+              {/* Mobile action buttons - only visible on small screens */}
+              <div className="sm:hidden flex justify-center items-center gap-6 mt-4 pt-3 border-t">
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent triggering the row click
+                    setSelectedServiceId(record.id);
+                  }}
+                  className="h-10 w-10 rounded-full"
+                  style={iconButtonStyle}
+                >
+                  <Eye className="h-5 w-5" />
+                </Button>
+                
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent triggering the row click
+                    handlePrintQRCode(record.id);
+                  }}
+                  className="h-10 w-10 rounded-full"
+                  style={iconButtonStyle}
+                >
+                  <QrCode className="h-5 w-5" />
+                </Button>
+                
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent triggering the row click
+                    setDeleteRecordId(record.id);
+                  }}
+                  className="h-10 w-10 rounded-full"
+                  style={deleteButtonStyle}
+                >
+                  <Trash2 className="h-5 w-5" />
+                </Button>
               </div>
             </div>
           </div>

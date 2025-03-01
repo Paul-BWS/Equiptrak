@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { EquipmentList } from "@/components/equipment/EquipmentList";
 import { ServiceRecordsTable } from "@/components/service/components/ServiceRecordsTable";
+import { CustomerListHeader } from "@/components/customers/CustomerListHeader";
 
 export function AdminCustomerDetails() {
   const { customerId } = useParams<{ customerId: string }>();
@@ -189,6 +190,10 @@ export function AdminCustomerDetails() {
           </TabsList>
           
           <TabsContent value="details" className="mt-6">
+            <CustomerListHeader 
+              title="Customer Details" 
+              showAddButton={false} 
+            />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-white rounded-lg border p-6">
                 <h2 className="text-xl font-semibold mb-4">Contact Information</h2>
@@ -244,9 +249,7 @@ export function AdminCustomerDetails() {
           
           <TabsContent value="equipment" className="space-y-6">
             <div className="bg-white rounded-lg p-6 shadow-sm">
-              <h2 className="text-xl font-semibold mb-4">Equipment</h2>
-              
-              <EquipmentList customerId={customerId || ""} />
+              <EquipmentList customerId={customerId || ""} hideAddButton={true} />
             </div>
           </TabsContent>
           

@@ -12,16 +12,18 @@ import { Input } from "@/components/ui/input";
 interface EquipmentListProps {
   customerId: string;
   searchQuery?: string;
+  hideAddButton?: boolean;
 }
 
-export function EquipmentList({ customerId, searchQuery = "" }: EquipmentListProps) {
+export function EquipmentList({ customerId, searchQuery: initialSearchQuery = "", hideAddButton = false }: EquipmentListProps) {
+  const [localSearchQuery, setLocalSearchQuery] = useState(initialSearchQuery);
   const [deleteEquipmentId, setDeleteEquipmentId] = useState<string | null>(null);
   const [deleteEquipmentType, setDeleteEquipmentType] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   // Fetch equipment for this customer from multiple tables
-  const { data: compressorRecords, error: compressorError } = useQuery({
+  const { data: compressorRecords, error: compressorError, refetch: refetchCompressors } = useQuery({
     queryKey: ["compressor-records", customerId],
     queryFn: async () => {
       console.log("Fetching compressor records for customer:", customerId);
@@ -36,17 +38,18 @@ export function EquipmentList({ customerId, searchQuery = "" }: EquipmentListPro
         throw error;
       }
       
-      // Add equipment type manually after fetching
+      // Add equipment type and table name manually after fetching
       return (data || []).map(record => ({
         ...record,
-        equipment_type: "Compressor"
+        equipment_type: "Compressor",
+        table_name: "compressor_records"
       }));
     },
     enabled: !!customerId,
   });
 
   // Similarly for spot welder records
-  const { data: spotWelderRecords, error: spotWelderError } = useQuery({
+  const { data: spotWelderRecords, error: spotWelderError, refetch: refetchSpotWelders } = useQuery({
     queryKey: ["spot-welder-records", customerId],
     queryFn: async () => {
       console.log("Fetching spot welder records for customer:", customerId);
@@ -61,14 +64,47 @@ export function EquipmentList({ customerId, searchQuery = "" }: EquipmentListPro
         throw error;
       }
       
-      // Add equipment type manually after fetching
+      // Add equipment type and table name manually after fetching
       return (data || []).map(record => ({
         ...record,
-        equipment_type: "SpotWelder"
+        equipment_type: "SpotWelder",
+        table_name: "spot_welder_service_records"
       }));
     },
     enabled: !!customerId,
   });
+
+  // Fetch service records
+  const { data: serviceRecords, error: serviceError, refetch: refetchServices } = useQuery({
+    queryKey: ["service-records", customerId],
+    queryFn: async () => {
+      console.log("Fetching service records for customer:", customerId);
+      
+      const { data, error } = await supabase
+        .from("service_records")
+        .select("*")
+        .eq("company_id", customerId);
+        
+      if (error) {
+        console.error("Error fetching service records:", error);
+        throw error;
+      }
+      
+      // Add equipment type and table name manually after fetching
+      return (data || []).map(record => ({
+        ...record,
+        equipment_type: "Service",
+        table_name: "service_records"
+      }));
+    },
+    enabled: !!customerId,
+  });
+
+  const refetch = () => {
+    refetchCompressors();
+    refetchSpotWelders();
+    refetchServices();
+  };
 
   const handleDelete = async () => {
     if (!deleteEquipmentId || !deleteEquipmentType) return;
@@ -106,11 +142,18 @@ export function EquipmentList({ customerId, searchQuery = "" }: EquipmentListPro
     return isValid(date) ? format(date, "dd/MM/yyyy") : "Invalid date";
   };
 
+  // Combine all records
+  const allRecords = [
+    ...(compressorRecords || []), 
+    ...(spotWelderRecords || []),
+    ...(serviceRecords || [])
+  ];
+
   // Filter equipment based on search query
-  const filteredEquipment = [...(compressorRecords || []), ...(spotWelderRecords || [])].filter(item => {
-    if (!searchQuery) return true;
+  const filteredEquipment = allRecords.filter(item => {
+    if (!localSearchQuery) return true;
     
-    const searchLower = searchQuery.toLowerCase();
+    const searchLower = localSearchQuery.toLowerCase();
     
     // Search in serial number
     if (item.serial_number && item.serial_number.toLowerCase().includes(searchLower)) {
@@ -132,10 +175,15 @@ export function EquipmentList({ customerId, searchQuery = "" }: EquipmentListPro
       return true;
     }
     
+    // Search in certificate number
+    if (item.certificate_number && item.certificate_number.toLowerCase().includes(searchLower)) {
+      return true;
+    }
+    
     return false;
   });
 
-  if (compressorError || spotWelderError) {
+  if (compressorError || spotWelderError || serviceError) {
     return (
       <div className="text-center py-8">
         <div className="bg-white rounded-lg border p-6 max-w-lg mx-auto">
@@ -154,7 +202,7 @@ export function EquipmentList({ customerId, searchQuery = "" }: EquipmentListPro
     );
   }
 
-  if (!filteredEquipment.length) {
+  if (!allRecords.length) {
     return (
       <div className="text-center py-8">
         <p>No equipment found for this customer</p>
@@ -165,13 +213,39 @@ export function EquipmentList({ customerId, searchQuery = "" }: EquipmentListPro
     );
   }
 
-  if (!filteredEquipment.length) {
+  if (allRecords.length > 0 && !filteredEquipment.length) {
     return (
-      <div className="text-center py-8">
-        <p>No equipment matches your search</p>
-        <p className="text-gray-500 mt-2">
-          Try adjusting your search criteria.
-        </p>
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
+          <div className="relative w-full sm:w-auto sm:flex-1 max-w-xl">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input 
+              type="search" 
+              placeholder="Search equipment by serial number, test date..." 
+              className="pl-10 w-full"
+              value={localSearchQuery}
+              onChange={(e) => setLocalSearchQuery(e.target.value)}
+            />
+          </div>
+          
+          {!hideAddButton && (
+            <Button 
+              variant="primaryBlue" 
+              onClick={() => navigate(`/admin/customer/${customerId}/equipment-types`)}
+              className="whitespace-nowrap"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Equipment
+            </Button>
+          )}
+        </div>
+        
+        <div className="text-center py-8">
+          <p>No equipment matches your search</p>
+          <p className="text-gray-500 mt-2">
+            Try adjusting your search criteria.
+          </p>
+        </div>
       </div>
     );
   }
@@ -185,19 +259,22 @@ export function EquipmentList({ customerId, searchQuery = "" }: EquipmentListPro
             type="search" 
             placeholder="Search equipment by serial number, test date..." 
             className="pl-10 w-full"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={localSearchQuery}
+            onChange={(e) => setLocalSearchQuery(e.target.value)}
           />
         </div>
         
-        <Button 
-          variant="primaryBlue" 
-          onClick={() => navigate(`/admin/customer/${customerId}/equipment-types`)}
-          className="whitespace-nowrap"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Add Equipment
-        </Button>
+        {/* Only show the button if hideAddButton is false */}
+        {!hideAddButton && (
+          <Button 
+            variant="primaryBlue" 
+            onClick={() => navigate(`/admin/customer/${customerId}/equipment-types`)}
+            className="whitespace-nowrap"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Equipment
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-4">
@@ -210,6 +287,7 @@ export function EquipmentList({ customerId, searchQuery = "" }: EquipmentListPro
             <div className="p-4">
               <h3 className="text-lg font-medium mb-3">
                 {item.equipment_type || "Unknown Equipment Type"}
+                {item.certificate_number && ` - ${item.certificate_number}`}
               </h3>
               
               <div className="flex flex-wrap items-center justify-between">
