@@ -1,85 +1,41 @@
-import { useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { EquipmentList } from "@/components/EquipmentList";
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { Search, Plus } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { EquipmentListAdmin } from "@/components/equipment/EquipmentList";
 
 export default function AdminEquipment() {
-  const { customerId } = useParams<{ customerId: string }>();
   const navigate = useNavigate();
-
-  const { data: customer } = useQuery({
-    queryKey: ["customer", customerId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", customerId)
-        .single();
-      return data;
-    },
-    enabled: !!customerId,
-  });
-
-  const { data: equipment, isLoading } = useQuery({
-    queryKey: ["equipment", customerId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("equipment")
-        .select(`
-          *,
-          profiles:customer_id(*),
-          equipment_types:type_id(*)
-        `)
-        .eq("customer_id", customerId);
-      return data || [];
-    },
-    enabled: !!customerId,
-  });
-
-  const handleServiceClick = (equipmentId: string) => {
-    // Handle service click
-    console.log("Service clicked for equipment:", equipmentId);
-  };
-
-  const handleViewSpotWelder = (spotWelderId: string) => {
-    navigate(`/admin/customer/${customerId}/equipment/spotwelder/${spotWelderId}/certificate`);
-  };
-
-  const handleViewRivetTool = (rivetToolId: string) => {
-    navigate(`/admin/customer/${customerId}/equipment/rivet-tool/${rivetToolId}/certificate`);
-  };
-
-  const handleViewCompressor = (compressorId: string) => {
-    navigate(`/admin/customer/${customerId}/equipment/compressor/${compressorId}/certificate`);
-  };
+  const [searchQuery, setSearchQuery] = useState("");
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex items-center gap-4">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={() => navigate(`/admin`)}
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
-        </Button>
-        <h1 className="text-3xl font-bold">{customer?.company_name || "Customer"} Equipment</h1>
+    <div className="container mx-auto py-6 space-y-6 relative" style={{ backgroundColor: "#f5f5f5" }}>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Equipment Management</h1>
       </div>
-
-      <div className="bg-card p-6 rounded-lg border border-border/50">
-        <EquipmentList 
-          equipment={equipment || []} 
-          isLoading={isLoading}
-          onServiceClick={handleServiceClick}
-          onViewSpotWelder={handleViewSpotWelder}
-          onViewRivetTool={handleViewRivetTool}
-          onViewCompressor={handleViewCompressor}
+      
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+        <Input
+          placeholder="Search equipment..."
+          className="pl-10"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
         />
       </div>
+      
+      <div className="bg-white rounded-lg border shadow-sm p-6">
+        <EquipmentListAdmin searchQuery={searchQuery} />
+      </div>
+      
+      {/* Floating Add Equipment button */}
+      <Button 
+        onClick={() => navigate("/admin/equipment/add")}
+        className="fixed bottom-8 right-8 rounded-full w-16 h-16 shadow-lg bg-[#7b96d4] hover:bg-[#6a85c3] flex items-center justify-center"
+      >
+        <Plus className="h-8 w-8" />
+      </Button>
     </div>
   );
 } 

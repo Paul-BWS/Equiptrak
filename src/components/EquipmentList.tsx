@@ -1,4 +1,9 @@
 import { EquipmentCardFactory } from "./EquipmentCardFactory";
+import { useState } from "react";
+import { BookEquipmentModal } from "./equipment/BookEquipmentModal";
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
+import { createUser } from '@/utils/userService';
 
 interface Equipment {
   id: string;
@@ -25,6 +30,7 @@ interface EquipmentListProps {
   onViewSpotWelder?: (spotWelderId: string) => void;
   onViewRivetTool?: (rivetToolId: string) => void;
   onViewCompressor?: (compressorId: string) => void;
+  onBookClick?: (equipmentId: string) => void;
 }
 
 export function EquipmentList({ 
@@ -34,8 +40,12 @@ export function EquipmentList({
   onServiceClick,
   onViewSpotWelder,
   onViewRivetTool,
-  onViewCompressor
+  onViewCompressor,
+  onBookClick
 }: EquipmentListProps) {
+  const [bookingEquipmentId, setBookingEquipmentId] = useState<string | null>(null);
+  const navigate = useNavigate();
+
   if (isLoading) {
     return <div>Loading equipment...</div>;
   }
@@ -61,10 +71,29 @@ export function EquipmentList({
     } else if (equipmentType === 'compressor' && onViewCompressor) {
       console.log("Opening compressor modal");
       onViewCompressor(equipmentId);
-    } else if (onServiceClick && equipmentType !== 'spot_welder' && equipmentType !== 'rivet_tool' && equipmentType !== 'compressor') {
-      // Only use service modal for equipment that isn't a spot welder, rivet tool, or compressor
+    } else if (onServiceClick) {
+      // For all other equipment types
       console.log("Opening service modal");
       onServiceClick(equipmentId);
+    }
+  };
+
+  const handleBookClick = (equipmentId: string) => {
+    setBookingEquipmentId(equipmentId);
+  };
+
+  const handleEquipmentNavigation = (equipment: Equipment) => {
+    const typeName = equipment.equipment_types?.name || 'Unknown';
+    
+    switch (typeName.toLowerCase()) {
+      case 'spot welder':
+        navigate(`/admin/spot-welder/${equipment.id}`);
+        break;
+      case 'inverter':
+      default:
+        // For equipment types without dedicated pages yet
+        toast.error(`Viewing ${typeName} details will be available soon`);
+        break;
     }
   };
 
@@ -79,8 +108,16 @@ export function EquipmentList({
           onViewSpotWelder={onViewSpotWelder}
           onViewRivetTool={onViewRivetTool}
           onViewCompressor={onViewCompressor}
+          onBookClick={handleBookClick}
         />
       ))}
+      {bookingEquipmentId && (
+        <BookEquipmentModal
+          equipmentId={bookingEquipmentId}
+          open={!!bookingEquipmentId}
+          onOpenChange={(open) => !open && setBookingEquipmentId(null)}
+        />
+      )}
     </div>
   );
 }

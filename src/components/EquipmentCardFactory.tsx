@@ -3,6 +3,10 @@ import { ServiceEquipmentCard } from "@/components/equipment/cards/ServiceEquipm
 import { SpotWelderCard } from "@/components/equipment/cards/SpotWelderCard";
 import { CompressorCard } from "@/components/equipment/cards/CompressorCard";
 import { RivetToolCard } from "@/components/equipment/cards/RivetToolCard";
+import { Calendar, BookOpen } from "lucide-react";
+import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 interface Equipment {
   id: string;
@@ -18,6 +22,8 @@ interface Equipment {
     name: string;
     description: string | null;
   } | null;
+  booking_status?: 'booked' | 'not_booked';
+  booking_date?: string;
 }
 
 interface EquipmentCardFactoryProps {
@@ -27,6 +33,7 @@ interface EquipmentCardFactoryProps {
   onViewSpotWelder?: (spotWelderId: string) => void;
   onViewRivetTool?: (rivetToolId: string) => void;
   onViewCompressor?: (compressorId: string) => void;
+  onBookClick?: (equipmentId: string) => void;
 }
 
 export function EquipmentCardFactory({ 
@@ -35,9 +42,11 @@ export function EquipmentCardFactory({
   onServiceClick,
   onViewSpotWelder,
   onViewRivetTool,
-  onViewCompressor
+  onViewCompressor,
+  onBookClick
 }: EquipmentCardFactoryProps) {
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   const equipmentType = equipment.equipment_types?.name?.toLowerCase() || '';
 
   const handleCardClick = () => {
@@ -47,9 +56,40 @@ export function EquipmentCardFactory({
       onViewRivetTool(equipment.id);
     } else if (equipmentType === 'compressor' && onViewCompressor) {
       onViewCompressor(equipment.id);
-    } else if (onServiceClick && equipmentType !== 'spot_welder' && equipmentType !== 'rivet_tool' && equipmentType !== 'compressor') {
+    } else if (onServiceClick) {
       onServiceClick(equipment.id);
     }
+  };
+
+  const renderBookButton = () => {
+    if (!isMobile && onBookClick && equipment.booking_status !== 'booked') {
+      return (
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="ml-auto text-blue-500 border-blue-500 hover:bg-blue-50 hover:text-blue-600"
+          onClick={(e) => {
+            e.stopPropagation();
+            onBookClick(equipment.id);
+          }}
+        >
+          <BookOpen className="h-4 w-4 mr-2" />
+          Book Retest
+        </Button>
+      );
+    }
+    return null;
+  };
+
+  const renderCompanyInfo = () => {
+    if (showCustomer && equipment.companies?.company_name) {
+      return (
+        <div className="text-sm text-gray-500 dark:text-gray-400">
+          <span className="font-medium">Company:</span> {equipment.companies.company_name}
+        </div>
+      );
+    }
+    return null;
   };
 
   switch (equipmentType) {
@@ -62,6 +102,9 @@ export function EquipmentCardFactory({
             onViewSpotWelder={onViewSpotWelder}
             isMobile={isMobile}
           />
+          <div className="mt-2 flex justify-end">
+            {renderBookButton()}
+          </div>
         </div>
       );
     case 'rivet_tool':
@@ -73,6 +116,9 @@ export function EquipmentCardFactory({
             onViewRivetTool={onViewRivetTool}
             isMobile={isMobile}
           />
+          <div className="mt-2 flex justify-end">
+            {renderBookButton()}
+          </div>
         </div>
       );
     case 'compressor':
@@ -84,16 +130,25 @@ export function EquipmentCardFactory({
             onViewCompressor={onViewCompressor}
             isMobile={isMobile}
           />
+          <div className="mt-2 flex justify-end">
+            {renderBookButton()}
+          </div>
         </div>
       );
     default:
       return (
-        <div onClick={isMobile ? handleCardClick : undefined}>
+        <div 
+          className="cursor-pointer border rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800"
+          onClick={handleCardClick}
+        >
           <ServiceEquipmentCard 
             equipment={equipment}
             showCustomer={showCustomer}
             isMobile={isMobile}
           />
+          <div className="mt-2 flex justify-end">
+            {renderBookButton()}
+          </div>
         </div>
       );
   }

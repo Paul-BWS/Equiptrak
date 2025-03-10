@@ -12,28 +12,16 @@ export function Admin() {
   const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
 
   return (
-    <div className="container mx-auto py-6 space-y-6" style={{ backgroundColor: "#f5f5f5" }}>
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Customers</h1>
-          <p className="text-muted-foreground">
-            View and manage your customers
-          </p>
-        </div>
-        <Button 
-          onClick={() => setIsAddCustomerOpen(true)}
-          className="bg-primary text-primary-foreground hover:bg-primary/90"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Customer
-        </Button>
+    <div className="container mx-auto py-6 space-y-6 relative" style={{ backgroundColor: "#f5f5f5" }}>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Customer Management</h1>
       </div>
       
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
         <Input
           placeholder="Search customers..."
-          className="pl-10 bg-white"
+          className="pl-10"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -43,7 +31,15 @@ export function Admin() {
         <CustomerList searchQuery={searchQuery} />
       </div>
       
-      <CustomerDialogs.Add
+      {/* Floating Add Customer button */}
+      <Button 
+        onClick={() => setIsAddCustomerOpen(true)}
+        className="fixed bottom-8 right-8 rounded-full w-16 h-16 shadow-lg bg-[#7b96d4] hover:bg-[#6a85c3] flex items-center justify-center"
+      >
+        <Plus className="h-8 w-8" />
+      </Button>
+      
+      <CustomerDialogs.Create
         open={isAddCustomerOpen}
         onOpenChange={setIsAddCustomerOpen}
       />

@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Mail, Lock, Phone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
 
 export function LoginPage() {
   const [email, setEmail] = useState("");
@@ -43,34 +45,38 @@ export function LoginPage() {
         <div className="w-full max-w-md">
           <h1 className="text-4xl font-bold text-center text-primary mb-8">EquipTrack</h1>
           
-          <form onSubmit={handleLogin} className="space-y-6">
+          <form method="post" onSubmit={handleLogin} className="space-y-6">
             <div className="space-y-2">
-              <label htmlFor="email" className="text-lg font-medium">Email</label>
+              <Label htmlFor="email">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
                 <Input
                   id="email"
+                  name="email"
                   type="email"
                   placeholder="Enter your email"
                   className="pl-10"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="username email"
                   required
                 />
               </div>
             </div>
             
             <div className="space-y-2">
-              <label htmlFor="password" className="text-lg font-medium">Password</label>
+              <Label htmlFor="password">Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
                 <Input
                   id="password"
+                  name="password"
                   type="password"
                   placeholder="Enter your password"
                   className="pl-10"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
                   required
                 />
               </div>
@@ -81,7 +87,8 @@ export function LoginPage() {
               className="w-full py-6 text-lg bg-[#a6e15a] hover:bg-[#95cc4a] text-black"
               disabled={isLoading}
             >
-              {isLoading ? "Signing In..." : "Sign In"}
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Sign In
             </Button>
           </form>
         </div>

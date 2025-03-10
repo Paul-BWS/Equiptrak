@@ -9,7 +9,8 @@ import { addDays, format } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
-import { ServiceEngineerSelect } from "@/components/service/components/ServiceEngineerSelect";
+import { FormField, FormItem, FormControl, FormMessage } from "@/components/ui/form";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 
 interface AddSpotWelderFormProps {
   customerId: string;
@@ -25,7 +26,7 @@ export function AddSpotWelderForm({ customerId, onSuccess, onCancel }: AddSpotWe
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [spotWelderName, setSpotWelderName] = useState("");
   const [serialNumber, setSerialNumber] = useState("");
-  const [engineerId, setEngineerId] = useState("");
+  const [engineerName, setEngineerName] = useState("");
   const [testDate, setTestDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [retestDate, setRetestDate] = useState(format(addDays(new Date(), 364), "yyyy-MM-dd"));
   const [voltageMax, setVoltageMax] = useState("");
@@ -35,6 +36,14 @@ export function AddSpotWelderForm({ customerId, onSuccess, onCancel }: AddSpotWe
   const [length, setLength] = useState("");
   const [diameter, setDiameter] = useState("");
   const [notes, setNotes] = useState("");
+  
+  // List of engineers
+  const engineers = [
+    { name: "Paul Jones" },
+    { name: "John Smith" },
+    { name: "David Williams" },
+    { name: "Michael Brown" }
+  ];
   
   // Welding readings
   const [weldingReadings, setWeldingReadings] = useState({
@@ -54,7 +63,7 @@ export function AddSpotWelderForm({ customerId, onSuccess, onCancel }: AddSpotWe
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!spotWelderName || !serialNumber || !engineerId) {
+    if (!spotWelderName || !serialNumber || !engineerName) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -91,7 +100,7 @@ export function AddSpotWelderForm({ customerId, onSuccess, onCancel }: AddSpotWe
         .from("spot_welder_service_records")
         .insert({
           company_id: customerId,
-          engineer_id: engineerId,
+          engineer_name: engineerName,
           test_date: testDate,
           retest_date: retestDate,
           status: "valid",
@@ -189,11 +198,18 @@ export function AddSpotWelderForm({ customerId, onSuccess, onCancel }: AddSpotWe
             </div>
             <div className="space-y-2">
               <Label className="text-[#94a3b8] font-medium">Engineer</Label>
-              <ServiceEngineerSelect
-                selectedEngineer={engineerId}
-                setSelectedEngineer={setEngineerId}
-                hideLabel
-              />
+              <Select value={engineerName} onValueChange={setEngineerName}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Engineer" />
+                </SelectTrigger>
+                <SelectContent>
+                  {engineers.map((engineer) => (
+                    <SelectItem key={engineer.name} value={engineer.name}>
+                      {engineer.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>

@@ -34,8 +34,8 @@ export function EnableUserAccess({ contact, onSuccess }: EnableUserAccessProps) 
     }
 
     // Check if user is admin
-    if (session.user.email !== 'paul@basicwelding.co.uk' && 
-        session.user.email !== 'sales@basicwelding.co.uk') {
+    const isAdmin = session.user.user_metadata?.role === 'admin';
+    if (!isAdmin) {
       toast({
         variant: "destructive",
         title: "Error",
@@ -101,14 +101,14 @@ export function EnableUserAccess({ contact, onSuccess }: EnableUserAccessProps) 
         user_data: {
           email: contact.email.toLowerCase().trim(),
           password: password,
-          role: 'customer',
+          role: contact.email.includes('basicwelding.co.uk') ? 'admin' : 'customer',
           company_name: company.company_name.trim(),
           created_by: session.user.email.toLowerCase().trim()
         },
         profile_data: {
           email: contact.email.toLowerCase().trim(),
           company_name: company.company_name.trim(),
-          role: 'customer',
+          role: contact.email.includes('basicwelding.co.uk') ? 'admin' : 'customer',
           telephone: contact.phone?.trim() || null,
           mobile: contact.mobile?.trim() || null,
           address: company.address?.trim() || null,
@@ -139,6 +139,43 @@ export function EnableUserAccess({ contact, onSuccess }: EnableUserAccessProps) 
 
       console.log('Sending request to create customer...');
 
+      // If the role is Admin, ensure they are associated with BWS LTD
+      if (requestBody.user_data.role === 'admin' || requestBody.profile_data.role === 'admin') {
+        console.log('Admin user detected, ensuring association with BWS LTD');
+        
+        // Find the BWS LTD company
+        const { data: bwsCompany, error: bwsError } = await supabase
+          .from('companies')
+          .select('id, company_name')
+          .eq('company_name', 'BWS LTD')
+          .single();
+          
+        if (bwsError) {
+          console.error('Error finding BWS LTD company:', bwsError);
+          throw new Error('Failed to find BWS LTD company: ' + bwsError.message);
+        }
+        
+        if (!bwsCompany) {
+          console.error('BWS LTD company not found');
+          throw new Error('BWS LTD company not found');
+        }
+        
+        // Update the requestBody with BWS LTD company info
+        requestBody.user_data.company_name = 'BWS LTD';
+        requestBody.profile_data.company_name = 'BWS LTD';
+        
+        // Also update the contact's company_id to BWS LTD
+        const { error: updateContactError } = await supabase
+          .from('contacts')
+          .update({ company_id: bwsCompany.id })
+          .eq('id', contact.id);
+          
+        if (updateContactError) {
+          console.error('Error updating contact company_id:', updateContactError);
+          // Continue anyway, as we'll still create the user
+        }
+      }
+
       // Call the database function directly to create customer
       const { data, error } = await supabase.rpc('create_customer', {
         user_data: requestBody.user_data,
@@ -162,11 +199,41 @@ export function EnableUserAccess({ contact, onSuccess }: EnableUserAccessProps) 
         throw new Error(error.message || 'Failed to create customer');
       }
 
+      // Ensure the user metadata includes the company_id
+      if (data?.user_id) {
+        console.log('Updating user metadata with company_id:', contact.company_id);
+        
+        // Get the current user metadata
+        const { data: userData, error: userError } = await supabase.auth.admin.getUserById(data.user_id);
+        
+        if (userError) {
+          console.error('Error getting user metadata:', userError);
+        } else if (userData?.user) {
+          // Update the user metadata with company_id
+          const updatedMetadata = {
+            ...userData.user.user_metadata,
+            company_id: contact.company_id
+          };
+          
+          const { error: updateError } = await supabase.auth.admin.updateUserById(
+            data.user_id,
+            { user_metadata: updatedMetadata }
+          );
+          
+          if (updateError) {
+            console.error('Error updating user metadata:', updateError);
+          } else {
+            console.log('Successfully updated user metadata with company_id');
+          }
+        }
+      }
+
       // Update the contact with user access
       const { error: updateError } = await supabase
         .from('contacts')
         .update({ 
           has_user_access: true,
+          is_user: true,
           user_id: data?.user_id // Changed to match the database function's return value
         })
         .eq('id', contact.id);

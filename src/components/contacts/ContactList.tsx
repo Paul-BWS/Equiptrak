@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { EnableUserAccess } from "./EnableUserAccess";
+import { Badge } from '@/components/ui/badge';
 
 const contactFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -51,6 +52,8 @@ interface Contact {
   created_at: string;
   updated_at: string;
   has_user_access: boolean;
+  has_system_access: boolean;
+  status?: string;
 }
 
 interface ContactListProps {
@@ -367,6 +370,7 @@ export function ContactList({ companyId }: ContactListProps) {
               <TableHead>Mobile</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Access</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -396,6 +400,19 @@ export function ContactList({ companyId }: ContactListProps) {
                       contact={contact}
                       onSuccess={() => queryClient.invalidateQueries({ queryKey: ["contacts", companyId] })}
                     />
+                  </TableCell>
+                  <TableCell>
+                    {contact.has_system_access ? (
+                      <Badge variant="outline" className="bg-blue-100 text-blue-800 hover:bg-blue-100">
+                        System User
+                      </Badge>
+                    ) : contact.status ? (
+                      <Badge variant="outline">
+                        {contact.status}
+                      </Badge>
+                    ) : (
+                      '-'
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">

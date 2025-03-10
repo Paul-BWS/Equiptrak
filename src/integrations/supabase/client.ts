@@ -3,20 +3,20 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
+if (!supabaseUrl || !supabaseKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
 // Create Supabase client
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient<Database>(supabaseUrl, supabaseKey, {
   auth: {
-    autoRefreshToken: true,
     persistSession: true,
+    storageKey: 'equiptrack-auth-token',
+    storage: localStorage,
+    autoRefreshToken: true,
     detectSessionInUrl: true,
-    storageKey: 'supabase.auth.token',
-    storage: window.localStorage
   },
   global: {
     headers: {
@@ -24,3 +24,35 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     }
   }
 });
+
+// Add a function to check network connectivity
+export const checkNetworkConnectivity = () => {
+  return navigator.onLine;
+};
+
+// Add a function to check and refresh the token if needed
+export const refreshSession = async () => {
+  // Check if we're online first
+  if (!checkNetworkConnectivity()) {
+    console.warn('Cannot refresh session: Device appears to be offline');
+    return;
+  }
+
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      // If session exists but is close to expiring, refresh it
+      const expiresAt = session.expires_at;
+      const now = Math.floor(Date.now() / 1000);
+      const timeLeft = expiresAt - now;
+      
+      // If less than 1 hour left, refresh the session
+      if (timeLeft < 3600) {
+        await supabase.auth.refreshSession();
+        console.log('Session refreshed successfully');
+      }
+    }
+  } catch (error) {
+    console.error('Error refreshing session:', error);
+  }
+};

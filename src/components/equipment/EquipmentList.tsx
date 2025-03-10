@@ -1,18 +1,34 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Eye, Pencil, Trash2, Calendar, Tag, RotateCw, Search, Plus } from "lucide-react";
+import { Eye, Pencil, Trash2, Calendar, Tag, RotateCw, Search, Plus, CheckCircle, AlertCircle, XCircle, FileText, Wrench } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { ViewSpotWelderModal } from "@/components/spot-welder/ViewSpotWelderModal";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface EquipmentListProps {
   customerId: string;
   searchQuery?: string;
   hideAddButton?: boolean;
+}
+
+interface Equipment {
+  id: string;
+  name: string;
+  serial_number: string;
+  next_test_date: string;
+  status: "valid" | "expired" | "upcoming";
+  customer_id?: string;
+  companies?: {
+    company_name: string | null;
+  } | null;
+  // ... other properties
 }
 
 export function EquipmentList({ customerId, searchQuery: initialSearchQuery = "", hideAddButton = false }: EquipmentListProps) {
@@ -21,89 +37,46 @@ export function EquipmentList({ customerId, searchQuery: initialSearchQuery = ""
   const [deleteEquipmentType, setDeleteEquipmentType] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [equipment, setEquipment] = useState<Equipment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // State for modals
+  const [selectedSpotWelderId, setSelectedSpotWelderId] = useState<string | null>(null);
 
-  // Fetch equipment for this customer from multiple tables
-  const { data: compressorRecords, error: compressorError, refetch: refetchCompressors } = useQuery({
-    queryKey: ["compressor-records", customerId],
-    queryFn: async () => {
-      console.log("Fetching compressor records for customer:", customerId);
-      
-      const { data, error } = await supabase
-        .from("compressor_records")
-        .select("*")
-        .eq("company_id", customerId);
+  useEffect(() => {
+    const fetchEquipment = async () => {
+      setIsLoading(true);
+      try {
+        const query = supabase
+          .from('equipment')
+          .select(`
+            *,
+            companies:customer_id (
+              company_name
+            )
+          `);
+          
+        if (customerId) {
+          query.eq('customer_id', customerId);
+        }
         
-      if (error) {
-        console.error("Error fetching compressor records:", error);
-        throw error;
-      }
-      
-      // Add equipment type and table name manually after fetching
-      return (data || []).map(record => ({
-        ...record,
-        equipment_type: "Compressor",
-        table_name: "compressor_records"
-      }));
-    },
-    enabled: !!customerId,
-  });
-
-  // Similarly for spot welder records
-  const { data: spotWelderRecords, error: spotWelderError, refetch: refetchSpotWelders } = useQuery({
-    queryKey: ["spot-welder-records", customerId],
-    queryFn: async () => {
-      console.log("Fetching spot welder records for customer:", customerId);
-      
-      const { data, error } = await supabase
-        .from("spot_welder_service_records")
-        .select("*")
-        .eq("company_id", customerId);
+        const { data, error } = await query;
         
-      if (error) {
-        console.error("Error fetching spot welder records:", error);
-        throw error;
-      }
-      
-      // Add equipment type and table name manually after fetching
-      return (data || []).map(record => ({
-        ...record,
-        equipment_type: "SpotWelder",
-        table_name: "spot_welder_service_records"
-      }));
-    },
-    enabled: !!customerId,
-  });
-
-  // Fetch service records
-  const { data: serviceRecords, error: serviceError, refetch: refetchServices } = useQuery({
-    queryKey: ["service-records", customerId],
-    queryFn: async () => {
-      console.log("Fetching service records for customer:", customerId);
-      
-      const { data, error } = await supabase
-        .from("service_records")
-        .select("*")
-        .eq("company_id", customerId);
+        if (error) throw error;
         
-      if (error) {
-        console.error("Error fetching service records:", error);
-        throw error;
+        setEquipment(data || []);
+      } catch (error) {
+        console.error('Error fetching equipment:', error);
+      } finally {
+        setIsLoading(false);
       }
-      
-      // Add equipment type and table name manually after fetching
-      return (data || []).map(record => ({
-        ...record,
-        equipment_type: "Service",
-        table_name: "service_records"
-      }));
-    },
-    enabled: !!customerId,
-  });
+    };
+    
+    fetchEquipment();
+  }, [customerId]);
 
   const refetch = () => {
-    refetchCompressors();
-    refetchSpotWelders();
-    refetchServices();
+    // Implement refetch logic
   };
 
   const handleDelete = async () => {
@@ -142,15 +115,8 @@ export function EquipmentList({ customerId, searchQuery: initialSearchQuery = ""
     return isValid(date) ? format(date, "dd/MM/yyyy") : "Invalid date";
   };
 
-  // Combine all records
-  const allRecords = [
-    ...(compressorRecords || []), 
-    ...(spotWelderRecords || []),
-    ...(serviceRecords || [])
-  ];
-
   // Filter equipment based on search query
-  const filteredEquipment = allRecords.filter(item => {
+  const filteredEquipment = equipment.filter(item => {
     if (!localSearchQuery) return true;
     
     const searchLower = localSearchQuery.toLowerCase();
@@ -161,35 +127,77 @@ export function EquipmentList({ customerId, searchQuery: initialSearchQuery = ""
     }
     
     // Search in test date
-    if (item.test_date && formatDate(item.test_date).toLowerCase().includes(searchLower)) {
+    if (item.next_test_date && formatDate(item.next_test_date).toLowerCase().includes(searchLower)) {
       return true;
     }
     
-    // Search in retest date
-    if (item.retest_date && formatDate(item.retest_date).toLowerCase().includes(searchLower)) {
+    // Search in status
+    if (item.status && item.status.toLowerCase().includes(searchLower)) {
       return true;
     }
     
-    // Search in equipment type
-    if (item.equipment_type && item.equipment_type.toLowerCase().includes(searchLower)) {
-      return true;
-    }
-    
-    // Search in certificate number
-    if (item.certificate_number && item.certificate_number.toLowerCase().includes(searchLower)) {
+    // Search in company name
+    if (item.companies && item.companies.company_name && item.companies.company_name.toLowerCase().includes(searchLower)) {
       return true;
     }
     
     return false;
   });
 
-  if (compressorError || spotWelderError || serviceError) {
+  // Function to render status badge with correct styling
+  const renderStatusBadge = (status: string) => {
+    switch (status) {
+      case "valid":
+        return (
+          <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+            Valid
+          </Badge>
+        );
+      case "upcoming":
+        return (
+          <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
+            Upcoming
+          </Badge>
+        );
+      case "expired":
+        return (
+          <Badge className="bg-red-100 text-red-800 hover:bg-red-100">
+            Expired
+          </Badge>
+        );
+      default:
+        return null;
+    }
+  };
+
+  // Handle view button click based on equipment type
+  const handleViewClick = (e: React.MouseEvent, item: any) => {
+    e.stopPropagation(); // Prevent row click navigation
+    
+    // Determine equipment type and open appropriate modal
+    const equipmentType = item.table_name || item.type_id;
+    
+    switch (equipmentType) {
+      case 'spot_welder':
+        setSelectedSpotWelderId(item.id);
+        break;
+      default:
+        // For other equipment types, show a toast message for now
+        toast({
+          title: "View Equipment",
+          description: `Viewing details for ${item.name || 'this equipment'} will be available soon.`,
+        });
+        break;
+    }
+  };
+
+  if (isLoading) {
     return (
       <div className="text-center py-8">
         <div className="bg-white rounded-lg border p-6 max-w-lg mx-auto">
-          <h3 className="text-lg font-medium mb-2">Unable to load equipment</h3>
+          <h3 className="text-lg font-medium mb-2">Loading equipment...</h3>
           <p className="text-gray-600 mb-4">
-            There was an error loading the equipment list. Please try again.
+            Please wait while we load the equipment list.
           </p>
           <Button 
             onClick={() => refetch()}
@@ -202,7 +210,7 @@ export function EquipmentList({ customerId, searchQuery: initialSearchQuery = ""
     );
   }
 
-  if (!allRecords.length) {
+  if (!equipment.length) {
     return (
       <div className="text-center py-8">
         <p>No equipment found for this customer</p>
@@ -213,7 +221,7 @@ export function EquipmentList({ customerId, searchQuery: initialSearchQuery = ""
     );
   }
 
-  if (allRecords.length > 0 && !filteredEquipment.length) {
+  if (equipment.length > 0 && !filteredEquipment.length) {
     return (
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
@@ -286,13 +294,14 @@ export function EquipmentList({ customerId, searchQuery: initialSearchQuery = ""
           >
             <div className="p-4">
               <h3 className="text-lg font-medium mb-3">
-                {item.equipment_type || "Unknown Equipment Type"}
-                {item.certificate_number && ` - ${item.certificate_number}`}
+                {item.name || "Unknown Equipment Name"}
+                {!customerId && item.companies && item.companies.company_name && 
+                  ` - ${item.companies.company_name}`}
               </h3>
               
               <div className="flex flex-wrap items-center justify-between">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
-                  {/* Serial Number with icon */}
+                  {/* Serial Number */}
                   {item.serial_number && (
                     <div className="flex items-center gap-2">
                       <Tag className="h-4 w-4 text-muted-foreground" />
@@ -300,21 +309,28 @@ export function EquipmentList({ customerId, searchQuery: initialSearchQuery = ""
                     </div>
                   )}
                   
-                  {/* Test Date with icon */}
-                  {item.test_date && (
+                  {/* Last Test Date */}
+                  {item.last_test_date && (
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">Tested: {formatDate(item.test_date)}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Last Test: {formatDate(item.last_test_date)}
+                      </p>
                     </div>
                   )}
                   
-                  {/* Retest Date with icon */}
-                  {item.retest_date && (
+                  {/* Next Test Date */}
+                  {item.next_test_date && (
                     <div className="flex items-center gap-2">
-                      <RotateCw className="h-4 w-4 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">Retest: {formatDate(item.retest_date)}</p>
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">
+                        Next Test: {formatDate(item.next_test_date)}
+                      </p>
                     </div>
                   )}
+                  
+                  {/* Status Badge */}
+                  {renderStatusBadge(item.status)}
                 </div>
                 
                 {/* Only show buttons on desktop */}
@@ -322,10 +338,7 @@ export function EquipmentList({ customerId, searchQuery: initialSearchQuery = ""
                   <Button 
                     variant="outline" 
                     size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation(); // Prevent triggering the row click
-                      navigate(`/admin/customer/${customerId}/equipment/${item.table_name}/${item.id}`);
-                    }}
+                    onClick={(e) => handleViewClick(e, item)}
                     style={{
                       backgroundColor: 'white',
                       color: '#7b96d4',
@@ -375,6 +388,15 @@ export function EquipmentList({ customerId, searchQuery: initialSearchQuery = ""
         ))}
       </div>
 
+      {/* Only include the spot welder modal */}
+      {selectedSpotWelderId && (
+        <ViewSpotWelderModal
+          equipmentId={selectedSpotWelderId}
+          open={!!selectedSpotWelderId}
+          onOpenChange={(open) => !open && setSelectedSpotWelderId(null)}
+        />
+      )}
+
       <AlertDialog open={!!deleteEquipmentId} onOpenChange={(open) => {
         if (!open) {
           setDeleteEquipmentId(null);
@@ -396,6 +418,126 @@ export function EquipmentList({ customerId, searchQuery: initialSearchQuery = ""
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  );
+}
+
+export function EquipmentListAdmin({ searchQuery = "" }: { searchQuery?: string }) {
+  const navigate = useNavigate();
+  
+  const { data: equipment, isLoading } = useQuery({
+    queryKey: ["all-equipment", searchQuery],
+    queryFn: async () => {
+      let query = supabase
+        .from("equipment")
+        .select(`
+          *,
+          profiles:customer_id(*),
+          equipment_types:type_id(*)
+        `);
+      
+      if (searchQuery) {
+        query = query.or(`name.ilike.%${searchQuery}%,serial_number.ilike.%${searchQuery}%,profiles.company_name.ilike.%${searchQuery}%`);
+      }
+      
+      const { data, error } = await query;
+      
+      if (error) {
+        console.error("Error fetching equipment:", error);
+        return [];
+      }
+      
+      return data || [];
+    }
+  });
+  
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "valid":
+        return "bg-green-100 text-green-800";
+      case "expired":
+        return "bg-red-100 text-red-800";
+      case "upcoming":
+        return "bg-yellow-100 text-yellow-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+  
+  const handleViewEquipment = (equipmentId: string) => {
+    navigate(`/admin/equipment/${equipmentId}`);
+  };
+  
+  const handleServiceClick = (equipmentId: string) => {
+    navigate(`/admin/equipment/${equipmentId}/service`);
+  };
+  
+  const handleCertificateClick = (equipmentId: string) => {
+    navigate(`/admin/equipment/${equipmentId}/certificate`);
+  };
+  
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+  
+  if (!equipment || equipment.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-500">No equipment found</p>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>Serial Number</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead>Customer</TableHead>
+            <TableHead>Last Test</TableHead>
+            <TableHead>Next Test</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {equipment.map((item: any) => (
+            <TableRow key={item.id}>
+              <TableCell className="font-medium">{item.name}</TableCell>
+              <TableCell>{item.serial_number}</TableCell>
+              <TableCell>{item.equipment_types?.name || "Unknown"}</TableCell>
+              <TableCell>{item.profiles?.company_name || "Unknown"}</TableCell>
+              <TableCell>{item.last_test_date ? new Date(item.last_test_date).toLocaleDateString() : "Never"}</TableCell>
+              <TableCell>{item.next_test_date ? new Date(item.next_test_date).toLocaleDateString() : "Not scheduled"}</TableCell>
+              <TableCell>
+                <Badge className={getStatusColor(item.status)}>
+                  {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <div className="flex space-x-2">
+                  <Button variant="outline" size="sm" onClick={() => handleViewEquipment(item.id)}>
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => handleServiceClick(item.id)}>
+                    <Wrench className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => handleCertificateClick(item.id)}>
+                    <FileText className="h-4 w-4" />
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 } 

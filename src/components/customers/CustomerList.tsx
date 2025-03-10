@@ -142,7 +142,7 @@ export function CustomerList({ searchQuery = "" }: CustomerListProps) {
                     size="icon"
                     onClick={(e) => {
                       e.stopPropagation(); // Prevent triggering the row click
-                      navigate(`/admin/customer/${customer.id}`);
+                      window.location.href = `/admin/customer-simple?id=${customer.id}`;
                     }}
                     style={iconButtonStyle}
                   >
@@ -185,12 +185,12 @@ export function CustomerList({ searchQuery = "" }: CustomerListProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete this customer and all associated records. This action cannot be undone.
+              This will permanently delete the customer and all associated data. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

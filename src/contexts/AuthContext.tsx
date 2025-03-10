@@ -8,6 +8,7 @@ type AuthContextType = {
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   isLoading: boolean;
+  setUser: (user: User | null) => void;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -57,43 +58,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    setIsLoading(true);
     try {
-      console.log('Attempting sign in for:', email);
+      console.log(`Attempting to sign in user: ${email}`);
+      
+      // First check if we're online
+      if (!navigator.onLine) {
+        throw new Error('You appear to be offline. Please check your internet connection and try again.');
+      }
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      
+
       if (error) {
         console.error('Sign in error:', error);
         throw error;
       }
+
+      console.log('Sign in successful:', { 
+        session: !!data.session,
+        user: data.user?.email,
+        metadata: data.user?.user_metadata
+      });
       
-      console.log('Sign in successful:', { hasSession: !!data.session, user: data.user });
+      // Explicitly set the session and user
+      setSession(data.session);
+      setUser(data.user);
+      
+      // Store session in localStorage as a backup
       if (data.session) {
-        setSession(data.session);
-        setUser(data.user);
+        localStorage.setItem('supabase-session', JSON.stringify(data.session));
       }
     } catch (error) {
-      console.error("Error signing in:", error);
+      console.error('Error in signIn function:', error);
       throw error;
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const signOut = async () => {
     try {
-      console.log('Signing out...');
+      console.log('Signing out user');
       const { error } = await supabase.auth.signOut();
-      if (error) throw error;
       
+      if (error) {
+        console.error('Sign out error:', error);
+        throw error;
+      }
+      
+      console.log('Sign out successful');
+      
+      // Clear session and user state
       setSession(null);
       setUser(null);
-      window.location.href = "/login";
+      
+      // Clear backup session from localStorage
+      localStorage.removeItem('supabase-session');
+      
+      // Force redirect to login page
+      window.location.href = '/';
     } catch (error) {
-      console.error("Error signing out:", error);
+      console.error('Error in signOut function:', error);
       throw error;
     }
   };
@@ -104,6 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signIn,
     signOut,
     isLoading,
+    setUser
   };
 
   console.log("AuthProvider rendering");

@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,6 @@ import {
 
 export function EquipmentTypes() {
   const { customerId } = useParams();
-  const navigate = useNavigate();
   
   // Fetch customer info (for reference, but we won't display it)
   const { data: customer } = useQuery({
@@ -57,7 +56,7 @@ export function EquipmentTypes() {
       id: "service", 
       name: "Service", 
       icon: <Wrench className="h-8 w-8 text-[#7b96d4]" />,
-      onClick: () => navigate(`/admin/service/${customerId}`)
+      url: `/admin/service/${customerId}`
     },
     { id: "welder-validation", name: "Welder Validation", icon: <Zap className="h-8 w-8 text-[#7b96d4]" /> },
     { id: "headlight-beam", name: "Headlight Beam Setter", icon: <Lightbulb className="h-8 w-8 text-[#7b96d4]" /> },
@@ -87,7 +86,7 @@ export function EquipmentTypes() {
           <Button 
             variant="primaryBlue"
             size="icon"
-            onClick={() => navigate(`/admin/customer/${customerId}`)}
+            onClick={() => window.location.href = `/admin/customer/${customerId}`}
             className="mr-4"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -98,12 +97,18 @@ export function EquipmentTypes() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {equipmentTypes.map((type) => (
             <div 
-              key={type.id} 
-              className="bg-white rounded-lg p-6 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-              onClick={type.onClick || (() => navigate(`/admin/customer/${customerId}/equipment/${type.id}`))}
+              key={type.id}
+              className="bg-white rounded-lg shadow-sm p-6 flex flex-col items-center justify-center cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => {
+                if (type.url) {
+                  window.location.href = type.url;
+                }
+              }}
             >
-              {type.icon}
-              <h3 className="font-medium mt-3">{type.name}</h3>
+              <div className="bg-[#f5f5f5] rounded-full p-4 mb-4">
+                {type.icon}
+              </div>
+              <h3 className="text-center font-medium">{type.name}</h3>
             </div>
           ))}
         </div>
