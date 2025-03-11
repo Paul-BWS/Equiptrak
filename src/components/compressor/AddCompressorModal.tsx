@@ -22,7 +22,6 @@ export function AddCompressorModal({ customerId }: AddCompressorModalProps) {
     equipment_serial: "",
     model: "",
     manufacturer: "",
-    location: "",
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -30,8 +29,7 @@ export function AddCompressorModal({ customerId }: AddCompressorModalProps) {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     setLoading(true);
 
     try {
@@ -64,7 +62,6 @@ export function AddCompressorModal({ customerId }: AddCompressorModalProps) {
         equipment_serial: "",
         model: "",
         manufacturer: "",
-        location: "",
       });
     } catch (error: any) {
       console.error("Error adding compressor:", error);
@@ -132,18 +129,6 @@ export function AddCompressorModal({ customerId }: AddCompressorModalProps) {
               id="manufacturer"
               name="manufacturer"
               value={formData.manufacturer}
-              onChange={handleChange}
-              className="col-span-3"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="location" className="text-right">
-              Location
-            </Label>
-            <Input
-              id="location"
-              name="location"
-              value={formData.location}
               onChange={handleChange}
               className="col-span-3"
             />
