@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Mail, Lock, Phone, ExternalLink, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import "@/styles/login.css";
 
 // Define a version number for tracking deployments
 const APP_VERSION = "1.0.1";
@@ -205,20 +206,20 @@ export function Login() {
   }, [error, toast]);
 
   return (
-    <div className="min-h-screen h-screen flex flex-col md:flex-row bg-gray-50 overflow-hidden">
+    <div className="login-container bg-gray-50">
       {/* Left side - Image and company info - hidden on mobile */}
-      <div className="hidden md:block bg-[#7b96d4] text-white md:w-1/2 h-full">
-        <div className="h-full flex items-center justify-center p-8">
+      <div className="login-left-panel">
+        <div className="login-robot-container">
           <img 
             src="/lovable-uploads/robot.png" 
             alt="Equipment Tracking Robot" 
-            className="max-w-full max-h-80 object-contain"
+            className="login-robot-image"
           />
         </div>
       </div>
       
       {/* Right side - Login form - full width on mobile */}
-      <div className="p-8 flex flex-col justify-center w-full md:w-1/2 h-full overflow-y-auto">
+      <div className="login-form-panel">
         <div className="max-w-md mx-auto w-full">
           <div className="mb-8 text-center">
             <h1 className="text-4xl font-bold text-[#7b96d4]">EquipTrack</h1>
@@ -319,7 +320,7 @@ export function Login() {
         </div>
       </div>
       {/* Version number */}
-      <div className="absolute bottom-2 left-2 text-xs text-gray-500">
+      <div className="login-version">
         v{APP_VERSION}
         {supabaseDebug && (
           <span className="ml-2">
