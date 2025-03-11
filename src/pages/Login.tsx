@@ -334,13 +334,12 @@ export function Login() {
               href="https://www.basicwelding.co.uk" 
               target="_blank" 
               rel="noopener noreferrer" 
-              className="flex items-center justify-between px-6 py-3 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow mb-4"
+              className="flex items-center justify-center px-6 py-3 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow mb-4"
             >
               <div className="flex items-center text-[#7b96d4]">
                 <ExternalLink className="h-5 w-5 mr-3" />
                 <span className="font-medium">Need spares or repairs?</span>
               </div>
-              <span className="text-[#7b96d4]">Visit basicwelding.co.uk</span>
             </a>
             
             <div className="grid grid-cols-2 gap-4">
