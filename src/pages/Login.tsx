@@ -7,6 +7,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Mail, Lock, Phone, ExternalLink, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
+// Define a version number for tracking deployments
+const APP_VERSION = "1.0.1";
+
 export function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -15,10 +18,27 @@ export function Login() {
   const { toast } = useToast();
   const [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState('');
+  const [supabaseDebug, setSupabaseDebug] = useState<any>(null);
 
   // Debug: Log when component mounts and when user changes
   useEffect(() => {
     console.log("Login component mounted");
+    
+    // Debug Supabase configuration
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    setSupabaseDebug({
+      url: supabaseUrl ? `${supabaseUrl.substring(0, 10)}...` : 'missing',
+      key: supabaseAnonKey ? 'present' : 'missing',
+      envVars: Object.keys(import.meta.env).filter(key => key.includes('SUPABASE'))
+    });
+    
+    console.log("Supabase config:", {
+      url: supabaseUrl,
+      keyPresent: !!supabaseAnonKey,
+      envVars: Object.keys(import.meta.env).filter(key => key.includes('SUPABASE'))
+    });
     
     return () => {
       console.log("Login component unmounted");
@@ -297,6 +317,15 @@ export function Login() {
             </div>
           </div>
         </div>
+      </div>
+      {/* Version number */}
+      <div className="absolute bottom-2 left-2 text-xs text-gray-500">
+        v{APP_VERSION}
+        {supabaseDebug && (
+          <span className="ml-2">
+            API: {supabaseDebug.url} ({supabaseDebug.key})
+          </span>
+        )}
       </div>
     </div>
   );
