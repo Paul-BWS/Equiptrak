@@ -15,7 +15,14 @@ export default defineConfig({
     host: true,
     hmr: {
       protocol: 'ws',
-      timeout: 0
+      host: 'localhost',
+      port: 3000,
+      clientPort: 3000,
+      timeout: 120000
+    },
+    watch: {
+      usePolling: true,
+      interval: 1000,
     }
   },
   optimizeDeps: {

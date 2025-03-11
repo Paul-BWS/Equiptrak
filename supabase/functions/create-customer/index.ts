@@ -13,6 +13,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Get environment variables
+const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+
 console.log("Hello from Functions!")
 
 serve(async (req) => {
@@ -23,73 +27,82 @@ serve(async (req) => {
   }
 
   try {
-    // Get the JWT token from the request headers
-    const authHeader = req.headers.get('Authorization')
-    console.log('Auth header present:', !!authHeader);
-    
-    if (!authHeader) {
-      throw new Error('No authorization header')
-    }
-
-    // Create Supabase client
-    const supabaseClient = createClient(
-      req.headers.get('x-supabase-url') ?? '',
-      req.headers.get('apikey') ?? '',
-      {
-        auth: {
-          persistSession: false,
-        },
-        global: {
-          headers: {
-            Authorization: authHeader,
-          },
-        },
-      }
-    )
+    // Create Supabase admin client with service role key
+    const supabaseAdmin = createClient(
+      supabaseUrl,
+      supabaseServiceKey
+    );
 
     // Log request body for debugging
-    const body = await req.json()
+    const body = await req.json();
     console.log('Request body received:', {
-      hasUserData: !!body.user_data,
-      hasProfileData: !!body.profile_data,
-      email: body.user_data?.email,
-      companyName: body.user_data?.company_name,
-      role: body.user_data?.role
+      email: body.email,
+      name: body.name,
+      role: body.role,
+      companyName: body.company_name
     });
 
-    const { user_data, profile_data } = body
+    // Extract user data from request
+    const { email, password, name, role, company_name, telephone, contact_id } = body;
 
     // Validate required fields
-    if (!user_data?.email || !user_data?.password || !user_data?.company_name || !user_data?.role) {
-      throw new Error('Missing required user data fields')
+    if (!email || !password || !role) {
+      throw new Error('Missing required fields: email, password, and role are required');
     }
 
-    if (!profile_data?.email || !profile_data?.company_name || !profile_data?.role) {
-      throw new Error('Missing required profile data fields')
+    // Create the user in Auth
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        name,
+        role
+      }
+    });
+
+    if (authError) {
+      console.error('Auth error:', authError);
+      throw new Error(`User creation failed: ${authError.message}`);
     }
 
-    console.log('Calling create_customer RPC...')
-    // Call the database function to create customer
-    const { data, error } = await supabaseClient.rpc('create_customer', {
-      user_data,
-      profile_data,
-    })
-
-    if (error) {
-      console.error('RPC Error:', error)
-      throw error
+    if (!authData.user) {
+      throw new Error('User creation failed: No user returned');
     }
 
-    console.log('Customer created successfully')
+    // Create the user profile
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .insert({
+        id: authData.user.id,
+        name,
+        role,
+        company_name: company_name || '',
+        telephone: telephone || '',
+        contact_id
+      });
+
+    if (profileError) {
+      console.error('Profile error:', profileError);
+      throw new Error(`Profile creation failed: ${profileError.message}`);
+    }
+
+    console.log('User created successfully:', authData.user.id);
     return new Response(
-      JSON.stringify({ message: 'Customer created successfully' }),
+      JSON.stringify({ 
+        message: 'User created successfully',
+        user: {
+          id: authData.user.id,
+          email: authData.user.email
+        }
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       }
-    )
+    );
   } catch (error) {
-    console.error('Error in create-customer function:', error)
+    console.error('Error in create-customer function:', error);
     return new Response(
       JSON.stringify({ 
         error: error.message,
@@ -99,9 +112,9 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       }
-    )
+    );
   }
-})
+});
 
 /* To invoke locally:
 
