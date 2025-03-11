@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, CSSProperties } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,53 @@ import "@/styles/login.css";
 // Define a version number for tracking deployments
 const APP_VERSION = "1.0.1";
 
+// Define inline styles for consistent rendering
+const styles: Record<string, CSSProperties> = {
+  container: {
+    display: 'flex',
+    flexDirection: 'column',
+    minHeight: '100vh',
+    height: '100vh',
+    overflow: 'hidden',
+    backgroundColor: '#f9fafb',
+  },
+  leftPanel: {
+    display: 'none',
+    backgroundColor: '#7b96d4',
+    color: 'white',
+    height: '100%',
+  },
+  robotContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100%',
+    padding: '2rem',
+  },
+  robotImage: {
+    maxWidth: '100%',
+    maxHeight: '20rem',
+    objectFit: 'contain' as 'contain',
+  },
+  rightPanel: {
+    padding: '2rem',
+    display: 'flex',
+    flexDirection: 'column' as 'column',
+    justifyContent: 'center',
+    width: '100%',
+    height: '100%',
+    overflowY: 'auto',
+  },
+  versionInfo: {
+    position: 'absolute' as 'absolute',
+    bottom: '0.5rem',
+    left: '0.5rem',
+    fontSize: '0.75rem',
+    color: '#6b7280',
+  },
+  // Media query styles will be applied via useEffect
+};
+
 export function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -20,6 +67,22 @@ export function Login() {
   const [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState('');
   const [supabaseDebug, setSupabaseDebug] = useState<any>(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  // Apply media query styles
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+    };
+
+    window.addEventListener('resize', handleResize);
+    handleResize();
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   // Debug: Log when component mounts and when user changes
   useEffect(() => {
@@ -206,20 +269,30 @@ export function Login() {
   }, [error, toast]);
 
   return (
-    <div className="login-container bg-gray-50">
+    <div style={{
+      ...styles.container,
+      flexDirection: isMobile ? 'column' : 'row',
+    }}>
       {/* Left side - Image and company info - hidden on mobile */}
-      <div className="login-left-panel">
-        <div className="login-robot-container">
+      <div style={{
+        ...styles.leftPanel,
+        display: isMobile ? 'none' : 'block',
+        width: isMobile ? '100%' : '50%',
+      }}>
+        <div style={styles.robotContainer}>
           <img 
             src="/lovable-uploads/robot.png" 
             alt="Equipment Tracking Robot" 
-            className="login-robot-image"
+            style={styles.robotImage}
           />
         </div>
       </div>
       
       {/* Right side - Login form - full width on mobile */}
-      <div className="login-form-panel">
+      <div style={{
+        ...styles.rightPanel,
+        width: isMobile ? '100%' : '50%',
+      }}>
         <div className="max-w-md mx-auto w-full">
           <div className="mb-8 text-center">
             <h1 className="text-4xl font-bold text-[#7b96d4]">EquipTrack</h1>
@@ -320,7 +393,7 @@ export function Login() {
         </div>
       </div>
       {/* Version number */}
-      <div className="login-version">
+      <div style={styles.versionInfo}>
         v{APP_VERSION}
         {supabaseDebug && (
           <span className="ml-2">
