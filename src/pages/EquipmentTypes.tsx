@@ -100,6 +100,10 @@ export function EquipmentTypes() {
     { id: "tank-inspection", name: "Tank Inspection", icon: <Flame className="h-8 w-8 text-[#7b96d4]" /> },
   ];
   
+  const handleBack = () => {
+    navigate(`/admin/customer/${customerId}/equipment-types`);
+  };
+  
   return (
     <div className="bg-[#f5f5f5] min-h-screen -mt-6 -mx-4 px-4 pt-6 pb-6">
       <div className="container mx-auto py-6">
@@ -107,7 +111,7 @@ export function EquipmentTypes() {
           <Button 
             variant="primaryBlue"
             size="icon"
-            onClick={() => navigate(`/admin/customer/${customerId}`)}
+            onClick={handleBack}
             className="mr-4"
           >
             <ArrowLeft className="h-5 w-5" />
