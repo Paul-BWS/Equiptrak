@@ -77,79 +77,97 @@ export function AddCompressorModal({ customerId }: AddCompressorModalProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" />
-          Add Compressor
+        <Button 
+          className="h-14 w-14 rounded-full shadow-lg p-0 bg-[#7b96d4] hover:bg-[#6a85c3] text-white"
+        >
+          <Plus className="h-6 w-6" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Add New Compressor</DialogTitle>
         </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="equipment_name">Equipment Name</Label>
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="equipment_name" className="text-right">
+              Name
+            </Label>
             <Input
               id="equipment_name"
               name="equipment_name"
               value={formData.equipment_name}
               onChange={handleChange}
-              required
+              className="col-span-3"
             />
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="equipment_serial">Serial Number</Label>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="equipment_serial" className="text-right">
+              Serial
+            </Label>
             <Input
               id="equipment_serial"
               name="equipment_serial"
               value={formData.equipment_serial}
               onChange={handleChange}
-              required
+              className="col-span-3"
             />
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="model">Model</Label>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="model" className="text-right">
+              Model
+            </Label>
             <Input
               id="model"
               name="model"
               value={formData.model}
               onChange={handleChange}
+              className="col-span-3"
             />
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="manufacturer">Manufacturer</Label>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="manufacturer" className="text-right">
+              Manufacturer
+            </Label>
             <Input
               id="manufacturer"
               name="manufacturer"
               value={formData.manufacturer}
               onChange={handleChange}
+              className="col-span-3"
             />
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="location">Location</Label>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="location" className="text-right">
+              Location
+            </Label>
             <Input
               id="location"
               name="location"
               value={formData.location}
               onChange={handleChange}
+              className="col-span-3"
             />
           </div>
-
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Add Compressor
-            </Button>
-          </div>
-        </form>
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSubmit} 
+            disabled={loading}
+            className="bg-[#7b96d4] hover:bg-[#6a85c3] text-white"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Save"
+            )}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

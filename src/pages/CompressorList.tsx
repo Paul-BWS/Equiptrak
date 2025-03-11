@@ -87,7 +87,7 @@ export default function CompressorList() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative pb-20">
       <div className="flex items-center justify-between">
         <Button
           variant="outline"
@@ -97,7 +97,6 @@ export default function CompressorList() {
           <ArrowLeft className="h-4 w-4" />
           Back
         </Button>
-        <AddCompressorModal customerId={customerId || ''} />
       </div>
 
       <div className="space-y-4">
@@ -164,6 +163,11 @@ export default function CompressorList() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Floating Action Button */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <AddCompressorModal customerId={customerId || ''} />
       </div>
     </div>
   );
