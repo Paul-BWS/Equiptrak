@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -8,11 +8,14 @@ import { getStatus } from "@/utils/serviceStatus";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import { useState } from "react";
+import { AddCompressorModal } from "@/components/compressor/AddCompressorModal";
 
 export default function CompressorList() {
   const navigate = useNavigate();
   const { customerId } = useParams();
   const isMobile = useIsMobile();
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   const { data: equipment, isLoading } = useQuery({
     queryKey: ["compressors", customerId],
@@ -94,9 +97,7 @@ export default function CompressorList() {
           <ArrowLeft className="h-4 w-4" />
           Back
         </Button>
-        <Button className="gap-2">
-          Add Compressor
-        </Button>
+        <AddCompressorModal customerId={customerId || ''} />
       </div>
 
       <div className="space-y-4">
