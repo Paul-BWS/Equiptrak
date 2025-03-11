@@ -185,10 +185,10 @@ export function Login() {
   }, [error, toast]);
 
   return (
-    <div className="h-screen flex flex-col md:flex-row bg-gray-50">
+    <div className="min-h-screen h-screen flex flex-col md:flex-row bg-gray-50 overflow-hidden">
       {/* Left side - Image and company info - hidden on mobile */}
-      <div className="hidden md:flex bg-[#7b96d4] text-white p-8 flex-col justify-between md:w-1/2 h-full">
-        <div className="flex-grow flex items-center justify-center">
+      <div className="hidden md:block bg-[#7b96d4] text-white md:w-1/2 h-full">
+        <div className="h-full flex items-center justify-center p-8">
           <img 
             src="/lovable-uploads/robot.png" 
             alt="Equipment Tracking Robot" 
