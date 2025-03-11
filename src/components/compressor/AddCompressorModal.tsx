@@ -30,39 +30,76 @@ export function AddCompressorModal({ customerId }: AddCompressorModalProps) {
   };
 
   const handleSubmit = async () => {
+    console.log("Submit button clicked");
+    console.log("Form data:", formData);
+    console.log("Customer ID:", customerId);
+    
+    if (!customerId) {
+      toast.error("Customer ID is required");
+      return;
+    }
+    
     setLoading(true);
 
     try {
       // First, get the equipment type ID for compressor
+      console.log("Fetching equipment type ID for compressor");
       const { data: equipmentTypeData, error: equipmentTypeError } = await supabase
         .from("equipment_types")
         .select("id")
         .eq("name", "compressor")
         .single();
 
-      if (equipmentTypeError) throw equipmentTypeError;
+      if (equipmentTypeError) {
+        console.error("Error fetching equipment type:", equipmentTypeError);
+        throw equipmentTypeError;
+      }
+
+      console.log("Equipment type data:", equipmentTypeData);
 
       // Insert the new compressor
-      const { data, error } = await supabase.from("equipment").insert({
+      console.log("Inserting new compressor");
+      const nextTestDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+      console.log("Next test date:", nextTestDate);
+      
+      const newCompressor = {
         customer_id: customerId,
         equipment_type_id: equipmentTypeData.id,
         ...formData,
-        next_test_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0], // Default to 1 year from now
-      });
+        next_test_date: nextTestDate,
+      };
+      
+      console.log("New compressor data:", newCompressor);
+      
+      const { data, error } = await supabase
+        .from("equipment")
+        .insert(newCompressor)
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error inserting compressor:", error);
+        throw error;
+      }
+
+      console.log("Compressor added successfully:", data);
 
       // Invalidate queries to refresh the list
-      queryClient.invalidateQueries({ queryKey: ["compressors", customerId] });
+      console.log("Invalidating queries");
+      await queryClient.invalidateQueries({ queryKey: ["compressors", customerId] });
 
       toast.success("Compressor added successfully");
-      setOpen(false);
+      
+      // Reset form and close modal
+      console.log("Resetting form and closing modal");
       setFormData({
         equipment_name: "",
         equipment_serial: "",
         model: "",
         manufacturer: "",
       });
+      
+      // Force close the modal
+      setOpen(false);
     } catch (error: any) {
       console.error("Error adding compressor:", error);
       toast.error(error.message || "Failed to add compressor");
@@ -71,11 +108,30 @@ export function AddCompressorModal({ customerId }: AddCompressorModalProps) {
     }
   };
 
+  const handleOpenChange = (newOpen: boolean) => {
+    console.log("Dialog open state changing to:", newOpen);
+    setOpen(newOpen);
+    
+    // Reset form when closing
+    if (!newOpen) {
+      setFormData({
+        equipment_name: "",
+        equipment_serial: "",
+        model: "",
+        manufacturer: "",
+      });
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button 
           className="h-14 w-14 rounded-full shadow-lg p-0 bg-[#7b96d4] hover:bg-[#6a85c3] text-white"
+          onClick={() => {
+            console.log("Add button clicked");
+            setOpen(true);
+          }}
         >
           <Plus className="h-6 w-6" />
         </Button>
@@ -95,6 +151,7 @@ export function AddCompressorModal({ customerId }: AddCompressorModalProps) {
               value={formData.equipment_name}
               onChange={handleChange}
               className="col-span-3"
+              required
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
@@ -107,6 +164,7 @@ export function AddCompressorModal({ customerId }: AddCompressorModalProps) {
               value={formData.equipment_serial}
               onChange={handleChange}
               className="col-span-3"
+              required
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
@@ -135,13 +193,23 @@ export function AddCompressorModal({ customerId }: AddCompressorModalProps) {
           </div>
         </div>
         <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => setOpen(false)}>
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              console.log("Cancel button clicked");
+              setOpen(false);
+            }}
+          >
             Cancel
           </Button>
           <Button 
-            onClick={handleSubmit} 
+            onClick={() => {
+              console.log("Save button clicked");
+              handleSubmit();
+            }} 
             disabled={loading}
             className="bg-[#7b96d4] hover:bg-[#6a85c3] text-white"
+            type="button"
           >
             {loading ? (
               <>
