@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Mail, Lock, Phone, ExternalLink, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 
 // Define a version number for tracking deployments
 const APP_VERSION = "1.0.4";
@@ -19,6 +20,7 @@ export function Login() {
   const [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState('');
   const [supabaseDebug, setSupabaseDebug] = useState<any>(null);
+  const navigate = useNavigate();
 
   // Debug: Log when component mounts and when user changes
   useEffect(() => {
@@ -158,33 +160,30 @@ export function Login() {
       }
       
       // Verify the session is stored in localStorage
-      setTimeout(() => {
-        const storedSession = localStorage.getItem('equiptrack-auth-token');
-        console.log('Session stored in localStorage:', storedSession ? "Present" : "Missing");
-        
-        // Double-check the session with Supabase
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          console.log('Double-checking session:', { 
-            exists: !!session, 
-            user: session?.user?.email
-          });
-          
-          // Force a hard redirect to the appropriate page based only on role
-          if (userRole === 'admin') {
-            console.log('Admin user, redirecting to admin dashboard');
-            window.location.replace("/admin");
-          } else {
-            // All non-admin users go to the company dashboard if they have a company ID
-            if (companyId) {
-              console.log(`User with company ID ${companyId}, redirecting to company dashboard`);
-              window.location.replace(`/dashboard/company-simple?id=${companyId}`);
-            } else {
-              console.log('User has no company_id, redirecting to general dashboard');
-              window.location.replace("/dashboard");
-            }
-          }
-        });
-      }, 1000);
+      const storedSession = localStorage.getItem('equiptrack-auth-token');
+      console.log('Session stored in localStorage:', storedSession ? "Present" : "Missing");
+      
+      // Double-check the session with Supabase
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('Double-checking session:', { 
+        exists: !!session, 
+        user: session?.user?.email
+      });
+      
+      // Navigate to the appropriate page based on role
+      if (userRole === 'admin') {
+        console.log('Admin user, redirecting to admin dashboard');
+        navigate("/admin");
+      } else {
+        // All non-admin users go to the company dashboard if they have a company ID
+        if (companyId) {
+          console.log(`User with company ID ${companyId}, redirecting to company dashboard`);
+          navigate(`/dashboard/company-simple?id=${companyId}`);
+        } else {
+          console.log('User has no company_id, redirecting to general dashboard');
+          navigate("/dashboard");
+        }
+      }
     } catch (error: any) {
       console.error('Login error:', error);
       setError(error.message || 'An error occurred during login. Please check your credentials and try again.');

@@ -1,4 +1,4 @@
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Sidebar } from "@/components/Sidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 export function Layout() {
   const { user, setUser } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   
   console.log("Layout rendering, user:", user?.email, "path:", location.pathname);
@@ -35,7 +36,7 @@ export function Layout() {
           console.error("Error getting session in Layout:", error);
           if (!isPublicRoute) {
             console.log("Error getting session, redirecting to login");
-            window.location.replace("/");
+            navigate("/");
           }
           return;
         }
@@ -55,7 +56,7 @@ export function Layout() {
         // If no session and not on a public route, redirect to login
         if (!session && !isPublicRoute) {
           console.log("No session and not a public route, redirecting to login");
-          window.location.replace("/");
+          navigate("/");
         }
       } catch (error) {
         console.error("Error checking authentication:", error);
@@ -65,7 +66,7 @@ export function Layout() {
     };
     
     checkAuth();
-  }, [user, isPublicRoute, location.pathname, setUser]);
+  }, [user, isPublicRoute, location.pathname, setUser, navigate]);
 
   // Show loading state while checking authentication
   if (isCheckingAuth && !isPublicRoute) {
