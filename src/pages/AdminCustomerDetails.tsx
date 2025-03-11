@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -38,10 +38,14 @@ const COMPANY_STATUS_OPTIONS = [
 export function AdminCustomerDetails() {
   const { customerId } = useParams<{ customerId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   
+  // Check if we're coming from EquipmentTypes
+  const fromEquipmentTypes = location.state?.fromEquipmentTypes;
+  
   // Debug logging
-  console.log('AdminCustomerDetails - customerId:', customerId);
+  console.log('AdminCustomerDetails - customerId:', customerId, 'fromEquipmentTypes:', fromEquipmentTypes);
   
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -95,6 +99,9 @@ export function AdminCustomerDetails() {
       if (error) throw error;
       return data;
     },
+    // If we're coming from EquipmentTypes, don't show loading state
+    refetchOnMount: !fromEquipmentTypes,
+    staleTime: fromEquipmentTypes ? 60000 : 0, // 1 minute if coming from EquipmentTypes
   });
 
   // Initialize edited customer when customer data is loaded
@@ -221,37 +228,42 @@ export function AdminCustomerDetails() {
     }
   };
 
-  if (isLoading) {
+  // Improved loading state
+  if (isLoading && !fromEquipmentTypes) {
     return (
-      <div className="container mx-auto py-6">
-        <div className="flex items-center mb-6">
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={() => navigate("/admin")}
-            className="mr-4"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <h1 className="text-2xl font-bold">Loading customer details...</h1>
+      <div className="bg-[#f5f5f5] min-h-screen -mt-6 -mx-4 px-4 pt-6 pb-6">
+        <div className="container mx-auto py-6">
+          <div className="flex items-center mb-6">
+            <Button 
+              variant="primaryBlue" 
+              size="icon"
+              onClick={() => navigate("/admin")}
+              className="mr-4"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-[24px] font-bold">Loading customer details...</h1>
+          </div>
         </div>
       </div>
     );
   }
 
-  if (!customer) {
+  if (!customer && !isLoading) {
     return (
-      <div className="container mx-auto py-6">
-        <div className="flex items-center mb-6">
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={() => navigate("/admin")}
-            className="mr-4"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <h1 className="text-2xl font-bold">Customer not found</h1>
+      <div className="bg-[#f5f5f5] min-h-screen -mt-6 -mx-4 px-4 pt-6 pb-6">
+        <div className="container mx-auto py-6">
+          <div className="flex items-center mb-6">
+            <Button 
+              variant="primaryBlue" 
+              size="icon"
+              onClick={() => navigate("/admin")}
+              className="mr-4"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-[24px] font-bold">Customer not found</h1>
+          </div>
         </div>
       </div>
     );

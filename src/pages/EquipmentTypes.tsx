@@ -101,7 +101,12 @@ export function EquipmentTypes() {
   ];
   
   const handleBack = () => {
-    navigate(`/admin/customer/${customerId}`);
+    navigate(`/admin/customer/${customerId}`, { 
+      state: { 
+        fromEquipmentTypes: true,
+        customerId 
+      } 
+    });
   };
   
   return (
