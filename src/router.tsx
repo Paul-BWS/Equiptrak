@@ -23,6 +23,10 @@ import AdminEquipment from "@/pages/AdminEquipment";
 import { EquipmentTypes } from "@/pages/EquipmentTypes";
 import { UserEquipment } from "@/pages/UserEquipment";
 import { CompanyAllEquipment } from "@/pages/CompanyAllEquipment";
+import CompressorList from "@/pages/CompressorList";
+import SpotWelderList from "@/pages/SpotWelderList";
+import RivetToolList from "@/pages/RivetToolList";
+import LolerList from "@/pages/LolerList";
 
 const router = createBrowserRouter([
   {
@@ -112,6 +116,22 @@ const router = createBrowserRouter([
       {
         path: "admin/customer/:customerId/equipment-types",
         element: <AdminRouteFixed><EquipmentTypes /></AdminRouteFixed>,
+      },
+      {
+        path: "admin/customer/:customerId/compressor-list",
+        element: <AdminRouteFixed><CompressorList /></AdminRouteFixed>,
+      },
+      {
+        path: "admin/customer/:customerId/spotwelder-list",
+        element: <AdminRouteFixed><SpotWelderList /></AdminRouteFixed>,
+      },
+      {
+        path: "admin/customer/:customerId/rivet-tool-list",
+        element: <AdminRouteFixed><RivetToolList /></AdminRouteFixed>,
+      },
+      {
+        path: "admin/customer/:customerId/loler-list",
+        element: <AdminRouteFixed><LolerList /></AdminRouteFixed>,
       },
     ],
   },
