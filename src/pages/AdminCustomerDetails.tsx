@@ -87,21 +87,38 @@ export function AdminCustomerDetails() {
   }, []);
 
   // Fetch customer details
-  const { data: customer, isLoading, refetch } = useQuery({
+  const { data: customer, isLoading, error, refetch } = useQuery({
     queryKey: ["customer", customerId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("companies")
-        .select("*")
-        .eq("id", customerId)
-        .single();
+      console.log("Fetching customer with ID:", customerId);
+      try {
+        const { data, error } = await supabase
+          .from("companies")
+          .select("*")
+          .eq("id", customerId)
+          .single();
+          
+        if (error) {
+          console.error("Supabase error fetching customer:", error);
+          throw error;
+        }
         
-      if (error) throw error;
-      return data;
+        if (!data) {
+          console.error("No customer data found for ID:", customerId);
+          throw new Error("Customer not found");
+        }
+        
+        console.log("Customer data fetched successfully:", data);
+        return data;
+      } catch (err) {
+        console.error("Error in customer fetch function:", err);
+        throw err;
+      }
     },
     // If we're coming from EquipmentTypes, don't show loading state
-    refetchOnMount: !fromEquipmentTypes,
-    staleTime: fromEquipmentTypes ? 60000 : 0, // 1 minute if coming from EquipmentTypes
+    refetchOnMount: true,
+    retry: 2,
+    staleTime: 0, // Always fetch fresh data
   });
 
   // Initialize edited customer when customer data is loaded
@@ -229,7 +246,7 @@ export function AdminCustomerDetails() {
   };
 
   // Improved loading state
-  if (isLoading && !fromEquipmentTypes) {
+  if (isLoading) {
     return (
       <div className="bg-[#f5f5f5] min-h-screen -mt-6 -mx-4 px-4 pt-6 pb-6">
         <div className="container mx-auto py-6">
@@ -249,7 +266,8 @@ export function AdminCustomerDetails() {
     );
   }
 
-  if (!customer && !isLoading) {
+  if (error || !customer) {
+    console.error("Error or no customer data:", error);
     return (
       <div className="bg-[#f5f5f5] min-h-screen -mt-6 -mx-4 px-4 pt-6 pb-6">
         <div className="container mx-auto py-6">
@@ -263,6 +281,12 @@ export function AdminCustomerDetails() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <h1 className="text-[24px] font-bold">Customer not found</h1>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow-sm">
+            <p className="mb-4">We couldn't find the customer with ID: {customerId}</p>
+            <Button onClick={() => navigate("/admin")}>
+              Return to Customer List
+            </Button>
           </div>
         </div>
       </div>

@@ -30,18 +30,25 @@ export function EquipmentTypes() {
   const { customerId } = useParams();
   const navigate = useNavigate();
   
+  console.log("EquipmentTypes - customerId:", customerId);
+  
   // Fetch customer info (for reference, but we won't display it)
   const { data: customer } = useQuery({
     queryKey: ["customer", customerId],
     queryFn: async () => {
       try {
+        console.log("Fetching customer in EquipmentTypes:", customerId);
         const { data, error } = await supabase
-          .from("customers")
+          .from("companies")
           .select("*")
           .eq("id", customerId)
           .single();
         
-        if (error) throw error;
+        if (error) {
+          console.error("Error fetching customer in EquipmentTypes:", error);
+          throw error;
+        }
+        console.log("Customer data in EquipmentTypes:", data);
         return data;
       } catch (error) {
         console.error("Error fetching customer:", error);
@@ -101,6 +108,7 @@ export function EquipmentTypes() {
   ];
   
   const handleBack = () => {
+    console.log("Navigating back to customer details with ID:", customerId);
     navigate(`/admin/customer/${customerId}`, { 
       state: { 
         fromEquipmentTypes: true,
