@@ -8,7 +8,7 @@ import { Mail, Lock, Phone, ExternalLink, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 // Define a version number for tracking deployments
-const APP_VERSION = "1.0.2";
+const APP_VERSION = "1.0.4";
 
 export function Login() {
   const [email, setEmail] = useState("");
@@ -209,30 +209,31 @@ export function Login() {
       width: '100%',
       height: '100vh',
       margin: 0,
-      padding: 0,
+      padding: '20px',
       overflow: 'hidden',
       position: 'relative',
       backgroundColor: '#f9fafb',
     }}>
-      {/* Blue background panel - fixed position */}
+      {/* Left panel with robot image - no blue background */}
       <div style={{
         position: 'absolute',
-        top: 0,
-        left: 0,
-        width: '50%',
-        height: '100%',
-        backgroundColor: '#7b96d4',
+        top: '20px',
+        left: '20px',
+        width: 'calc(50% - 40px)',
+        height: 'calc(100% - 40px)',
+        backgroundColor: '#f9fafb',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 1,
+        borderRadius: '8px',
       }}>
         <img 
           src="/lovable-uploads/robot.png" 
           alt="Equipment Tracking Robot" 
           style={{
-            maxWidth: '80%',
-            maxHeight: '50%',
+            maxWidth: '85%',
+            maxHeight: '60%',
             objectFit: 'contain',
           }}
         />
@@ -241,10 +242,10 @@ export function Login() {
       {/* Login form panel - fixed position */}
       <div style={{
         position: 'absolute',
-        top: 0,
-        right: 0,
-        width: '50%',
-        height: '100%',
+        top: '20px',
+        right: '20px',
+        width: 'calc(50% - 40px)',
+        height: 'calc(100% - 40px)',
         padding: '2rem',
         display: 'flex',
         flexDirection: 'column',
@@ -367,12 +368,12 @@ export function Login() {
       <style dangerouslySetInnerHTML={{
         __html: `
           @media (max-width: 767px) {
-            div[style*="position: absolute"][style*="left: 0"] {
+            div[style*="position: absolute"][style*="left: 20px"] {
               display: none !important;
             }
-            div[style*="position: absolute"][style*="right: 0"] {
-              width: 100% !important;
-              left: 0 !important;
+            div[style*="position: absolute"][style*="right: 20px"] {
+              width: calc(100% - 40px) !important;
+              left: 20px !important;
             }
           }
         `
