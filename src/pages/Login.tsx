@@ -1,4 +1,4 @@
-import { useState, useEffect, CSSProperties } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,57 +6,9 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Mail, Lock, Phone, ExternalLink, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import "@/styles/login.css";
 
 // Define a version number for tracking deployments
-const APP_VERSION = "1.0.1";
-
-// Define inline styles for consistent rendering
-const styles: Record<string, CSSProperties> = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    minHeight: '100vh',
-    height: '100vh',
-    overflow: 'hidden',
-    backgroundColor: '#f9fafb',
-  },
-  leftPanel: {
-    display: 'none',
-    backgroundColor: '#7b96d4',
-    color: 'white',
-    height: '100%',
-  },
-  robotContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100%',
-    padding: '2rem',
-  },
-  robotImage: {
-    maxWidth: '100%',
-    maxHeight: '20rem',
-    objectFit: 'contain' as 'contain',
-  },
-  rightPanel: {
-    padding: '2rem',
-    display: 'flex',
-    flexDirection: 'column' as 'column',
-    justifyContent: 'center',
-    width: '100%',
-    height: '100%',
-    overflowY: 'auto',
-  },
-  versionInfo: {
-    position: 'absolute' as 'absolute',
-    bottom: '0.5rem',
-    left: '0.5rem',
-    fontSize: '0.75rem',
-    color: '#6b7280',
-  },
-  // Media query styles will be applied via useEffect
-};
+const APP_VERSION = "1.0.2";
 
 export function Login() {
   const [email, setEmail] = useState("");
@@ -67,22 +19,6 @@ export function Login() {
   const [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState('');
   const [supabaseDebug, setSupabaseDebug] = useState<any>(null);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-
-  // Apply media query styles
-  useEffect(() => {
-    const handleResize = () => {
-      const mobile = window.innerWidth < 768;
-      setIsMobile(mobile);
-    };
-
-    window.addEventListener('resize', handleResize);
-    handleResize();
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
 
   // Debug: Log when component mounts and when user changes
   useEffect(() => {
@@ -270,38 +206,72 @@ export function Login() {
 
   return (
     <div style={{
-      ...styles.container,
-      flexDirection: isMobile ? 'column' : 'row',
+      width: '100%',
+      height: '100vh',
+      margin: 0,
+      padding: 0,
+      overflow: 'hidden',
+      position: 'relative',
+      backgroundColor: '#f9fafb',
     }}>
-      {/* Left side - Image and company info - hidden on mobile */}
+      {/* Blue background panel - fixed position */}
       <div style={{
-        ...styles.leftPanel,
-        display: isMobile ? 'none' : 'block',
-        width: isMobile ? '100%' : '50%',
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '50%',
+        height: '100%',
+        backgroundColor: '#7b96d4',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1,
       }}>
-        <div style={styles.robotContainer}>
-          <img 
-            src="/lovable-uploads/robot.png" 
-            alt="Equipment Tracking Robot" 
-            style={styles.robotImage}
-          />
-        </div>
+        <img 
+          src="/lovable-uploads/robot.png" 
+          alt="Equipment Tracking Robot" 
+          style={{
+            maxWidth: '80%',
+            maxHeight: '50%',
+            objectFit: 'contain',
+          }}
+        />
       </div>
       
-      {/* Right side - Login form - full width on mobile */}
+      {/* Login form panel - fixed position */}
       <div style={{
-        ...styles.rightPanel,
-        width: isMobile ? '100%' : '50%',
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        width: '50%',
+        height: '100%',
+        padding: '2rem',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        zIndex: 1,
+        overflowY: 'auto',
       }}>
-        <div className="max-w-md mx-auto w-full">
-          <div className="mb-8 text-center">
-            <h1 className="text-4xl font-bold text-[#7b96d4]">EquipTrack</h1>
+        <div style={{
+          maxWidth: '400px',
+          width: '100%',
+          margin: '0 auto',
+        }}>
+          <div style={{
+            marginBottom: '2rem',
+            textAlign: 'center',
+          }}>
+            <h1 style={{
+              fontSize: '2.25rem',
+              fontWeight: 'bold',
+              color: '#7b96d4',
+            }}>EquipTrack</h1>
           </div>
           
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
+          <form onSubmit={handleSubmit} style={{marginBottom: '1.5rem'}}>
+            <div style={{marginBottom: '1rem'}}>
               <Label htmlFor="email">Email</Label>
-              <div className="relative">
+              <div style={{position: 'relative'}}>
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                 <Input
                   id="email"
@@ -315,9 +285,9 @@ export function Login() {
               </div>
             </div>
             
-            <div className="space-y-2">
+            <div style={{marginBottom: '1.5rem'}}>
               <Label htmlFor="password">Password</Label>
-              <div className="relative">
+              <div style={{position: 'relative'}}>
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                 <Input
                   id="password"
@@ -348,7 +318,7 @@ export function Login() {
             </Button>
           </form>
           
-          <div className="mt-4 text-center">
+          <div style={{textAlign: 'center', marginBottom: '1.5rem'}}>
             <a 
               href="/admin-login" 
               className="text-blue-600 hover:underline"
@@ -357,13 +327,13 @@ export function Login() {
             </a>
           </div>
           
-          {/* Contact buttons styled like the image */}
-          <div className="mt-8 space-y-4">
+          {/* Contact buttons */}
+          <div style={{marginTop: '2rem'}}>
             <a 
               href="https://www.basicwelding.co.uk" 
               target="_blank" 
               rel="noopener noreferrer" 
-              className="flex items-center justify-between px-6 py-3 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow"
+              className="flex items-center justify-between px-6 py-3 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow mb-4"
             >
               <div className="flex items-center text-[#7b96d4]">
                 <ExternalLink className="h-5 w-5 mr-3" />
@@ -392,17 +362,38 @@ export function Login() {
           </div>
         </div>
       </div>
+      
+      {/* Mobile view - hide blue panel and adjust form panel */}
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          @media (max-width: 767px) {
+            div[style*="position: absolute"][style*="left: 0"] {
+              display: none !important;
+            }
+            div[style*="position: absolute"][style*="right: 0"] {
+              width: 100% !important;
+              left: 0 !important;
+            }
+          }
+        `
+      }} />
+      
       {/* Version number */}
-      <div style={styles.versionInfo}>
+      <div style={{
+        position: 'absolute',
+        bottom: '0.5rem',
+        left: '0.5rem',
+        fontSize: '0.75rem',
+        color: '#6b7280',
+        zIndex: 10,
+      }}>
         v{APP_VERSION}
         {supabaseDebug && (
-          <span className="ml-2">
+          <span style={{marginLeft: '0.5rem'}}>
             API: {supabaseDebug.url} ({supabaseDebug.key})
           </span>
         )}
       </div>
     </div>
   );
-}
-
-export default Login; 
+} 
