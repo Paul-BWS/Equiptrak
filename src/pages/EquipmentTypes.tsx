@@ -101,7 +101,7 @@ export function EquipmentTypes() {
   ];
   
   const handleBack = () => {
-    navigate(`/admin/customer/${customerId}/equipment-types`);
+    navigate(`/admin/customer/${customerId}`);
   };
   
   return (
