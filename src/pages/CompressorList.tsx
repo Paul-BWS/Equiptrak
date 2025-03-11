@@ -1,28 +1,18 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getStatus } from "@/utils/serviceStatus";
-import { ViewCompressorModal } from "@/components/compressor/view-modal/ViewCompressorModal";
-import { CompressorCertificateModal } from "@/components/compressor/certificate/CompressorCertificateModal";
-import { useServiceRecord } from "@/hooks/equipment/useServiceRecord";
-import { useEngineer } from "@/hooks/useEngineer";
-import { AddCompressorModal } from "@/components/compressor/AddCompressorModal";
-import { CompressorCard } from "@/components/equipment/cards/CompressorCard";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { format } from "date-fns";
 
 export default function CompressorList() {
   const navigate = useNavigate();
   const { customerId } = useParams();
-  const [selectedCompressorId, setSelectedCompressorId] = useState<string | null>(null);
-  const [viewModalOpen, setViewModalOpen] = useState(false);
-  const [certificateModalOpen, setCertificateModalOpen] = useState(false);
   const isMobile = useIsMobile();
-
-  const { data: serviceRecord } = useServiceRecord(selectedCompressorId);
-  const { data: engineer } = useEngineer(serviceRecord?.engineer_id);
 
   const { data: equipment, isLoading } = useQuery({
     queryKey: ["compressors", customerId],
@@ -77,7 +67,20 @@ export default function CompressorList() {
   });
 
   const handleBack = () => {
-    navigate(`/admin/customer/${customerId}/equipment/types`);
+    navigate(`/admin/customer/${customerId}/equipment-types`);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "Overdue":
+        return "bg-red-100 text-red-800 border-red-200";
+      case "Due Soon":
+        return "bg-amber-100 text-amber-800 border-amber-200";
+      case "Valid":
+        return "bg-green-100 text-green-800 border-green-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
+    }
   };
 
   return (
@@ -91,7 +94,9 @@ export default function CompressorList() {
           <ArrowLeft className="h-4 w-4" />
           Back
         </Button>
-        <AddCompressorModal customerId={customerId || ''} />
+        <Button className="gap-2">
+          Add Compressor
+        </Button>
       </div>
 
       <div className="space-y-4">
@@ -109,24 +114,56 @@ export default function CompressorList() {
         ) : (
           <div className="grid grid-cols-1 gap-4">
             {equipment.map((item) => (
-              <CompressorCard
-                key={item.id}
-                equipment={item}
-                onViewCompressor={setSelectedCompressorId}
-                isMobile={isMobile}
-              />
+              <Card key={item.id} className="overflow-hidden">
+                <CardContent className="p-4">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-lg">{item.equipment_name || "Unnamed Compressor"}</h3>
+                        <Badge className={getStatusColor(item.status)}>{item.status || "Unknown"}</Badge>
+                      </div>
+                      <p className="text-sm text-gray-500">
+                        Serial: {item.equipment_serial || "N/A"}
+                      </p>
+                      {item.manufacturer && (
+                        <p className="text-sm text-gray-500">
+                          Manufacturer: {item.manufacturer}
+                        </p>
+                      )}
+                      {item.model && (
+                        <p className="text-sm text-gray-500">
+                          Model: {item.model}
+                        </p>
+                      )}
+                      {item.location && (
+                        <p className="text-sm text-gray-500">
+                          Location: {item.location}
+                        </p>
+                      )}
+                      <p className="text-sm text-gray-500">
+                        Next Test Date:{" "}
+                        {item.next_test_date
+                          ? format(new Date(item.next_test_date), "dd/MM/yyyy")
+                          : "Not set"}
+                      </p>
+                    </div>
+
+                    <div className={`flex ${isMobile ? "flex-col" : "flex-row"} gap-2`}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                      >
+                        View Details
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}
       </div>
-
-      {selectedCompressorId && (
-        <ViewCompressorModal
-          equipmentId={selectedCompressorId}
-          open={!!selectedCompressorId}
-          onOpenChange={(open) => !open && setSelectedCompressorId(null)}
-        />
-      )}
     </div>
   );
 }
