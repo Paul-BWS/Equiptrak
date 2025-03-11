@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,7 @@ import {
 
 export function EquipmentTypes() {
   const { customerId } = useParams();
+  const navigate = useNavigate();
   
   // Fetch customer info (for reference, but we won't display it)
   const { data: customer } = useQuery({
@@ -60,16 +61,36 @@ export function EquipmentTypes() {
     },
     { id: "welder-validation", name: "Welder Validation", icon: <Zap className="h-8 w-8 text-[#7b96d4]" /> },
     { id: "headlight-beam", name: "Headlight Beam Setter", icon: <Lightbulb className="h-8 w-8 text-[#7b96d4]" /> },
-    { id: "compressor", name: "Compressor", icon: <Fan className="h-8 w-8 text-[#7b96d4]" /> },
+    { 
+      id: "compressor", 
+      name: "Compressor", 
+      icon: <Fan className="h-8 w-8 text-[#7b96d4]" />,
+      url: `/admin/customer/${customerId}/compressor-list`
+    },
     { id: "pressure-gauges", name: "Pressure Gauges", icon: <Gauge className="h-8 w-8 text-[#7b96d4]" /> },
     { id: "tyres-gauge", name: "Tyres Gauge", icon: <CircleDot className="h-8 w-8 text-[#7b96d4]" /> },
-    { id: "loler-lifting", name: "LOLER Lifting", icon: <Forklift className="h-8 w-8 text-[#7b96d4]" /> },
+    { 
+      id: "loler-lifting", 
+      name: "LOLER Lifting", 
+      icon: <Forklift className="h-8 w-8 text-[#7b96d4]" />,
+      url: `/admin/customer/${customerId}/loler-list`
+    },
     { id: "air-con", name: "Air Con Machines", icon: <Fan className="h-8 w-8 text-[#7b96d4]" /> },
     { id: "paint-scales", name: "Paint Scales", icon: <Weight className="h-8 w-8 text-[#7b96d4]" /> },
-    { id: "spot-welder", name: "Spot Welder", icon: <ArrowLeftRight className="h-8 w-8 text-[#7b96d4]" /> },
+    { 
+      id: "spot-welder", 
+      name: "Spot Welder", 
+      icon: <ArrowLeftRight className="h-8 w-8 text-[#7b96d4]" />,
+      url: `/admin/customer/${customerId}/spotwelder-list`
+    },
     { id: "jig-measuring", name: "JIG Measuring", icon: <Ruler className="h-8 w-8 text-[#7b96d4]" /> },
     { id: "temperature-gauges", name: "Temperature Gauges", icon: <Thermometer className="h-8 w-8 text-[#7b96d4]" /> },
-    { id: "rivet-tools", name: "Rivet Tools", icon: <Drill className="h-8 w-8 text-[#7b96d4]" /> },
+    { 
+      id: "rivet-tools", 
+      name: "Rivet Tools", 
+      icon: <Drill className="h-8 w-8 text-[#7b96d4]" />,
+      url: `/admin/customer/${customerId}/rivet-tool-list`
+    },
     { id: "puwer-inspection", name: "PUWER Inspection", icon: <ClipboardCheck className="h-8 w-8 text-[#7b96d4]" /> },
     { id: "lev", name: "Local Exhaust Ventilation", icon: <Cloud className="h-8 w-8 text-[#7b96d4]" /> },
     { id: "gas-equipment", name: "Gas Equipment CP7", icon: <Cylinder className="h-8 w-8 text-[#7b96d4]" /> },
@@ -86,7 +107,7 @@ export function EquipmentTypes() {
           <Button 
             variant="primaryBlue"
             size="icon"
-            onClick={() => window.location.href = `/admin/customer/${customerId}`}
+            onClick={() => navigate(`/admin/customer/${customerId}`)}
             className="mr-4"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -101,7 +122,7 @@ export function EquipmentTypes() {
               className="bg-white rounded-lg shadow-sm p-6 flex flex-col items-center justify-center cursor-pointer hover:shadow-md transition-shadow"
               onClick={() => {
                 if (type.url) {
-                  window.location.href = type.url;
+                  navigate(type.url);
                 }
               }}
             >
