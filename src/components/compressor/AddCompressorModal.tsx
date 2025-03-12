@@ -18,8 +18,8 @@ export function AddCompressorModal({ customerId }: AddCompressorModalProps) {
   const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState({
-    equipment_name: "",
-    equipment_serial: "",
+    name: "",
+    serial_number: "",
     model: "",
     manufacturer: "",
   });
@@ -39,7 +39,7 @@ export function AddCompressorModal({ customerId }: AddCompressorModalProps) {
       return;
     }
     
-    if (!formData.equipment_name || !formData.equipment_serial) {
+    if (!formData.name || !formData.serial_number) {
       toast.error("Name and Serial are required");
       return;
     }
@@ -47,34 +47,20 @@ export function AddCompressorModal({ customerId }: AddCompressorModalProps) {
     setLoading(true);
 
     try {
-      // First, get the equipment type ID for compressor
-      console.log("Fetching equipment type ID for compressor");
-      const { data: equipmentTypeData, error: equipmentTypeError } = await supabase
-        .from("equipment_types")
-        .select("id")
-        .eq("name", "compressor")
-        .single();
-
-      if (equipmentTypeError) {
-        console.error("Error fetching equipment type:", equipmentTypeError);
-        throw equipmentTypeError;
-      }
-
-      console.log("Equipment type data:", equipmentTypeData);
-
-      // Insert the new compressor with exact field names matching the database
+      // Insert the new compressor directly
       const nextTestDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
       
+      // Direct insert with correct field names
       const { error } = await supabase
         .from("equipment")
         .insert({
           customer_id: customerId,
-          equipment_type_id: equipmentTypeData.id,
-          equipment_name: formData.equipment_name,
-          equipment_serial: formData.equipment_serial,
+          name: formData.name,
+          serial_number: formData.serial_number,
           model: formData.model,
           manufacturer: formData.manufacturer,
-          next_test_date: nextTestDate
+          next_test_date: nextTestDate,
+          type: "compressor" // Use type field instead of equipment_type
         });
 
       if (error) {
@@ -89,8 +75,8 @@ export function AddCompressorModal({ customerId }: AddCompressorModalProps) {
       
       // Reset form and close modal
       setFormData({
-        equipment_name: "",
-        equipment_serial: "",
+        name: "",
+        serial_number: "",
         model: "",
         manufacturer: "",
       });
@@ -111,8 +97,8 @@ export function AddCompressorModal({ customerId }: AddCompressorModalProps) {
     // Reset form when closing
     if (!newOpen) {
       setFormData({
-        equipment_name: "",
-        equipment_serial: "",
+        name: "",
+        serial_number: "",
         model: "",
         manufacturer: "",
       });
@@ -135,26 +121,26 @@ export function AddCompressorModal({ customerId }: AddCompressorModalProps) {
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="equipment_name" className="text-right">
+            <Label htmlFor="name" className="text-right">
               Name
             </Label>
             <Input
-              id="equipment_name"
-              name="equipment_name"
-              value={formData.equipment_name}
+              id="name"
+              name="name"
+              value={formData.name}
               onChange={handleChange}
               className="col-span-3"
               required
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="equipment_serial" className="text-right">
+            <Label htmlFor="serial_number" className="text-right">
               Serial
             </Label>
             <Input
-              id="equipment_serial"
-              name="equipment_serial"
-              value={formData.equipment_serial}
+              id="serial_number"
+              name="serial_number"
+              value={formData.serial_number}
               onChange={handleChange}
               className="col-span-3"
               required
