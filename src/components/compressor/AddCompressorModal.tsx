@@ -39,6 +39,11 @@ export function AddCompressorModal({ customerId }: AddCompressorModalProps) {
       return;
     }
     
+    if (!formData.equipment_name || !formData.equipment_serial) {
+      toast.error("Name and Serial are required");
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -57,40 +62,32 @@ export function AddCompressorModal({ customerId }: AddCompressorModalProps) {
 
       console.log("Equipment type data:", equipmentTypeData);
 
-      // Insert the new compressor
-      console.log("Inserting new compressor");
-      const nextTestDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-      console.log("Next test date:", nextTestDate);
+      // Insert the new compressor with exact field names matching the database
+      const nextTestDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
       
-      const newCompressor = {
-        customer_id: customerId,
-        equipment_type_id: equipmentTypeData.id,
-        ...formData,
-        next_test_date: nextTestDate,
-      };
-      
-      console.log("New compressor data:", newCompressor);
-      
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("equipment")
-        .insert(newCompressor)
-        .select();
+        .insert({
+          customer_id: customerId,
+          equipment_type_id: equipmentTypeData.id,
+          equipment_name: formData.equipment_name,
+          equipment_serial: formData.equipment_serial,
+          model: formData.model,
+          manufacturer: formData.manufacturer,
+          next_test_date: nextTestDate
+        });
 
       if (error) {
         console.error("Error inserting compressor:", error);
         throw error;
       }
 
-      console.log("Compressor added successfully:", data);
-
       // Invalidate queries to refresh the list
-      console.log("Invalidating queries");
       await queryClient.invalidateQueries({ queryKey: ["compressors", customerId] });
 
       toast.success("Compressor added successfully");
       
       // Reset form and close modal
-      console.log("Resetting form and closing modal");
       setFormData({
         equipment_name: "",
         equipment_serial: "",
@@ -109,7 +106,6 @@ export function AddCompressorModal({ customerId }: AddCompressorModalProps) {
   };
 
   const handleOpenChange = (newOpen: boolean) => {
-    console.log("Dialog open state changing to:", newOpen);
     setOpen(newOpen);
     
     // Reset form when closing
@@ -128,10 +124,7 @@ export function AddCompressorModal({ customerId }: AddCompressorModalProps) {
       <DialogTrigger asChild>
         <Button 
           className="h-14 w-14 rounded-full shadow-lg p-0 bg-[#7b96d4] hover:bg-[#6a85c3] text-white"
-          onClick={() => {
-            console.log("Add button clicked");
-            setOpen(true);
-          }}
+          onClick={() => setOpen(true)}
         >
           <Plus className="h-6 w-6" />
         </Button>
@@ -195,18 +188,12 @@ export function AddCompressorModal({ customerId }: AddCompressorModalProps) {
         <div className="flex justify-end gap-2">
           <Button 
             variant="outline" 
-            onClick={() => {
-              console.log("Cancel button clicked");
-              setOpen(false);
-            }}
+            onClick={() => setOpen(false)}
           >
             Cancel
           </Button>
           <Button 
-            onClick={() => {
-              console.log("Save button clicked");
-              handleSubmit();
-            }} 
+            onClick={handleSubmit} 
             disabled={loading}
             className="bg-[#7b96d4] hover:bg-[#6a85c3] text-white"
             type="button"
