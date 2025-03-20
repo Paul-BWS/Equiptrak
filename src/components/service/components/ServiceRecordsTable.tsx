@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ClipboardCheck, Trash2, Eye, Calendar, User, RefreshCw, FileText, Printer, QrCode } from "lucide-react";
 import { format } from "date-fns";
@@ -46,37 +45,42 @@ export function ServiceRecordsTable({ customerId, searchQuery = "" }: ServiceRec
   const { data: records, isLoading, refetch } = useQuery({
     queryKey: ["service-records", customerId],
     queryFn: async () => {
-      let query = supabase
-        .from("service_records")
-        .select(`
-          *,
-          companies (
-            company_name
-          )
-        `)
-        .order("test_date", { ascending: false });
-        
+      let url = 'http://localhost:3001/api/service-records';
       if (customerId) {
-        query = query.eq("company_id", customerId);
+        url += `?customerId=${customerId}`;
       }
-        
-      const { data, error } = await query;
-        
-      if (error) throw error;
-      return data || [];
+      if (searchQuery) {
+        url += `${customerId ? '&' : '?'}search=${encodeURIComponent(searchQuery)}`;
+      }
+      
+      const response = await fetch(url, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        const error = await response.text();
+        console.error("Error fetching service records:", error);
+        throw new Error(error);
+      }
+      
+      const data = await response.json();
+      return data;
     },
+    retry: 1,
   });
 
   const handleDelete = async () => {
     if (!deleteRecordId) return;
     
     try {
-      const { error } = await supabase
-        .from("service_records")
-        .delete()
-        .eq("id", deleteRecordId);
-        
-      if (error) throw error;
+      const response = await fetch(`http://localhost:3001/api/service-records/${deleteRecordId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete service record');
+      }
       
       toast({
         title: "Success",
@@ -84,10 +88,11 @@ export function ServiceRecordsTable({ customerId, searchQuery = "" }: ServiceRec
       });
       
       refetch();
-    } catch (error: any) {
+    } catch (error) {
+      console.error('Error deleting service record:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to delete service record",
+        description: "Failed to delete service record",
         variant: "destructive",
       });
     } finally {
@@ -95,209 +100,106 @@ export function ServiceRecordsTable({ customerId, searchQuery = "" }: ServiceRec
     }
   };
 
-  // Style for icon buttons
-  const iconButtonStyle = {
-    backgroundColor: 'white',
-    color: '#7b96d4',
-    border: '1px solid #e2e8f0'
+  const handlePrintCertificate = (serviceId: string) => {
+    navigate(`/service-certificate/${serviceId}`);
   };
 
-  const deleteButtonStyle = {
-    backgroundColor: 'white',
-    color: '#ef4444',
-    border: '1px solid #e2e8f0'
-  };
-
-  const filteredRecords = records?.filter(record => {
-    if (!searchQuery) return true;
-    
-    const searchLower = searchQuery.toLowerCase();
-    return (
-      (record.companies?.company_name && record.companies.company_name.toLowerCase().includes(searchLower)) ||
-      (record.engineer_name && record.engineer_name.toLowerCase().includes(searchLower)) ||
-      (record.equipment_type && record.equipment_type.toLowerCase().includes(searchLower)) ||
-      (record.status && record.status.toLowerCase().includes(searchLower))
-    );
-  });
-
-  const handlePrintCertificate = (serviceId) => {
-    navigate(`/certificate/${serviceId}`);
-  };
-  
-  const handlePrintQRCode = (serviceId) => {
-    navigate(`/certificate/${serviceId}/qr`);
+  const handlePrintQRCode = (serviceId: string) => {
+    // TODO: Implement QR code printing
+    console.log('Print QR code for service:', serviceId);
   };
 
   if (isLoading) {
-    return <div className="text-center py-8">Loading service records...</div>;
+    return <div className="text-center py-4">Loading service records...</div>;
   }
 
-  if (!filteredRecords?.length) {
+  if (!records || records.length === 0) {
     return (
       <div className="text-center py-8">
-        {searchQuery ? "No service records match your search" : "No service records found"}
+        <p className="text-muted-foreground">No service records found.</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-4">
-        {filteredRecords.map((record) => (
-          <div 
-            key={record.id} 
-            className="bg-white border rounded-lg overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
-            onClick={() => setSelectedServiceId(record.id)}
-          >
-            <div className="p-4">
-              <h3 className="text-lg font-medium mb-3">
-                {record.companies?.company_name || "Unknown Company"}
-              </h3>
+      <div className="rounded-md border">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b bg-muted/50">
+              <th className="p-2 text-left">Equipment</th>
+              <th className="p-2 text-left">Serial Number</th>
+              <th className="p-2 text-left">Service Date</th>
+              <th className="p-2 text-left">Retest Date</th>
+              <th className="p-2 text-left">Status</th>
+              <th className="p-2 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {records.map((record) => {
+              const status = calculateStatus(record.retest_date);
+              const statusColor = getStatusColor(status);
               
-              <div className="flex flex-wrap items-center justify-between">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
-                  {/* Engineer with icon */}
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">{record.engineer_name || "Unknown"}</p>
-                  </div>
-                  
-                  {/* Test Date with icon */}
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">
-                      {record.test_date ? format(new Date(record.test_date), "dd/MM/yyyy") : "N/A"}
-                    </p>
-                  </div>
-                  
-                  {/* Retest Date with icon */}
-                  <div className="flex items-center gap-2">
-                    <RefreshCw className="h-4 w-4 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">
-                      {record.retest_date ? format(new Date(record.retest_date), "dd/MM/yyyy") : "N/A"}
-                    </p>
-                  </div>
-                  
-                  {/* Status */}
-                  <div className="flex items-center gap-2">
-                    <span className={`
-                      inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                      ${getStatusColor(record.retest_date)}
-                    `}>
-                      {getStatus(record.retest_date) === "valid" 
-                        ? "Valid" 
-                        : getStatus(record.retest_date) === "upcoming"
-                          ? "Upcoming"
-                          : "Invalid"}
+              return (
+                <tr key={record.id} className="border-b">
+                  <td className="p-2">{record.equipment_name}</td>
+                  <td className="p-2">{record.serial_number}</td>
+                  <td className="p-2">{format(new Date(record.service_date), 'dd/MM/yyyy')}</td>
+                  <td className="p-2">{record.retest_date ? format(new Date(record.retest_date), 'dd/MM/yyyy') : 'N/A'}</td>
+                  <td className="p-2">
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusColor}`}>
+                      {status.charAt(0).toUpperCase() + status.slice(1)}
                     </span>
-                  </div>
-                </div>
-                
-                {/* Only show buttons on desktop */}
-                <div className="hidden sm:flex items-center gap-2 ml-auto">
-                  <Button 
-                    variant="outline" 
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation(); // Prevent triggering the row click
-                      setSelectedServiceId(record.id);
-                    }}
-                    style={iconButtonStyle}
-                  >
-                    <Eye className="h-4 w-4" />
-                    <span className="sr-only">View</span>
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation(); // Prevent triggering the row click
-                      handlePrintCertificate(record.id);
-                    }}
-                    style={iconButtonStyle}
-                  >
-                    <Printer className="h-4 w-4" />
-                    <span className="sr-only">View Certificate</span>
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation(); // Prevent triggering the row click
-                      handlePrintQRCode(record.id);
-                    }}
-                    style={iconButtonStyle}
-                  >
-                    <QrCode className="h-4 w-4" />
-                    <span className="sr-only">Print QR Code</span>
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation(); // Prevent triggering the row click
-                      setDeleteRecordId(record.id);
-                    }}
-                    style={deleteButtonStyle}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    <span className="sr-only">Delete</span>
-                  </Button>
-                </div>
-              </div>
-              
-              {/* Mobile action buttons - only visible on small screens */}
-              <div className="sm:hidden flex justify-center items-center gap-6 mt-4 pt-3 border-t">
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={(e) => {
-                    e.stopPropagation(); // Prevent triggering the row click
-                    setSelectedServiceId(record.id);
-                  }}
-                  className="h-10 w-10 rounded-full"
-                  style={iconButtonStyle}
-                >
-                  <Eye className="h-5 w-5" />
-                </Button>
-                
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={(e) => {
-                    e.stopPropagation(); // Prevent triggering the row click
-                    handlePrintQRCode(record.id);
-                  }}
-                  className="h-10 w-10 rounded-full"
-                  style={iconButtonStyle}
-                >
-                  <QrCode className="h-5 w-5" />
-                </Button>
-                
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={(e) => {
-                    e.stopPropagation(); // Prevent triggering the row click
-                    setDeleteRecordId(record.id);
-                  }}
-                  className="h-10 w-10 rounded-full"
-                  style={deleteButtonStyle}
-                >
-                  <Trash2 className="h-5 w-5" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        ))}
+                  </td>
+                  <td className="p-2 text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setSelectedServiceId(record.id)}
+                        title="View Details"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handlePrintCertificate(record.id)}
+                        title="Print Certificate"
+                      >
+                        <FileText className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handlePrintQRCode(record.id)}
+                        title="Print QR Code"
+                      >
+                        <QrCode className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        onClick={() => setDeleteRecordId(record.id)}
+                        title="Delete Record"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
-      <AlertDialog open={!!deleteRecordId} onOpenChange={(open) => !open && setDeleteRecordId(null)}>
+      <AlertDialog open={!!deleteRecordId} onOpenChange={() => setDeleteRecordId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete this service record. This action cannot be undone.
+              This action cannot be undone. This will permanently delete the service record.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -309,11 +211,12 @@ export function ServiceRecordsTable({ customerId, searchQuery = "" }: ServiceRec
         </AlertDialogContent>
       </AlertDialog>
 
-      <ServiceDetailsModal
-        serviceId={selectedServiceId}
-        open={!!selectedServiceId}
-        onOpenChange={(open) => !open && setSelectedServiceId(null)}
-      />
+      {selectedServiceId && (
+        <ViewServiceModal
+          serviceId={selectedServiceId}
+          onClose={() => setSelectedServiceId(null)}
+        />
+      )}
     </div>
   );
 }

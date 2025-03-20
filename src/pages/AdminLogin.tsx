@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, UserRole } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,7 @@ export function AdminLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
   const { signIn } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -18,19 +19,79 @@ export function AdminLogin() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
     
     try {
-      // Sign in the user
-      await signIn(email, password);
+      console.log("Sending admin login request to API server");
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+        mode: 'cors',
+        cache: 'no-cache',
+      });
+
+      console.log("Login response status:", response.status);
       
-      // Redirect directly to admin dashboard
-      navigate("/admin");
-    } catch (error: any) {
-      console.error('Login error:', error);
+      let data;
+      try {
+        data = await response.json();
+        console.log("Response data received", { ok: response.ok });
+      } catch (parseError) {
+        console.error("Error parsing JSON response:", parseError);
+        throw new Error('Invalid response format from server');
+      }
+      
+      if (!response.ok) {
+        console.error("Server returned error:", data.error);
+        throw new Error(data.error || 'Authentication failed');
+      }
+
+      // Validate response structure
+      if (!data.token || !data.user) {
+        console.error('Invalid response structure:', data);
+        throw new Error('Invalid response from server');
+      }
+
+      // Validate required user data fields
+      const { user } = data;
+      if (!user.id || !user.email || typeof user.role !== 'string') {
+        console.error('Missing required user data:', user);
+        throw new Error('Invalid user data received');
+      }
+
+      // Check if user is admin
+      if (user.role !== 'admin') {
+        throw new Error('Access denied: Admin rights required');
+      }
+
+      // Call the signIn function from AuthContext with the user data and token
+      await signIn({
+        ...data.user,
+        token: data.token,
+        role: data.user.role as UserRole
+      });
+      
       toast({
-        title: "Error",
-        description: error.message || "Failed to sign in",
+        title: "Success",
+        description: "Admin logged in successfully",
+      });
+
+      // Redirect to admin dashboard
+      navigate("/admin");
+    } catch (error) {
+      console.error("Admin login error:", error);
+      setError(error instanceof Error ? error.message : 'Authentication failed');
+      toast({
         variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Authentication failed',
       });
     } finally {
       setIsLoading(false);
@@ -38,14 +99,19 @@ export function AdminLogin() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-gray-50">
+    <div className="min-h-screen flex flex-col md:flex-row bg-gray-100">
       {/* Left side - Image and company info - hidden on mobile */}
       <div className="hidden md:flex bg-[#7b96d4] text-white p-8 flex-col justify-between md:w-1/2">
         <div className="flex-grow flex items-center justify-center">
           <img 
-            src="/lovable-uploads/robot.png" 
+            src="/images/robot.png" 
             alt="Equipment Tracking Robot" 
             className="max-w-full max-h-80 object-contain"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.onerror = null;
+              target.src = "https://placehold.co/400x400/7b96d4/white?text=Robot";
+            }}
           />
         </div>
       </div>
@@ -93,7 +159,6 @@ export function AdminLogin() {
             
             <Button 
               type="submit" 
-              variant="primaryBlue"
               className="w-full"
               disabled={isLoading}
             >
@@ -107,6 +172,12 @@ export function AdminLogin() {
               )}
             </Button>
           </form>
+          
+          {error && (
+            <div className="mt-4 text-sm text-red-500">
+              {error}
+            </div>
+          )}
           
           <div className="mt-6 text-center">
             <a 

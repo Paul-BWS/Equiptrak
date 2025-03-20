@@ -117,45 +117,48 @@ export function ContactsList({ companyId }: ContactsListProps) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {contacts.map((contact) => (
-            <Card key={contact.id} className="overflow-hidden">
+            <Card key={contact.id} className="overflow-hidden shadow-sm">
               <CardContent className="p-0">
-                <div className="p-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-medium text-lg">{contact.name}</h3>
-                      {contact.position && (
-                        <p className="text-sm text-gray-500">{contact.position}</p>
-                      )}
+                <div className="p-4 bg-gray-50">
+                  <div className="flex justify-between items-center">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-4 flex-wrap">
+                        <h3 className="font-medium text-lg">{contact.name}</h3>
+                        {contact.position && (
+                          <p className="text-sm text-gray-500">{contact.position}</p>
+                        )}
+                        
+                        {/* Contact details in single line */}
+                        <div className="flex items-center space-x-4 flex-wrap">
+                          {contact.email && (
+                            <div className="flex items-center">
+                              <Mail className="h-4 w-4 text-gray-400 mr-2" />
+                              <a href={`mailto:${contact.email}`} className="text-sm text-blue-600 hover:underline">
+                                {contact.email}
+                              </a>
+                            </div>
+                          )}
+                          {contact.telephone && (
+                            <div className="flex items-center">
+                              <Phone className="h-4 w-4 text-gray-400 mr-2" />
+                              <a href={`tel:${contact.telephone}`} className="text-sm">
+                                {contact.telephone}
+                              </a>
+                            </div>
+                          )}
+                          {contact.mobile && (
+                            <div className="flex items-center">
+                              <Phone className="h-4 w-4 text-gray-400 mr-2" />
+                              <a href={`tel:${contact.mobile}`} className="text-sm">
+                                {contact.mobile} (Mobile)
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                     {contact.is_user && (
                       <Badge className="bg-blue-100 text-blue-800">User</Badge>
-                    )}
-                  </div>
-                  
-                  <div className="mt-4 space-y-2">
-                    {contact.email && (
-                      <div className="flex items-center">
-                        <Mail className="h-4 w-4 text-gray-400 mr-2" />
-                        <a href={`mailto:${contact.email}`} className="text-sm text-blue-600 hover:underline">
-                          {contact.email}
-                        </a>
-                      </div>
-                    )}
-                    {contact.telephone && (
-                      <div className="flex items-center">
-                        <Phone className="h-4 w-4 text-gray-400 mr-2" />
-                        <a href={`tel:${contact.telephone}`} className="text-sm">
-                          {contact.telephone}
-                        </a>
-                      </div>
-                    )}
-                    {contact.mobile && (
-                      <div className="flex items-center">
-                        <Phone className="h-4 w-4 text-gray-400 mr-2" />
-                        <a href={`tel:${contact.mobile}`} className="text-sm">
-                          {contact.mobile} (Mobile)
-                        </a>
-                      </div>
                     )}
                   </div>
                 </div>

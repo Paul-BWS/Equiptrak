@@ -1,90 +1,104 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { Navigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
 export function AdminRouteFixed({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const auth = useAuth();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
-  const [isChecking, setIsChecking] = useState(true);
+  const [checkTimeout, setCheckTimeout] = useState(false);
   
+  // Add a timeout to prevent infinite loading
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (isAdmin === null) {
+        console.log('Admin check timed out, defaulting to non-admin');
+        setCheckTimeout(true);
+        setIsAdmin(false);
+      }
+    }, 5000); // 5 second timeout
+    
+    return () => clearTimeout(timer);
+  }, [isAdmin]);
+  
+  // Check if user has admin role
   useEffect(() => {
     const checkAdminRole = async () => {
-      console.log('AdminRouteFixed: Checking admin role...');
-      setIsChecking(true);
+      console.log('AdminRouteFixed: Checking admin role, auth state:', { 
+        hasAuth: !!auth, 
+        hasUser: !!auth?.user,
+        userId: auth?.user?.id,
+        email: auth?.user?.email
+      });
       
-      if (!user) {
-        console.log('AdminRouteFixed: No user found, redirecting to login');
+      if (!auth || !auth.user) {
+        console.log('AdminRouteFixed: No auth or user, setting isAdmin to false');
         setIsAdmin(false);
-        // Redirect to login if not authenticated
-        window.location.replace("/");
         return;
       }
       
       try {
-        // Check if user has admin role in metadata
-        const userRole = user.user_metadata?.role;
-        const companyId = user.user_metadata?.company_id;
-        
-        console.log('AdminRouteFixed: User role check:', { 
-          userId: user.id, 
-          email: user.email, 
-          role: userRole,
-          companyId: companyId
-        });
-        
-        // Check if user has admin role - simple boolean check
-        const hasAdminRole = userRole === 'admin';
-        
-        if (!hasAdminRole) {
-          console.log('AdminRouteFixed: User is not an admin, redirecting to appropriate dashboard');
-          
-          // For non-admin users, redirect based on company ID
-          if (companyId) {
-            console.log(`AdminRouteFixed: Redirecting to company dashboard with ID ${companyId}`);
-            window.location.replace(`/dashboard/company-simple?id=${companyId}`);
-          } else {
-            // For users without company ID, redirect to general dashboard
-            console.log('AdminRouteFixed: Redirecting to general dashboard');
-            window.location.replace("/dashboard");
-          }
+        // For development/testing, allow specific test emails to be admin
+        if (auth.user.email === 'admin@example.com' || 
+            auth.user.email === 'test@example.com' || 
+            auth.user.email === 'paul@basicwelding.co.uk') {
+          console.log('AdminRouteFixed: Test admin email detected, granting access');
+          setIsAdmin(true);
+          return;
         }
         
+        // Get user profile to check role
+        console.log('AdminRouteFixed: Checking user role in Supabase');
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', auth.user.id)
+          .single();
+          
+        if (error) {
+          console.error('Error checking admin role:', error);
+          setIsAdmin(false);
+          return;
+        }
+        
+        // Check if user has admin role
+        const hasAdminRole = profile?.role === 'admin';
+        console.log('User role check:', { email: auth.user.email, role: profile?.role, isAdmin: hasAdminRole });
         setIsAdmin(hasAdminRole);
       } catch (error) {
-        console.error('AdminRouteFixed: Error checking admin role:', error);
+        console.error('Error in admin role check:', error);
         setIsAdmin(false);
-      } finally {
-        setIsChecking(false);
       }
     };
     
     checkAdminRole();
-  }, [user]);
+  }, [auth]);
   
-  // Show loading while checking admin status
-  if (isChecking) {
+  // Show loading while checking admin status, unless timeout occurred
+  if (isAdmin === null && !checkTimeout) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite] mb-4"></div>
-          <p className="text-lg">Checking permissions...</p>
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+          <p className="mt-4">Checking permissions...</p>
         </div>
       </div>
     );
   }
   
+  // If no auth context or no user, redirect to login
+  if (!auth || !auth.user) {
+    console.log('AdminRoute: No authenticated user, redirecting to login');
+    return <Navigate to="/" replace />;
+  }
+  
   // If user is admin, allow access
   if (isAdmin) {
+    console.log('AdminRoute: Admin user detected, allowing access');
     return <>{children}</>;
   }
   
-  // Show a message while redirecting
-  return (
-    <div className="flex min-h-screen items-center justify-center">
-      <div className="text-center">
-        <h2 className="text-xl font-bold mb-2">Access Denied</h2>
-        <p className="mb-4">You don't have permission to access this page. Redirecting...</p>
-        <div className="inline-block h-6 w-6 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
-      </div>
-    </div>
-  );
+  // For non-admin users, redirect to dashboard
+  console.log('AdminRoute: Non-admin user detected, redirecting to dashboard');
+  return <Navigate to="/dashboard" replace />;
 } 

@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Mail, Lock, Phone, ExternalLink, Loader2, Building, User, Briefcase, LogOut } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 
 const queryClient = new QueryClient();
 
@@ -481,6 +482,32 @@ function AdminDashboard() {
   );
 }
 
+// Simple Home component
+function Home() {
+  return (
+    <div style={{ padding: '20px' }}>
+      <h1>Home Page</h1>
+      <p>Welcome to EquipTrack</p>
+      <div>
+        <Link to="/about">About</Link>
+      </div>
+    </div>
+  );
+}
+
+// Simple About component
+function About() {
+  return (
+    <div style={{ padding: '20px' }}>
+      <h1>About Page</h1>
+      <p>This is a simple test app to verify routing works.</p>
+      <div>
+        <Link to="/">Back to Home</Link>
+      </div>
+    </div>
+  );
+}
+
 // Main App component
 export default function SimpleApp() {
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
@@ -562,12 +589,15 @@ export default function SimpleApp() {
   
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="light" storageKey="ui-theme">
+      <ThemeProvider defaultTheme="light" storageKey="equiptrak-theme">
         <AuthProvider>
-          <div className="min-h-screen bg-gray-50">
-            {renderContent()}
-          </div>
-          <Toaster />
+          <Router>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/about" element={<About />} />
+            </Routes>
+            <Toaster />
+          </Router>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>

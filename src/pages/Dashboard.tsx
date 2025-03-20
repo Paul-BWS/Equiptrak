@@ -1,272 +1,165 @@
 import { useState, useEffect } from "react";
-import { CustomerList } from "@/components/CustomerList";
-import { Button } from "@/components/ui/button";
-import { Plus, Building, User, Phone, Mail } from "lucide-react";
-import { CustomerDialogs } from "@/components/CustomerDialogs";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Loader2, Building, LogOut } from "lucide-react";
+
+interface Company {
+  id: string;
+  company_name: string;
+  address?: string;
+  city?: string;
+  county?: string;
+  postcode?: string;
+  country?: string;
+  telephone?: string;
+  website?: string;
+  created_at?: string;
+}
 
 export default function Dashboard() {
-  const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
-  const { user } = useAuth();
-  const [userCompany, setUserCompany] = useState<any>(null);
-  const [companyContacts, setCompanyContacts] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
-
-  // Check if user has a company_id and redirect to company page
-  useEffect(() => {
-    if (user?.user_metadata?.company_id) {
-      const companyId = user.user_metadata.company_id;
-      console.log('User has company_id in metadata, redirecting to company page:', companyId);
-      navigate(`/admin/customer/${companyId}`);
-      return;
-    }
-    
-    // Continue with normal dashboard loading if no company_id in metadata
-  }, [user, navigate]);
+  const [company, setCompany] = useState<Company | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchUserCompanyData = async () => {
-      if (!user?.email) return;
-      
-      console.log('Dashboard: Fetching company data for user:', user.email);
-      setIsLoading(true);
-      
+    const fetchUserCompany = async () => {
+      // If user doesn't have a company_id, they shouldn't be here
+      if (!user?.company_id) {
+        setError("No company associated with your account.");
+        setLoading(false);
+        return;
+      }
+
       try {
-        // First check if company_id exists in user metadata
-        const companyIdFromMetadata = user.user_metadata?.company_id;
-        let companyId = null;
+        setLoading(true);
+        console.log("Fetching user's company with company_id:", user.company_id);
         
-        if (companyIdFromMetadata) {
-          console.log('Dashboard: Found company_id in user metadata:', companyIdFromMetadata);
-          companyId = companyIdFromMetadata;
-        } else {
-          console.log('Dashboard: No company_id in user metadata, checking contacts table');
-          
-          // Try to find the contact with this email
-          const { data: contactData, error: contactError } = await supabase
-            .from('contacts')
-            .select('id, company_id, user_id')
-            .eq('email', user.email)
-            .single();
-            
-          console.log('Dashboard: Contact data:', contactData, 'Error:', contactError);
-            
-          if (contactError) {
-            console.error('Error fetching contact:', contactError);
-            
-            // If no contact found, check if user is an admin
-            if (user.user_metadata?.role === 'admin') {
-              console.log('Dashboard: User is admin but no contact found, showing admin dashboard');
-              return; // Show the default admin dashboard
-            }
-            
-            return;
-          }
-          
-          if (!contactData?.company_id) {
-            console.log('No company associated with this user');
-            return;
-          }
-          
-          companyId = contactData.company_id;
-          
-          // If contact exists but user_id is not set, update it
-          if (contactData && !contactData.user_id) {
-            console.log('Dashboard: Updating contact with user_id:', user.id);
-            const { error: updateError } = await supabase
-              .from('contacts')
-              .update({ 
-                user_id: user.id,
-                is_user: true,
-                has_user_access: true
-              })
-              .eq('id', contactData.id);
-              
-            if (updateError) {
-              console.error('Error updating contact with user_id:', updateError);
-            }
-          }
+        const response = await fetch(`/api/companies/${user.company_id}`, {
+          headers: {
+            'Authorization': `Bearer ${user?.token}`,
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include'
+        });
+        
+        console.log("Company response status:", response.status);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Error response:", errorText);
+          throw new Error(`Failed to fetch company: ${response.status} ${errorText}`);
         }
         
-        if (!companyId) {
-          console.log('No company ID found for user');
-          return;
-        }
-        
-        console.log('Dashboard: Using company_id:', companyId);
-        
-        // Fetch company details
-        const { data: companyData, error: companyError } = await supabase
-          .from('companies')
-          .select('*')
-          .eq('id', companyId)
-          .single();
-          
-        console.log('Dashboard: Company data:', companyData, 'Error:', companyError);
-        
-        if (companyError) {
-          console.error('Error fetching company:', companyError);
-          return;
-        }
-        
-        setUserCompany(companyData);
-        
-        // Fetch company contacts
-        const { data: contactsData, error: contactsError } = await supabase
-          .from('contacts')
-          .select('*')
-          .eq('company_id', companyId);
-          
-        if (contactsError) {
-          console.error('Error fetching contacts:', contactsError);
-          return;
-        }
-        
-        setCompanyContacts(contactsData || []);
-      } catch (error) {
-        console.error('Error in fetchUserCompanyData:', error);
+        const data = await response.json();
+        console.log("Company data received:", data);
+        setCompany(data);
+        setError(null);
+      } catch (err) {
+        console.error("Error fetching company:", err);
+        setError("Failed to load your company information. Please try again later.");
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
+
+    fetchUserCompany();
+  }, [user?.company_id, user?.token]);
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate("/login");
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
+
+  const handleCompanyClick = (companyId: string) => {
+    navigate(`/company/${companyId}`);
+  };
+
+  const getFormattedAddress = (company: Company) => {
+    if (!company) return "No address provided";
     
-    fetchUserCompanyData();
-  }, [user]);
+    const parts = [
+      company.address,
+      company.city,
+      company.county,
+      company.postcode,
+      company.country
+    ].filter(Boolean);
+    
+    return parts.length > 0 ? parts.join(", ") : "No address provided";
+  };
 
-  // If user is associated with a company, show company-specific dashboard
-  if (userCompany) {
-    return (
-      <div className="container mx-auto py-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">{userCompany.name}</h1>
-            <p className="text-muted-foreground">Welcome to your company dashboard</p>
-          </div>
-        </div>
-        
-        <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="contacts">Contacts</TabsTrigger>
-            <TabsTrigger value="equipment">Equipment</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="overview" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Company Details</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-2">
-                  <div className="flex items-center">
-                    <Building className="h-4 w-4 mr-2 text-muted-foreground" />
-                    <span><strong>Name:</strong> {userCompany.name}</span>
-                  </div>
-                  {userCompany.address && (
-                    <div className="flex items-center">
-                      <Building className="h-4 w-4 mr-2 text-muted-foreground" />
-                      <span><strong>Address:</strong> {userCompany.address}</span>
-                    </div>
-                  )}
-                  {userCompany.phone && (
-                    <div className="flex items-center">
-                      <Phone className="h-4 w-4 mr-2 text-muted-foreground" />
-                      <span><strong>Phone:</strong> {userCompany.phone}</span>
-                    </div>
-                  )}
-                  {userCompany.email && (
-                    <div className="flex items-center">
-                      <Mail className="h-4 w-4 mr-2 text-muted-foreground" />
-                      <span><strong>Email:</strong> {userCompany.email}</span>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="contacts" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Company Contacts</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {companyContacts.length === 0 ? (
-                  <p>No contacts found</p>
-                ) : (
-                  <div className="space-y-4">
-                    {companyContacts.map((contact) => (
-                      <div key={contact.id} className="border-b pb-3">
-                        <div className="font-medium">{contact.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {contact.position && <div>{contact.position}</div>}
-                          {contact.email && (
-                            <div className="flex items-center">
-                              <Mail className="h-3 w-3 mr-1" />
-                              <a href={`mailto:${contact.email}`} className="text-blue-600 hover:underline">
-                                {contact.email}
-                              </a>
-                            </div>
-                          )}
-                          {contact.telephone && (
-                            <div className="flex items-center">
-                              <Phone className="h-3 w-3 mr-1" />
-                              <a href={`tel:${contact.telephone}`} className="hover:underline">
-                                {contact.telephone}
-                              </a>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="equipment" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Equipment</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p>No equipment found for this company.</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
-    );
-  }
-
-  // Default dashboard for users not associated with a company
   return (
-    <div className="container mx-auto py-6 space-y-8">
-      <div className="bg-card rounded-lg border shadow-sm p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-semibold">Customers</h2>
-          <Button 
-            onClick={() => setIsAddCustomerOpen(true)}
-            className="bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Customer
-          </Button>
+    <div className="container mx-auto p-4 max-w-6xl">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <p className="text-muted-foreground">
+            Welcome back, {user?.first_name || user?.email}
+          </p>
         </div>
-        
-        <CustomerList />
+        <Button variant="outline" onClick={handleLogout}>
+          <LogOut className="mr-2 h-4 w-4" />
+          Logout
+        </Button>
       </div>
 
-      <CustomerDialogs.Create
-        open={isAddCustomerOpen} 
-        onOpenChange={setIsAddCustomerOpen} 
-      />
+      {loading ? (
+        <div className="flex justify-center items-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : error ? (
+        <div className="bg-destructive/15 p-4 rounded-md text-destructive">
+          {error}
+        </div>
+      ) : company ? (
+        <div className="max-w-3xl mx-auto">
+          <Card className="shadow-md hover:shadow-lg transition-shadow">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center">
+                <Building className="mr-2 h-5 w-5 text-primary" />
+                {company.company_name}
+              </CardTitle>
+              <CardDescription>
+                {getFormattedAddress(company)}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pb-2">
+              <div className="space-y-2">
+                {company.telephone && (
+                  <p className="text-sm">📞 {company.telephone}</p>
+                )}
+                {company.website && (
+                  <p className="text-sm">🌐 {company.website}</p>
+                )}
+                <p className="text-sm text-muted-foreground">
+                  Added: {new Date(company.created_at || Date.now()).toLocaleDateString()}
+                </p>
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button 
+                variant="default" 
+                className="w-full bg-a6e15a text-black hover:bg-opacity-90"
+                onClick={() => handleCompanyClick(company.id)}
+              >
+                View Details
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      ) : (
+        <div className="bg-amber-100 p-4 rounded-md text-amber-800">
+          No company information found for your account.
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -9,7 +10,19 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   
   return {
-    plugins: [react()],
+    plugins: [
+      react(),
+      nodePolyfills({
+        // Whether to polyfill `node:` protocol imports.
+        protocolImports: true,
+        // Whether to polyfill specific globals.
+        globals: {
+          Buffer: true,
+          global: true,
+          process: true,
+        },
+      }),
+    ],
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
@@ -19,11 +32,18 @@ export default defineConfig(({ mode }) => {
     define: {
       // Make sure to stringify the values for proper JSON
       '__APP_ENV__': JSON.stringify(env.VITE_APP_ENV || 'development'),
-      // You can add more environment variables here if needed
     },
     server: {
       port: 3000,
       host: true,
+      proxy: {
+        '/api': {
+          target: 'http://localhost:3001',
+          changeOrigin: true,
+          secure: false,
+          ws: true,
+        }
+      },
       hmr: {
         protocol: 'ws',
         host: 'localhost',
@@ -37,11 +57,21 @@ export default defineConfig(({ mode }) => {
       }
     },
     optimizeDeps: {
-      entries: ['src/**/*.{ts,tsx}']
+      entries: ['src/**/*.{ts,tsx}'],
+      esbuildOptions: {
+        // Node.js global to browser globalThis
+        define: {
+          global: 'globalThis',
+        },
+      },
     },
     build: {
       sourcemap: true,
-      chunkSizeWarningLimit: 1000
+      chunkSizeWarningLimit: 1000,
+      rollupOptions: {
+        // External packages that should not be bundled
+        external: [],
+      },
     }
   };
 });

@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Users, Settings, LogOut, Wrench, MessageSquare, UserCircle, ClipboardList, Home, Plus, ClipboardCheck } from "lucide-react";
+import { Users, Settings, LogOut, Wrench, MessageSquare, UserCircle, ClipboardList, Home, Plus, ClipboardCheck, Database } from "lucide-react";
 import { toast } from "sonner";
 import { useTheme } from "./theme-provider";
 import { CustomerDialogs } from "./CustomerDialogs";
@@ -128,6 +128,14 @@ export function Navigation() {
                 <Users className="h-4 w-4" />
                 <span>Personnel</span>
               </Link>
+              <Link to="/postgres-test" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+                <Database className="h-4 w-4" />
+                <span>DB Test</span>
+              </Link>
+              <Link to="/database-migration" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+                <Database className="h-4 w-4" />
+                <span>Migration</span>
+              </Link>
             </nav>
           </div>
           
@@ -161,10 +169,11 @@ export function Navigation() {
         </div>
       </header>
       
-      <CustomerDialogs.Add
+      {/* Remove or update the CustomerDialogs component if it doesn't have an Add property */}
+      {/* <CustomerDialogs.Add
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
-      />
+      /> */}
     </>
   );
 }

@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, RouterProvider, useRouteError, isRouteErrorResponse } from "react-router-dom";
 import Layout from "@/components/Layout";
 import Login from "@/pages/Login";
 import AdminLogin from "@/pages/AdminLogin";
@@ -27,11 +27,50 @@ import CompressorList from "@/pages/CompressorList";
 import SpotWelderList from "@/pages/SpotWelderList";
 import RivetToolList from "@/pages/RivetToolList";
 import LolerList from "@/pages/LolerList";
+import PostgresTestPage from "@/pages/PostgresTestPage";
+import DatabaseMigration from "@/pages/DatabaseMigration";
+import NotFound from "@/pages/NotFound";
+
+// Custom error boundary component
+function ErrorPage() {
+  const error = useRouteError();
+  console.error("Route error:", error);
+  
+  let errorMessage = "An unexpected error occurred";
+  let statusText = "Error";
+  let status = "500";
+  
+  if (isRouteErrorResponse(error)) {
+    statusText = error.statusText;
+    status = String(error.status);
+    errorMessage = error.data?.message || "Something went wrong";
+  } else if (error instanceof Error) {
+    errorMessage = error.message;
+  }
+  
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gray-50">
+      <div className="w-full max-w-md p-8 bg-white rounded-lg shadow-lg">
+        <h1 className="text-3xl font-bold text-red-600 mb-2">{status} - {statusText}</h1>
+        <p className="text-gray-600 mb-6">{errorMessage}</p>
+        <div className="flex flex-col gap-4">
+          <Button onClick={() => window.location.href = "/"} className="w-full">
+            Go to Home Page
+          </Button>
+          <Button onClick={() => window.location.reload()} variant="outline" className="w-full">
+            Try Again
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const router = createBrowserRouter([
   {
     path: "/",
     element: <Layout />,
+    errorElement: <ErrorPage />,
     children: [
       {
         index: true,
@@ -76,6 +115,16 @@ const router = createBrowserRouter([
       {
         path: "test",
         element: <TestPage />,
+      },
+      {
+        path: "postgres-test",
+        element: <PostgresTestPage />,
+        errorElement: <ErrorPage />,
+      },
+      {
+        path: "database-migration",
+        element: <AdminRouteFixed><DatabaseMigration /></AdminRouteFixed>,
+        errorElement: <ErrorPage />,
       },
       {
         path: "admin/customer-simple",
@@ -132,6 +181,10 @@ const router = createBrowserRouter([
       {
         path: "admin/customer/:customerId/loler-list",
         element: <AdminRouteFixed><LolerList /></AdminRouteFixed>,
+      },
+      {
+        path: "*",
+        element: <NotFound />,
       },
     ],
   },

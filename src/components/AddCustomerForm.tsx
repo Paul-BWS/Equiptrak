@@ -5,7 +5,6 @@ import { Form } from "./ui/form";
 import { FormField } from "./forms/FormField";
 import { AddressSection } from "./forms/AddressSection";
 import { z } from "zod";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "./ui/use-toast";
 
 const companyFormSchema = z.object({
@@ -19,19 +18,30 @@ const companyFormSchema = z.object({
   country: z.string().optional(),
   industry: z.string().optional(),
   website: z.string().optional().nullable().transform(val => val || ''),
+  contact_name: z.string().optional(),
+  contact_email: z.string().optional(),
+  contact_phone: z.string().optional(),
 });
 
 type CompanyFormValues = z.infer<typeof companyFormSchema>;
 
 interface AddCustomerFormProps {
-  onSuccess: () => void;
+  onSuccess: (data?: any) => void;
   initialData?: CompanyFormValues;
-  isEditing?: boolean;
+  mode?: 'add' | 'edit';
   onClose?: () => void;
 }
 
-export function AddCustomerForm({ onSuccess, initialData, isEditing = false, onClose }: AddCustomerFormProps) {
+export function AddCustomerForm({ 
+  onSuccess, 
+  initialData, 
+  mode = 'add', 
+  onClose 
+}: AddCustomerFormProps) {
   const { toast } = useToast();
+  
+  console.log("AddCustomerForm - Initial data:", initialData);
+  
   const form = useForm<CompanyFormValues>({
     resolver: zodResolver(companyFormSchema),
     defaultValues: initialData || {
@@ -44,14 +54,21 @@ export function AddCustomerForm({ onSuccess, initialData, isEditing = false, onC
       country: "United Kingdom",
       industry: "",
       website: "",
+      contact_name: "",
+      contact_email: "",
+      contact_phone: "",
     },
   });
 
   const onSubmit = async (data: CompanyFormValues) => {
     try {
+      console.log('Form data before cleaning:', data);
+      
       // Clean up empty strings to null for optional fields
       const cleanData = {
         ...data,
+        company_name: data.company_name, // Ensure company_name is preserved
+        name: data.company_name, // Also set name field for API compatibility
         website: data.website || null,
         telephone: data.telephone || null,
         industry: data.industry || null,
@@ -60,43 +77,65 @@ export function AddCustomerForm({ onSuccess, initialData, isEditing = false, onC
         county: data.county || null,
         postcode: data.postcode || null,
         country: data.country || 'United Kingdom',
+        contact_name: data.contact_name || null,
+        contact_email: data.contact_email || null,
+        contact_phone: data.contact_phone || null,
       };
+      
+      console.log('Clean data being sent to API:', cleanData);
 
-      if (isEditing && initialData?.id) {
+      let result;
+      
+      if (mode === 'edit' && initialData?.id) {
         const { id, ...updateData } = cleanData;
         console.log('Updating company:', initialData.id);
         console.log('Update data:', updateData);
         
-        const { data: result, error } = await supabase
-          .from("companies")
-          .update(updateData)
-          .eq("id", initialData.id)
-          .select()
-          .single();
+        const response = await fetch(`http://localhost:3001/api/companies/${initialData.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify(updateData),
+        });
 
-        if (error) {
-          console.error('Supabase update error:', error);
-          throw error;
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('API error response:', errorText);
+          throw new Error(errorText || 'Failed to update company');
         }
 
+        result = await response.json();
         console.log('Update successful:', result);
       } else {
-        const { error } = await supabase
-          .from("companies")
-          .insert([cleanData]);
+        console.log('Creating new company with data:', cleanData);
+        
+        const response = await fetch('http://localhost:3001/api/companies', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify(cleanData),
+        });
 
-        if (error) {
-          console.error('Supabase insert error:', error);
-          throw error;
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('API error response:', errorText);
+          throw new Error(errorText || 'Failed to create company');
         }
+        
+        result = await response.json();
+        console.log('Company creation successful:', result);
       }
 
       toast({
         title: "Success",
-        description: `Company ${isEditing ? "updated" : "added"} successfully`,
+        description: `Company ${mode === 'edit' ? "updated" : "added"} successfully`,
       });
       
-      onSuccess();
+      onSuccess(result);
       if (onClose) {
         onClose();
       }
@@ -142,6 +181,31 @@ export function AddCustomerForm({ onSuccess, initialData, isEditing = false, onC
             placeholder="https://example.com"
           />
 
+          <div className="space-y-4 border p-4 rounded-md">
+            <h3 className="font-medium">Contact Information</h3>
+            
+            <FormField
+              form={form}
+              name="contact_name"
+              label="Contact Name"
+              placeholder="Enter contact person's name"
+            />
+            
+            <FormField
+              form={form}
+              name="contact_email"
+              label="Contact Email"
+              placeholder="Enter contact email"
+            />
+            
+            <FormField
+              form={form}
+              name="contact_phone"
+              label="Contact Phone"
+              placeholder="Enter contact phone number"
+            />
+          </div>
+
           <AddressSection form={form} />
         </div>
 
@@ -149,7 +213,7 @@ export function AddCustomerForm({ onSuccess, initialData, isEditing = false, onC
           type="submit"
           className="w-full dark:bg-[#a6e15a] dark:text-black bg-[#7b96d4] text-white hover:dark:bg-[#95cc51] hover:bg-[#6b86c4]"
         >
-          {isEditing ? "Update Company" : "Add Company"}
+          {mode === 'edit' ? "Update Company" : "Add Company"}
         </Button>
       </form>
     </Form>

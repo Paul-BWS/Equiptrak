@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -14,28 +14,21 @@ import {
   X,
   PencilRuler,
   ArrowLeft,
-  Building
+  Building,
+  Database
 } from "lucide-react";
 
 export function Sidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [isOpen, setIsOpen] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  
-  // Determine if user is admin - simple check based on role
-  useEffect(() => {
-    if (user?.user_metadata?.role === 'admin') {
-      setIsAdmin(true);
-    } else {
-      setIsAdmin(false);
-    }
-  }, [user]);
+  const isAdmin = user?.role === 'admin';
   
   const handleSignOut = async () => {
     await signOut();
-    window.location.href = "/";
+    navigate("/login");
   };
   
   const isActive = (path: string) => {
@@ -83,10 +76,10 @@ export function Sidebar() {
                 <Button
                   variant="ghost"
                   className={`w-full justify-start text-white hover:bg-white/10 ${
-                    isActive("/admin") && !isActive("/admin/customer") ? "bg-white/20" : ""
+                    isActive("/admin") ? "bg-white/20" : ""
                   }`}
                   onClick={() => {
-                    window.location.href = "/admin";
+                    navigate("/admin");
                     if (isMobile) setIsOpen(false);
                   }}
                 >
@@ -97,43 +90,43 @@ export function Sidebar() {
                 <Button
                   variant="ghost"
                   className={`w-full justify-start text-white hover:bg-white/10 ${
-                    isActive("/admin/personnel") ? "bg-white/20" : ""
+                    isActive("/equipment-types") ? "bg-white/20" : ""
                   }`}
                   onClick={() => {
-                    window.location.href = "/admin/personnel";
-                    if (isMobile) setIsOpen(false);
-                  }}
-                >
-                  <Users className="mr-2 h-5 w-5" />
-                  Personnel
-                </Button>
-                
-                <Button
-                  variant="ghost"
-                  className={`w-full justify-start text-white hover:bg-white/10 ${
-                    isActive("/admin/equipment") ? "bg-white/20" : ""
-                  }`}
-                  onClick={() => {
-                    window.location.href = "/admin/equipment";
+                    navigate("/equipment-types");
                     if (isMobile) setIsOpen(false);
                   }}
                 >
                   <PencilRuler className="mr-2 h-5 w-5" />
-                  Equipment
+                  Equipment Types
                 </Button>
                 
                 <Button
                   variant="ghost"
                   className={`w-full justify-start text-white hover:bg-white/10 ${
-                    isActive("/admin/service") ? "bg-white/20" : ""
+                    isActive("/compressors") ? "bg-white/20" : ""
                   }`}
                   onClick={() => {
-                    window.location.href = "/admin/service";
+                    navigate("/compressors");
                     if (isMobile) setIsOpen(false);
                   }}
                 >
                   <FileText className="mr-2 h-5 w-5" />
-                  Service Records
+                  Compressors
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  className={`w-full justify-start text-white hover:bg-white/10 ${
+                    isActive("/spot-welders") ? "bg-white/20" : ""
+                  }`}
+                  onClick={() => {
+                    navigate("/spot-welders");
+                    if (isMobile) setIsOpen(false);
+                  }}
+                >
+                  <FileText className="mr-2 h-5 w-5" />
+                  Spot Welders
                 </Button>
               </>
             ) : (
@@ -142,16 +135,10 @@ export function Sidebar() {
                 <Button
                   variant="ghost"
                   className={`w-full justify-start text-white hover:bg-white/10 ${
-                    isActive("/dashboard") || isActive("/dashboard/company-simple") ? "bg-white/20" : ""
+                    isActive("/dashboard") ? "bg-white/20" : ""
                   }`}
                   onClick={() => {
-                    // Navigate to the current company dashboard
-                    const companyId = user?.user_metadata?.company_id;
-                    if (companyId) {
-                      window.location.href = `/dashboard/company-simple?id=${companyId}`;
-                    } else {
-                      window.location.href = "/dashboard";
-                    }
+                    navigate("/dashboard");
                     if (isMobile) setIsOpen(false);
                   }}
                 >
@@ -162,93 +149,26 @@ export function Sidebar() {
                 <Button
                   variant="ghost"
                   className={`w-full justify-start text-white hover:bg-white/10 ${
-                    isActive("/dashboard/personnel") ? "bg-white/20" : ""
+                    isActive("/equipment") ? "bg-white/20" : ""
                   }`}
                   onClick={() => {
-                    window.location.href = "/dashboard/personnel";
-                    if (isMobile) setIsOpen(false);
-                  }}
-                >
-                  <Users className="mr-2 h-5 w-5" />
-                  Personnel
-                </Button>
-                
-                <Button
-                  variant="ghost"
-                  className={`w-full justify-start text-white hover:bg-white/10 ${
-                    isActive("/dashboard/equipment") || isActive("/dashboard/company-equipment") ? "bg-white/20" : ""
-                  }`}
-                  onClick={() => {
-                    // Navigate to the company equipment page with the company ID
-                    const companyId = user?.user_metadata?.company_id;
-                    if (companyId) {
-                      window.location.href = `/dashboard/company-equipment?id=${companyId}`;
-                    } else {
-                      window.location.href = "/dashboard/equipment";
-                    }
+                    navigate("/equipment");
                     if (isMobile) setIsOpen(false);
                   }}
                 >
                   <PencilRuler className="mr-2 h-5 w-5" />
                   Equipment
                 </Button>
-                
-                <Button
-                  variant="ghost"
-                  className={`w-full justify-start text-white hover:bg-white/10 ${
-                    isActive("/dashboard/service-records") ? "bg-white/20" : ""
-                  }`}
-                  onClick={() => {
-                    window.location.href = "/dashboard/service-records";
-                    if (isMobile) setIsOpen(false);
-                  }}
-                >
-                  <FileText className="mr-2 h-5 w-5" />
-                  Service Records
-                </Button>
               </>
             )}
           </div>
         </div>
-        
-        {isAdmin && (
-          <div className="px-3 py-2 mt-4">
-            <h3 className="mb-2 px-4 text-xs font-semibold text-white/70 uppercase">
-              Settings
-            </h3>
-            <div className="space-y-1">
-              <Button
-                variant="ghost"
-                className={`w-full justify-start text-white hover:bg-white/10 ${
-                  isActive("/admin/settings") ? "bg-white/20" : ""
-                }`}
-                onClick={() => {
-                  window.location.href = "/admin/settings";
-                  if (isMobile) setIsOpen(false);
-                }}
-              >
-                <Settings className="mr-2 h-5 w-5" />
-                Settings
-              </Button>
-            </div>
-          </div>
-        )}
       </div>
       
       <div className="p-4 border-t border-white/20">
-        <div className="flex items-center mb-4">
-          <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#7b96d4]">
-            {user?.email?.charAt(0).toUpperCase() || "U"}
-          </div>
-          <div className="ml-2">
-            <p className="text-sm font-medium">{user?.email?.split('@')[0] || "User"}</p>
-            <p className="text-xs text-white/70">{user?.email || ""}</p>
-          </div>
-        </div>
-        
         <Button
-          variant="outline"
-          className="w-full justify-start text-white border-white hover:bg-white/10"
+          variant="ghost"
+          className="w-full justify-start text-white hover:bg-white/10"
           onClick={handleSignOut}
         >
           <LogOut className="mr-2 h-5 w-5" />
@@ -258,33 +178,26 @@ export function Sidebar() {
     </div>
   );
   
-  // For desktop: render the sidebar directly
-  if (!isMobile) {
+  if (isMobile) {
     return (
-      <div className="hidden md:block w-64 border-r border-[#7b96d4] h-screen overflow-y-auto">
-        {sidebarContent}
-      </div>
+      <Sheet open={isOpen} onOpenChange={setIsOpen}>
+        <SheetTrigger asChild>
+          <Button variant="ghost" size="icon" className="md:hidden">
+            <Menu className="h-5 w-5" />
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="p-0 w-72">
+          {sidebarContent}
+        </SheetContent>
+      </Sheet>
     );
   }
   
-  // For mobile: render just the floating circular menu button
   return (
-    <>
-      <div className="fixed top-4 right-4 z-50">
-        <Sheet open={isOpen} onOpenChange={setIsOpen}>
-          <SheetTrigger asChild>
-            <Button 
-              size="icon" 
-              className="h-12 w-12 rounded-full shadow-lg bg-[#7b96d4] text-white hover:bg-[#6a85c3]"
-            >
-              <Menu className="h-6 w-6" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="p-0 w-64">
-            {sidebarContent}
-          </SheetContent>
-        </Sheet>
-      </div>
-    </>
+    <div className="hidden md:block w-72 border-r">
+      {sidebarContent}
+    </div>
   );
-} 
+}
+
+export default Sidebar; 

@@ -11,27 +11,30 @@ import { useState } from "react";
 import { EditCompressorModal } from "../modals/EditCompressorModal";
 
 interface CompressorCardProps {
-  record: CompressorRecord;
-  showCustomer?: boolean;
-  onPrint?: (compressorId: string) => void;
-  onDelete?: (compressorId: string) => void;
-  onView?: (compressorId: string) => void;
-  isMobile?: boolean;
+  equipment: any;
+  onViewCompressor: (id: string) => void;
+  isMobile: boolean;
 }
 
-export function CompressorCard({ 
-  record, 
-  showCustomer,
-  onPrint,
-  onDelete,
-  onView,
-  isMobile
-}: CompressorCardProps) {
+export function CompressorCard({ equipment, onViewCompressor, isMobile }: CompressorCardProps) {
   const { theme } = useTheme();
-  const status = getStatus(record.retest_date);
-  const statusColor = getStatusColor(record.retest_date);
+  const status = getStatus(equipment.next_test_date);
+  const statusColor = getStatusColor(equipment.next_test_date);
   const statusText = status.charAt(0).toUpperCase() + status.slice(1);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "Overdue":
+        return "bg-red-100 text-red-800 border-red-200";
+      case "Due Soon":
+        return "bg-amber-100 text-amber-800 border-amber-200";
+      case "Valid":
+        return "bg-green-100 text-green-800 border-green-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
+    }
+  };
 
   if (isMobile) {
     return (
@@ -41,15 +44,15 @@ export function CompressorCard({
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <div className="font-medium">Model</div>
-                <div>{record.compressor_model}</div>
+                <div>{equipment.model || "N/A"}</div>
               </div>
               <div className="flex justify-between items-center">
                 <div className="font-medium">Serial</div>
-                <div>{record.equipment_serial}</div>
+                <div>{equipment.equipment_serial || "N/A"}</div>
               </div>
               <div className="flex justify-between items-center">
                 <div className="font-medium">Retest Date</div>
-                <div>{format(new Date(record.retest_date), "dd/MM/yyyy")}</div>
+                <div>{format(new Date(equipment.next_test_date), "dd/MM/yyyy")}</div>
               </div>
               <div className="flex justify-between items-center">
                 <div className="font-medium">Status</div>
@@ -73,28 +76,13 @@ export function CompressorCard({
             >
               <Eye className="h-6 w-6" />
             </Button>
-            {onDelete && (
-              <Button
-                onClick={() => onDelete(record.id)}
-                variant="outline"
-                size="default"
-                className="h-12 w-12 rounded-lg text-destructive hover:text-destructive/90"
-                style={{ 
-                  backgroundColor: theme === 'dark' ? '#1a1a1a' : '#ffffff',
-                  color: theme === 'dark' ? '#ffffff' : '#1a1a1a',
-                  border: theme === 'light' ? '1px solid #e2e8f0' : 'none'
-                }}
-              >
-                <Trash2 className="h-6 w-6" />
-              </Button>
-            )}
           </CardFooter>
         </Card>
 
         <EditCompressorModal
           open={isEditModalOpen}
           onOpenChange={setIsEditModalOpen}
-          record={record}
+          record={equipment}
         />
       </>
     );
@@ -102,64 +90,50 @@ export function CompressorCard({
 
   return (
     <>
-      <Card className="hover:shadow-lg transition-shadow">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <EquipmentInfo 
-              serialNumber={record.equipment_serial}
-              nextTestDate={record.retest_date}
-            />
+      <Card className="overflow-hidden">
+        <CardContent className="p-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-lg">{equipment.equipment_name || "Unnamed Compressor"}</h3>
+                <Badge className={getStatusColor(equipment.status)}>{equipment.status || "Unknown"}</Badge>
+              </div>
+              <p className="text-sm text-gray-500">
+                Serial: {equipment.equipment_serial || "N/A"}
+              </p>
+              {equipment.manufacturer && (
+                <p className="text-sm text-gray-500">
+                  Manufacturer: {equipment.manufacturer}
+                </p>
+              )}
+              {equipment.model && (
+                <p className="text-sm text-gray-500">
+                  Model: {equipment.model}
+                </p>
+              )}
+              {equipment.location && (
+                <p className="text-sm text-gray-500">
+                  Location: {equipment.location}
+                </p>
+              )}
+              <p className="text-sm text-gray-500">
+                Next Test Date:{" "}
+                {equipment.next_test_date
+                  ? format(new Date(equipment.next_test_date), "dd/MM/yyyy")
+                  : "Not set"}
+              </p>
+            </div>
 
-            <div className="flex items-center gap-3 ml-8">
-              <Badge className={`${statusColor} text-white`}>
-                {statusText}
-              </Badge>
-              <Button 
-                size="icon"
+            <div className={`flex ${isMobile ? "flex-col" : "flex-row"} gap-2`}>
+              <Button
                 variant="outline"
-                onClick={() => setIsEditModalOpen(true)}
-                style={{ 
-                  backgroundColor: theme === 'dark' ? '#1a1a1a' : '#ffffff',
-                  color: theme === 'dark' ? '#ffffff' : '#1a1a1a',
-                  border: 'none'
-                }}
-                title="View"
-                className="h-9 w-9"
+                size="sm"
+                className="gap-2"
+                onClick={() => onViewCompressor(equipment.id)}
               >
                 <Eye className="h-4 w-4" />
+                View Details
               </Button>
-              {onPrint && (
-                <Button 
-                  size="icon"
-                  variant="outline"
-                  onClick={() => onPrint(record.id)}
-                  style={{ 
-                    backgroundColor: theme === 'dark' ? '#1a1a1a' : '#ffffff',
-                    color: theme === 'dark' ? '#ffffff' : '#1a1a1a',
-                    border: 'none'
-                  }}
-                  title="Print"
-                  className="h-9 w-9"
-                >
-                  <Printer className="h-4 w-4" />
-                </Button>
-              )}
-              {onDelete && (
-                <Button 
-                  size="icon"
-                  variant="outline"
-                  onClick={() => onDelete(record.id)}
-                  style={{ 
-                    backgroundColor: theme === 'dark' ? '#1a1a1a' : '#ffffff',
-                    color: theme === 'dark' ? '#ffffff' : '#1a1a1a',
-                    border: 'none'
-                  }}
-                  title="Delete"
-                  className="h-9 w-9 text-destructive hover:text-destructive/90"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
             </div>
           </div>
         </CardContent>
@@ -168,7 +142,7 @@ export function CompressorCard({
       <EditCompressorModal
         open={isEditModalOpen}
         onOpenChange={setIsEditModalOpen}
-        record={record}
+        record={equipment}
       />
     </>
   );

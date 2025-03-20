@@ -1,446 +1,221 @@
-import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Key } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { EnableUserAccess } from "./EnableUserAccess";
-import { Badge } from '@/components/ui/badge';
-
-const contactFormSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  email: z.string().email("Invalid email address"),
-  phone: z.string().optional(),
-  mobile: z.string().optional(),
-  role: z.string().min(1, "Role is required"),
-});
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Plus, Pencil, Trash2, Mail, Phone } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { ContactForm } from './ContactForm';
+import { SingleContactView } from './SingleContactView';
 
 interface Contact {
   id: string;
-  name: string;
+  first_name: string;
+  last_name: string;
   email: string;
-  phone: string | null;
-  mobile: string | null;
-  role: string;
-  company_id: string;
+  telephone: string;
+  mobile: string;
+  job_title: string;
+  is_primary: boolean;
+  has_system_access?: boolean;
   created_at: string;
   updated_at: string;
-  has_user_access: boolean;
-  has_system_access: boolean;
-  status?: string;
 }
 
 interface ContactListProps {
-  companyId?: string;
+  companyId: string;
 }
 
 export function ContactList({ companyId }: ContactListProps) {
-  const queryClient = useQueryClient();
-  const [isAddingContact, setIsAddingContact] = useState(false);
-  const [isEditingContact, setIsEditingContact] = useState(false);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
-
-  const form = useForm<z.infer<typeof contactFormSchema>>({
-    resolver: zodResolver(contactFormSchema),
-    defaultValues: {
-      name: "",
-      email: "",
-      phone: "",
-      mobile: "",
-      role: "",
-    },
-  });
-
-  const editForm = useForm<z.infer<typeof contactFormSchema>>({
-    resolver: zodResolver(contactFormSchema),
-    defaultValues: {
-      name: selectedContact?.name || "",
-      email: selectedContact?.email || "",
-      phone: selectedContact?.phone || "",
-      mobile: selectedContact?.mobile || "",
-      role: selectedContact?.role || "",
-    },
-  });
-
-  const { data: contacts, isLoading } = useQuery({
-    queryKey: ["contacts", companyId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("contacts")
-        .select("*")
-        .eq("company_id", companyId)
-        .order("name");
-
-      if (error) {
-        toast.error("Error fetching contacts: " + error.message);
-        throw error;
-      }
-
-      return data as Contact[];
-    },
-    enabled: !!companyId,
-  });
-
-  const onSubmit = async (values: z.infer<typeof contactFormSchema>) => {
+  const { toast } = useToast();
+  
+  // Load contacts on mount and when companyId changes
+  useEffect(() => {
+    if (companyId) {
+      fetchContacts();
+    }
+  }, [companyId]);
+  
+  // Fetch contacts from API
+  const fetchContacts = async () => {
+    setIsLoading(true);
     try {
-      const { error } = await supabase.from("contacts").insert({
-        name: values.name,
-        email: values.email,
-        phone: values.phone || null,
-        mobile: values.mobile || null,
-        role: values.role,
-        company_id: companyId,
+      const response = await fetch(`http://localhost:3001/api/contacts?companyId=${companyId}`, {
+        credentials: 'include'
       });
-
-      if (error) throw error;
-
-      toast.success("Contact added successfully");
-      queryClient.invalidateQueries({ queryKey: ["contacts"] });
-      setIsAddingContact(false);
-      form.reset();
-    } catch (error: any) {
-      toast.error(error.message);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch contacts');
+      }
+      
+      const data = await response.json();
+      setContacts(data);
+    } catch (error) {
+      console.error('Error fetching contacts:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load contacts. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
-
-  const onEditSubmit = async (values: z.infer<typeof contactFormSchema>) => {
+  
+  // Handle edit contact
+  const handleEditContact = (contact: Contact) => {
+    setSelectedContact(contact);
+    setIsEditDialogOpen(true);
+  };
+  
+  // Handle delete contact
+  const handleDeleteContact = (contact: Contact) => {
+    setSelectedContact(contact);
+    setIsDeleteDialogOpen(true);
+  };
+  
+  // Confirm delete contact
+  const confirmDeleteContact = async () => {
     if (!selectedContact) return;
     
     try {
-      const { error } = await supabase
-        .from("contacts")
-        .update({
-          name: values.name,
-          email: values.email,
-          phone: values.phone || null,
-          mobile: values.mobile || null,
-          role: values.role,
-        })
-        .eq("id", selectedContact.id);
-
-      if (error) throw error;
-
-      toast.success("Contact updated successfully");
-      queryClient.invalidateQueries({ queryKey: ["contacts"] });
-      setIsEditingContact(false);
-      setSelectedContact(null);
-      editForm.reset();
-    } catch (error: any) {
-      toast.error(error.message);
-    }
-  };
-
-  const handleEditClick = (e: React.MouseEvent, contact: Contact) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setSelectedContact(contact);
-    editForm.reset({
-      name: contact.name,
-      email: contact.email,
-      phone: contact.phone || "",
-      mobile: contact.mobile || "",
-      role: contact.role,
-    });
-    setIsEditingContact(true);
-  };
-
-  const showStoredCredentials = async (email: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('stored_password')
-        .eq('email', email)
-        .single();
-
-      if (error) throw error;
-
-      if (data?.stored_password) {
-        toast("Login Credentials", {
-          description: `Email: ${email}\nPassword: ${data.stored_password}\n\nPlease save these details!`,
-          duration: 30000,
-        });
-      } else {
-        toast.error("No password found for this user.");
+      const response = await fetch(`http://localhost:3001/api/contacts/${selectedContact.id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete contact');
       }
-    } catch (error: any) {
-      console.error('Error fetching credentials:', error);
-      toast.error("Could not retrieve credentials");
+      
+      toast({
+        title: 'Success',
+        description: 'Contact deleted successfully',
+        variant: 'default'
+      });
+      
+      // Refresh contacts list
+      fetchContacts();
+      
+      // Close dialog
+      setIsDeleteDialogOpen(false);
+      setSelectedContact(null);
+    } catch (error) {
+      console.error('Error deleting contact:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete contact. Please try again.',
+        variant: 'destructive'
+      });
     }
   };
-
+  
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Company Contacts</h3>
-        <Button onClick={() => setIsAddingContact(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Contact
-        </Button>
+    <div>
+      <div className="mb-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-medium">Contacts</h2>
+          <Button 
+            onClick={() => setIsAddDialogOpen(true)}
+            className="bg-a6e15a text-black hover:bg-opacity-90"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Contact
+          </Button>
+        </div>
       </div>
-
-      <Dialog open={isAddingContact} onOpenChange={setIsAddingContact}>
+      
+      {isLoading ? (
+        <p>Loading contacts...</p>
+      ) : contacts.length === 0 ? (
+        <p>No contacts found. Add your first contact!</p>
+      ) : (
+        <div className="space-y-2">
+          {contacts.map(contact => (
+            <div key={contact.id}>
+              <SingleContactView
+                id={contact.id}
+                first_name={contact.first_name}
+                last_name={contact.last_name}
+                job_title={contact.job_title}
+                email={contact.email}
+                telephone={contact.telephone}
+                mobile={contact.mobile}
+                is_primary={contact.is_primary}
+                has_system_access={contact.has_system_access}
+                onEdit={() => handleEditContact(contact)}
+                onDelete={() => handleDeleteContact(contact)}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+      
+      {/* Add Contact Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add New Contact</DialogTitle>
           </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Phone</FormLabel>
-                    <FormControl>
-                      <Input type="tel" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="mobile"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Mobile</FormLabel>
-                    <FormControl>
-                      <Input type="tel" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="role"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Role</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit">Add Contact</Button>
-            </form>
-          </Form>
+          <ContactForm 
+            companyId={companyId}
+            onSuccess={() => {
+              setIsAddDialogOpen(false);
+              fetchContacts();
+            }}
+            onCancel={() => setIsAddDialogOpen(false)}
+          />
         </DialogContent>
       </Dialog>
-
-      <Dialog open={isEditingContact} onOpenChange={setIsEditingContact}>
+      
+      {/* Edit Contact Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Contact</DialogTitle>
           </DialogHeader>
-          <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
-              <FormField
-                control={editForm.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={editForm.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={editForm.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Phone</FormLabel>
-                    <FormControl>
-                      <Input type="tel" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={editForm.control}
-                name="mobile"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Mobile</FormLabel>
-                    <FormControl>
-                      <Input type="tel" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={editForm.control}
-                name="role"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Role</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit">Update Contact</Button>
-            </form>
-          </Form>
+          {selectedContact && (
+            <ContactForm 
+              companyId={companyId}
+              initialData={selectedContact}
+              onSuccess={() => {
+                setIsEditDialogOpen(false);
+                setSelectedContact(null);
+                fetchContacts();
+              }}
+              onCancel={() => {
+                setIsEditDialogOpen(false);
+                setSelectedContact(null);
+              }}
+            />
+          )}
         </DialogContent>
       </Dialog>
-
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Phone</TableHead>
-              <TableHead>Mobile</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Access</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center">
-                  Loading...
-                </TableCell>
-              </TableRow>
-            ) : contacts?.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center">
-                  No contacts found
-                </TableCell>
-              </TableRow>
-            ) : (
-              contacts?.map((contact) => (
-                <TableRow key={contact.id}>
-                  <TableCell>{contact.name}</TableCell>
-                  <TableCell>{contact.email}</TableCell>
-                  <TableCell>{contact.phone}</TableCell>
-                  <TableCell>{contact.mobile}</TableCell>
-                  <TableCell>{contact.role}</TableCell>
-                  <TableCell>
-                    <EnableUserAccess 
-                      contact={contact}
-                      onSuccess={() => queryClient.invalidateQueries({ queryKey: ["contacts", companyId] })}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {contact.has_system_access ? (
-                      <Badge variant="outline" className="bg-blue-100 text-blue-800 hover:bg-blue-100">
-                        System User
-                      </Badge>
-                    ) : contact.status ? (
-                      <Badge variant="outline">
-                        {contact.status}
-                      </Badge>
-                    ) : (
-                      '-'
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => handleEditClick(e, contact)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      {contact.has_user_access && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => showStoredCredentials(contact.email)}
-                          title="Show login credentials"
-                        >
-                          <Key className="h-4 w-4 text-blue-500" />
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      
+      {/* Delete Contact Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Contact</DialogTitle>
+          </DialogHeader>
+          <div className="mb-6">
+            <p>Are you sure you want to delete this contact? This action cannot be undone.</p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDeleteContact}>
+              Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

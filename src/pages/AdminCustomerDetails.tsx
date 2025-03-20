@@ -1,6 +1,5 @@
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, FileText, User, Trash2, MessageSquare, MapPin, Wrench, Phone, Mail, ClipboardList, ClipboardCheck, Plus, Search, PencilRuler, Pencil, Trash, UserCircle, Save, X } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -14,10 +13,11 @@ import { EquipmentList } from "@/components/equipment/EquipmentList";
 import { ServiceRecordsTable } from "@/components/service/components/ServiceRecordsTable";
 import { CustomerListHeader } from "@/components/customers/CustomerListHeader";
 import { ViewSpotWelderModal } from "@/components/spot-welder/ViewSpotWelderModal";
-import { ContactsTable } from "@/components/contacts/ContactsTable";
+import { ContactList } from "@/components/contacts/ContactList";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { Notes } from "@/components/shared/Notes";
+import databaseService, { Company } from "@/services/database";
 
 // Company status options
 const COMPANY_STATUS_OPTIONS = [
@@ -34,6 +34,12 @@ const COMPANY_STATUS_OPTIONS = [
   'Dingbro', 
   'ABSL'
 ];
+
+// Extended company interface with additional fields
+interface ExtendedCompany extends Company {
+  email?: string;
+  credit_rating?: string;
+}
 
 export function AdminCustomerDetails() {
   const { customerId } = useParams<{ customerId: string }>();
@@ -60,8 +66,11 @@ export function AdminCustomerDetails() {
   // State for inline editing
   const [isEditingContact, setIsEditingContact] = useState(false);
   const [isEditingAddress, setIsEditingAddress] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [editedCustomer, setEditedCustomer] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string>("");
 
   // Check if the screen is mobile size
@@ -74,13 +83,11 @@ export function AdminCustomerDetails() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Get current user ID
+  // Get current user ID - using a dummy function since we're migrating away from Supabase
   useEffect(() => {
     const getCurrentUser = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session?.user) {
-        setCurrentUserId(data.session.user.id);
-      }
+      // This would be replaced with your own auth system
+      setCurrentUserId("current-user-id");
     };
     
     getCurrentUser();
@@ -92,16 +99,7 @@ export function AdminCustomerDetails() {
     queryFn: async () => {
       console.log("Fetching customer with ID:", customerId);
       try {
-        const { data, error } = await supabase
-          .from("companies")
-          .select("*")
-          .eq("id", customerId)
-          .single();
-          
-        if (error) {
-          console.error("Supabase error fetching customer:", error);
-          throw error;
-        }
+        const data = await databaseService.getCompanyById(customerId!);
         
         if (!data) {
           console.error("No customer data found for ID:", customerId);
@@ -109,7 +107,7 @@ export function AdminCustomerDetails() {
         }
         
         console.log("Customer data fetched successfully:", data);
-        return data;
+        return data as ExtendedCompany;
       } catch (err) {
         console.error("Error in customer fetch function:", err);
         throw err;
@@ -140,23 +138,17 @@ export function AdminCustomerDetails() {
   }, [customer]);
 
   const handleSaveContact = async () => {
-    if (!editedCustomer) return;
+    if (!editedCustomer || !customerId) return;
     
     setIsSaving(true);
     try {
-      const { error } = await supabase
-        .from("companies")
-        .update({
-          company_name: editedCustomer.company_name,
-          email: editedCustomer.email,
-          telephone: editedCustomer.telephone,
-          industry: editedCustomer.industry,
-          credit_rating: editedCustomer.credit_rating,
-          company_status: editedCustomer.company_status
-        })
-        .eq("id", customerId);
-        
-      if (error) throw error;
+      await databaseService.updateCompany({
+        id: customerId,
+        company_name: editedCustomer.company_name,
+        telephone: editedCustomer.telephone,
+        industry: editedCustomer.industry,
+        company_status: editedCustomer.company_status
+      });
       
       toast({
         title: "Success",
@@ -177,21 +169,17 @@ export function AdminCustomerDetails() {
   };
 
   const handleSaveAddress = async () => {
-    if (!editedCustomer) return;
+    if (!editedCustomer || !customerId) return;
     
     setIsSaving(true);
     try {
-      const { error } = await supabase
-        .from("companies")
-        .update({
-          address: editedCustomer.address,
-          city: editedCustomer.city,
-          county: editedCustomer.county,
-          postcode: editedCustomer.postcode
-        })
-        .eq("id", customerId);
-        
-      if (error) throw error;
+      await databaseService.updateCompany({
+        id: customerId,
+        address: editedCustomer.address,
+        city: editedCustomer.city,
+        county: editedCustomer.county,
+        postcode: editedCustomer.postcode
+      });
       
       toast({
         title: "Success",
@@ -219,29 +207,65 @@ export function AdminCustomerDetails() {
     }));
   };
 
-  const handleDelete = async () => {
+  // Handle save changes
+  const handleSaveChanges = async () => {
+    if (!customerId) return;
+    
     try {
-      const { error } = await supabase
-        .from("companies")
-        .delete()
-        .eq("id", customerId);
-        
-      if (error) throw error;
+      setIsSaving(true);
+      
+      // Update the customer in the database
+      await databaseService.updateCompany({
+        id: customerId,
+        ...editedCustomer
+      });
+      
+      toast({
+        title: "Success",
+        description: "Customer details updated successfully",
+      });
+      
+      setIsEditing(false);
+      refetch(); // Refresh the data
+    } catch (error: any) {
+      console.error("Error updating customer:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update customer details",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Handle delete customer
+  const handleDeleteCustomer = async () => {
+    if (!customerId) return;
+    
+    try {
+      setIsDeleting(true);
+      
+      // Delete the customer from the database
+      await databaseService.deleteCompany(customerId);
       
       toast({
         title: "Success",
         description: "Customer deleted successfully",
       });
       
+      // Navigate back to the customer list
       navigate("/admin");
     } catch (error: any) {
+      console.error("Error deleting customer:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete customer",
         variant: "destructive",
       });
     } finally {
-      setIsDeleteDialogOpen(false);
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
     }
   };
 
@@ -608,18 +632,8 @@ export function AdminCustomerDetails() {
             </div>
           </TabsContent>
           
-          <TabsContent value="contacts" className="mt-6 relative">
-            <div className="bg-white rounded-lg border p-6">
-              <ContactsTable companyId={customerId || ""} />
-            </div>
-            
-            <Button
-              onClick={() => document.getElementById('add-contact-button')?.click()}
-              className="fixed bottom-6 right-6 rounded-full w-14 h-14 shadow-lg bg-[#7b96d4] hover:bg-[#6a82bc]"
-              size="icon"
-            >
-              <Plus className="h-6 w-6" />
-            </Button>
+          <TabsContent value="contacts" className="space-y-4">
+            {customerId && <ContactList companyId={customerId} />}
           </TabsContent>
           
           <TabsContent value="equipment" className="space-y-6">
@@ -667,12 +681,12 @@ export function AdminCustomerDetails() {
             <AlertDialogHeader>
               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This will permanently delete this customer and all associated records. This action cannot be undone.
+                This will permanently delete this customer and all associated data. This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete} className="bg-primary text-primary-foreground hover:bg-primary/90">
+              <AlertDialogAction onClick={handleDeleteCustomer} className="bg-primary text-primary-foreground hover:bg-primary/90">
                 Delete
               </AlertDialogAction>
             </AlertDialogFooter>

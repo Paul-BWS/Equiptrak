@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Plus } from "lucide-react";
 import { ServiceRecordsTable } from "@/components/service/components/ServiceRecordsTable";
@@ -25,17 +24,17 @@ export function AdminService() {
         throw new Error("No customer ID provided");
       }
       
-      const { data, error } = await supabase
-        .from("companies")
-        .select("*")
-        .eq("id", customerId)
-        .single();
-        
-      if (error) {
+      const response = await fetch(`http://localhost:3001/api/companies/${customerId}`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        const error = await response.text();
         console.error("Error fetching customer:", error);
-        throw error;
+        throw new Error(error);
       }
       
+      const data = await response.json();
       return data;
     },
     retry: 1,
@@ -51,56 +50,38 @@ export function AdminService() {
   if (customerError) {
     return (
       <div className="container mx-auto py-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-          <h2 className="text-xl font-bold text-red-700 mb-2">Error Loading Customer</h2>
-          <p className="text-red-600 mb-4">
-            {customerError instanceof Error ? customerError.message : "Failed to load customer data"}
-          </p>
-          <Button 
-            onClick={() => navigate("/admin")} 
-            variant="outline"
-          >
-            Return to Customers
-          </Button>
-        </div>
+        <div className="text-red-500">Error loading customer data. Please try again.</div>
       </div>
     );
   }
   
-  // Render the service page
-  return (
-    <div className="container mx-auto py-6 space-y-6 relative pb-20">
-      <div className="flex items-center gap-4">
-        <Button 
-          variant="primaryBlue"
-          size="icon"
-          onClick={() => navigate(`/admin/customer/${customerId}`)}
-          className="mr-4"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <h1 className="text-3xl font-bold">Service Records</h1>
+  // Show not found state
+  if (!customer) {
+    return (
+      <div className="container mx-auto py-6">
+        <div>Customer not found.</div>
       </div>
-
-      <div className="bg-card p-6 rounded-lg border border-border/50">
-        {customerId ? (
-          <ServiceRecordsTable customerId={customerId} />
-        ) : (
-          <div className="text-center py-4 text-red-600">
-            Error: No customer ID provided
-          </div>
-        )}
+    );
+  }
+  
+  return (
+    <div className="container mx-auto py-6">
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => navigate(-1)}
+            className="h-8 w-8"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <h1 className="text-2xl font-semibold">{customer.name}</h1>
+        </div>
+        <AddServiceButton customerId={customerId} />
       </div>
       
-      {/* Floating Action Button */}
-      <div className="fixed bottom-6 right-6 z-50">
-        <AddServiceButton 
-          customerId={customerId || ""} 
-          className="h-14 w-14 rounded-full shadow-lg p-0"
-        >
-          <Plus className="h-6 w-6" />
-        </AddServiceButton>
-      </div>
+      <ServiceRecordsTable customerId={customerId} />
     </div>
   );
 }

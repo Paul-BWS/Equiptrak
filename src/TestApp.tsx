@@ -1,40 +1,45 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Link, useParams } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
+import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/toaster";
 
 // Simple Home component
 function Home() {
   return (
     <div style={{ padding: '20px' }}>
-      <h1>Test Home Page</h1>
-      <p>This is a minimal test app</p>
+      <h1>Home Page</h1>
+      <p>Welcome to EquipTrack</p>
       <div>
-        <Link to="/company/0cd307a7-c938-49da-b005-17746587ca8a">Go to Test Company Dashboard</Link>
+        <Link to="/about">About</Link>
       </div>
     </div>
   );
 }
 
-// Simple Company Dashboard component
-function TestCompanyDashboard() {
-  const { companyId } = useParams();
-  
+// Simple About component
+function About() {
   return (
     <div style={{ padding: '20px' }}>
-      <h1>Test Company Dashboard</h1>
-      <p>Company ID: {companyId}</p>
-      <Link to="/">Back to Home</Link>
+      <h1>About Page</h1>
+      <p>This is a simple test app to verify routing works.</p>
+      <div>
+        <Link to="/">Back to Home</Link>
+      </div>
     </div>
   );
 }
 
-// Main Test App component
-export default function TestApp() {
+function TestApp() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/company/:companyId" element={<TestCompanyDashboard />} />
-      </Routes>
-    </BrowserRouter>
+    <ThemeProvider defaultTheme="light" storageKey="equiptrak-theme">
+      <Router>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/about" element={<About />} />
+        </Routes>
+        <Toaster />
+      </Router>
+    </ThemeProvider>
   );
-} 
+}
+
+export default TestApp; 

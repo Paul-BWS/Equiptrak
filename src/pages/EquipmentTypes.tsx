@@ -1,6 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
@@ -11,10 +9,10 @@ import {
   Lightbulb, // For Headlight Beam Setter
   Fan, // For Air Con Machines and Air Vent
   Gauge, // For Pressure Gauges
-  CircleDot, // For Tyres Gauge (using CircleDot as a substitute for circle-gauge)
+  CircleDot, // For Tyres Gauge
   Forklift, // For LOLER Lifting
   Weight, // For Paint Scales
-  ArrowLeftRight, // For Spot Welder (using ArrowLeftRight as a substitute for between-horizontal-end)
+  ArrowLeftRight, // For Spot Welder
   Ruler, // For JIG Measuring
   Thermometer, // For Temperature Gauges
   Drill, // For Rivet Tools
@@ -22,134 +20,172 @@ import {
   Cloud, // For Local Exhaust Ventilation LEV and Clean Air
   Cylinder, // For Gas Equipment CP7
   HardHat, // For Safety Equipment
-  Circle, // For Torque Wrench (using Circle as a substitute for radius)
-  Flame // For Tank Inspection (using Flame as a substitute for fire-extinguisher)
+  Circle, // For Torque Wrench
+  Flame // For Tank Inspection
 } from "lucide-react";
 
 export function EquipmentTypes() {
-  const { customerId } = useParams();
   const navigate = useNavigate();
   
-  console.log("EquipmentTypes - customerId:", customerId);
-  
-  // Fetch customer info (for reference, but we won't display it)
-  const { data: customer } = useQuery({
-    queryKey: ["customer", customerId],
-    queryFn: async () => {
-      try {
-        console.log("Fetching customer in EquipmentTypes:", customerId);
-        const { data, error } = await supabase
-          .from("companies")
-          .select("*")
-          .eq("id", customerId)
-          .single();
-        
-        if (error) {
-          console.error("Error fetching customer in EquipmentTypes:", error);
-          throw error;
-        }
-        console.log("Customer data in EquipmentTypes:", data);
-        return data;
-      } catch (error) {
-        console.error("Error fetching customer:", error);
-        return null;
-      }
-    },
-    enabled: !!customerId
-  });
-  
-  // Define equipment types with icons (hardcoded for now)
+  // Define equipment types with icons
   const equipmentTypes = [
     { 
-      id: "service", 
-      name: "Service", 
-      icon: <Wrench className="h-8 w-8 text-[#7b96d4]" />,
-      url: `/admin/service/${customerId}`
-    },
-    { id: "welder-validation", name: "Welder Validation", icon: <Zap className="h-8 w-8 text-[#7b96d4]" /> },
-    { id: "headlight-beam", name: "Headlight Beam Setter", icon: <Lightbulb className="h-8 w-8 text-[#7b96d4]" /> },
-    { 
-      id: "compressor", 
-      name: "Compressor", 
+      id: "compressors", 
+      name: "Compressors", 
       icon: <Fan className="h-8 w-8 text-[#7b96d4]" />,
-      url: `/admin/customer/${customerId}/compressor-list`
+      url: "/compressors"
     },
-    { id: "pressure-gauges", name: "Pressure Gauges", icon: <Gauge className="h-8 w-8 text-[#7b96d4]" /> },
-    { id: "tyres-gauge", name: "Tyres Gauge", icon: <CircleDot className="h-8 w-8 text-[#7b96d4]" /> },
     { 
-      id: "loler-lifting", 
-      name: "LOLER Lifting", 
-      icon: <Forklift className="h-8 w-8 text-[#7b96d4]" />,
-      url: `/admin/customer/${customerId}/loler-list`
-    },
-    { id: "air-con", name: "Air Con Machines", icon: <Fan className="h-8 w-8 text-[#7b96d4]" /> },
-    { id: "paint-scales", name: "Paint Scales", icon: <Weight className="h-8 w-8 text-[#7b96d4]" /> },
-    { 
-      id: "spot-welder", 
-      name: "Spot Welder", 
+      id: "spot-welders", 
+      name: "Spot Welders", 
       icon: <ArrowLeftRight className="h-8 w-8 text-[#7b96d4]" />,
-      url: `/admin/customer/${customerId}/spotwelder-list`
+      url: "/spot-welders"
     },
-    { id: "jig-measuring", name: "JIG Measuring", icon: <Ruler className="h-8 w-8 text-[#7b96d4]" /> },
-    { id: "temperature-gauges", name: "Temperature Gauges", icon: <Thermometer className="h-8 w-8 text-[#7b96d4]" /> },
+    { 
+      id: "loler", 
+      name: "LOLER Equipment", 
+      icon: <Forklift className="h-8 w-8 text-[#7b96d4]" />,
+      url: "/loler"
+    },
     { 
       id: "rivet-tools", 
       name: "Rivet Tools", 
       icon: <Drill className="h-8 w-8 text-[#7b96d4]" />,
-      url: `/admin/customer/${customerId}/rivet-tool-list`
+      url: "/rivet-tools"
     },
-    { id: "puwer-inspection", name: "PUWER Inspection", icon: <ClipboardCheck className="h-8 w-8 text-[#7b96d4]" /> },
-    { id: "lev", name: "Local Exhaust Ventilation", icon: <Cloud className="h-8 w-8 text-[#7b96d4]" /> },
-    { id: "gas-equipment", name: "Gas Equipment CP7", icon: <Cylinder className="h-8 w-8 text-[#7b96d4]" /> },
-    { id: "safety-equipment", name: "Safety Equipment", icon: <HardHat className="h-8 w-8 text-[#7b96d4]" /> },
-    { id: "torque-wrench", name: "Torque Wrench", icon: <Circle className="h-8 w-8 text-[#7b96d4]" /> },
-    { id: "clean-air", name: "Clean Air", icon: <Cloud className="h-8 w-8 text-[#7b96d4]" /> },
-    { id: "tank-inspection", name: "Tank Inspection", icon: <Flame className="h-8 w-8 text-[#7b96d4]" /> },
+    { 
+      id: "service", 
+      name: "Service Records", 
+      icon: <Wrench className="h-8 w-8 text-[#7b96d4]" />,
+      url: "/service"
+    },
+    { 
+      id: "welder-validation", 
+      name: "Welder Validation", 
+      icon: <Zap className="h-8 w-8 text-[#7b96d4]" />,
+      url: "/welder-validation"
+    },
+    { 
+      id: "headlight-beam", 
+      name: "Headlight Beam Setter", 
+      icon: <Lightbulb className="h-8 w-8 text-[#7b96d4]" />,
+      url: "/headlight-beam"
+    },
+    { 
+      id: "pressure-gauges", 
+      name: "Pressure Gauges", 
+      icon: <Gauge className="h-8 w-8 text-[#7b96d4]" />,
+      url: "/pressure-gauges"
+    },
+    { 
+      id: "tyres-gauge", 
+      name: "Tyres Gauge", 
+      icon: <CircleDot className="h-8 w-8 text-[#7b96d4]" />,
+      url: "/tyres-gauge"
+    },
+    { 
+      id: "air-con", 
+      name: "Air Con Machines", 
+      icon: <Fan className="h-8 w-8 text-[#7b96d4]" />,
+      url: "/air-con"
+    },
+    { 
+      id: "paint-scales", 
+      name: "Paint Scales", 
+      icon: <Weight className="h-8 w-8 text-[#7b96d4]" />,
+      url: "/paint-scales"
+    },
+    { 
+      id: "jig-measuring", 
+      name: "JIG Measuring", 
+      icon: <Ruler className="h-8 w-8 text-[#7b96d4]" />,
+      url: "/jig-measuring"
+    },
+    { 
+      id: "temperature-gauges", 
+      name: "Temperature Gauges", 
+      icon: <Thermometer className="h-8 w-8 text-[#7b96d4]" />,
+      url: "/temperature-gauges"
+    },
+    { 
+      id: "puwer-inspection", 
+      name: "PUWER Inspection", 
+      icon: <ClipboardCheck className="h-8 w-8 text-[#7b96d4]" />,
+      url: "/puwer-inspection"
+    },
+    { 
+      id: "lev", 
+      name: "Local Exhaust Ventilation", 
+      icon: <Cloud className="h-8 w-8 text-[#7b96d4]" />,
+      url: "/lev"
+    },
+    { 
+      id: "gas-equipment", 
+      name: "Gas Equipment CP7", 
+      icon: <Cylinder className="h-8 w-8 text-[#7b96d4]" />,
+      url: "/gas-equipment"
+    },
+    { 
+      id: "safety-equipment", 
+      name: "Safety Equipment", 
+      icon: <HardHat className="h-8 w-8 text-[#7b96d4]" />,
+      url: "/safety-equipment"
+    },
+    { 
+      id: "torque-wrench", 
+      name: "Torque Wrench", 
+      icon: <Circle className="h-8 w-8 text-[#7b96d4]" />,
+      url: "/torque-wrench"
+    },
+    { 
+      id: "clean-air", 
+      name: "Clean Air", 
+      icon: <Cloud className="h-8 w-8 text-[#7b96d4]" />,
+      url: "/clean-air"
+    },
+    { 
+      id: "tank-inspection", 
+      name: "Tank Inspection", 
+      icon: <Flame className="h-8 w-8 text-[#7b96d4]" />,
+      url: "/tank-inspection"
+    }
   ];
   
   const handleBack = () => {
-    console.log("Navigating back to customer details with ID:", customerId);
-    navigate(`/admin/customer/${customerId}`, { 
-      state: { 
-        fromEquipmentTypes: true,
-        customerId 
-      } 
-    });
+    navigate(-1);
   };
   
   return (
-    <div className="bg-[#f5f5f5] min-h-screen -mt-6 -mx-4 px-4 pt-6 pb-6">
-      <div className="container mx-auto py-6">
-        <div className="flex items-center mb-6">
-          <Button 
-            variant="primaryBlue"
-            size="icon"
-            onClick={handleBack}
-            className="mr-4"
+    <div className="container mx-auto p-4 max-w-6xl">
+      <div className="flex items-center mb-6">
+        <Button 
+          variant="outline"
+          onClick={handleBack}
+          className="mr-4"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back
+        </Button>
+        <h1 className="text-3xl font-bold">Equipment Types</h1>
+      </div>
+      
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {equipmentTypes.map((type) => (
+          <div 
+            key={type.id}
+            className="bg-white rounded-lg shadow-sm p-6 flex flex-col items-center justify-center cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => {
+              if (type.url) {
+                navigate(type.url);
+              }
+            }}
           >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-[24px] font-bold">Equipment Types</h1>
-        </div>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {equipmentTypes.map((type) => (
-            <div 
-              key={type.id}
-              className="bg-white rounded-lg shadow-sm p-6 flex flex-col items-center justify-center cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => {
-                if (type.url) {
-                  navigate(type.url);
-                }
-              }}
-            >
-              <div className="bg-[#f5f5f5] rounded-full p-4 mb-4">
-                {type.icon}
-              </div>
-              <h3 className="text-center font-medium">{type.name}</h3>
+            <div className="bg-[#f5f5f5] rounded-full p-4 mb-4">
+              {type.icon}
             </div>
-          ))}
-        </div>
+            <h3 className="text-center font-medium">{type.name}</h3>
+          </div>
+        ))}
       </div>
     </div>
   );

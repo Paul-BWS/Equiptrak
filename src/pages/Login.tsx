@@ -1,282 +1,189 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, UserRole } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, Lock, Phone, ExternalLink, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { Mail, Lock, Loader2, Phone, ExternalLink, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 // Define a version number for tracking deployments
 const APP_VERSION = "1.0.4";
+// Set to true to show detailed error information
+const DEBUG_MODE = true;
 
 export function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn, user, setUser } = useAuth();
+  const { signIn, user } = useAuth();
   const { toast } = useToast();
   const [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState('');
-  const [supabaseDebug, setSupabaseDebug] = useState<any>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  // Debug: Log when component mounts and when user changes
-  useEffect(() => {
-    console.log("Login component mounted");
-    
-    // Debug Supabase configuration
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-    
-    setSupabaseDebug({
-      url: supabaseUrl ? `${supabaseUrl.substring(0, 10)}...` : 'missing',
-      key: supabaseAnonKey ? 'present' : 'missing',
-      envVars: Object.keys(import.meta.env).filter(key => key.includes('SUPABASE'))
-    });
-    
-    console.log("Supabase config:", {
-      url: supabaseUrl,
-      keyPresent: !!supabaseAnonKey,
-      envVars: Object.keys(import.meta.env).filter(key => key.includes('SUPABASE'))
-    });
-    
-    return () => {
-      console.log("Login component unmounted");
-    };
-  }, []);
-  
   useEffect(() => {
     console.log("Current user state:", user, "Redirecting:", redirecting);
     
-    // If user is already logged in, redirect based on role
     if (user && !redirecting) {
-      console.log("User already logged in, checking metadata:", user.user_metadata);
-      const userRole = user.user_metadata?.role;
-      const companyId = user.user_metadata?.company_id;
+      console.log("User already logged in, checking role:", user.role);
       
-      // Prevent multiple redirects
       setRedirecting(true);
       
-      if (userRole === 'admin') {
+      if (user.role === 'admin') {
         console.log('Redirecting logged-in admin to dashboard');
-        setTimeout(() => {
-          window.location.href = "/admin";
-        }, 500);
-      } else if (companyId) {
-        console.log('Redirecting logged-in user to company page:', companyId);
-        setTimeout(() => {
-          window.location.href = `/dashboard/company-simple?id=${companyId}`;
-        }, 500);
+        navigate("/admin");
       } else {
-        console.log('User has no role or company_id, redirecting to dashboard');
-        setTimeout(() => {
-          window.location.href = "/dashboard";
-        }, 500);
+        console.log('Redirecting logged-in user to dashboard');
+        navigate("/dashboard");
       }
     }
-  }, [user, redirecting]);
+  }, [user, redirecting, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log("Login form submitted for:", email);
     setIsLoading(true);
     setError('');
+    setDebugInfo(null);
     
     try {
-      // Sign in the user directly with Supabase
-      console.log("Signing in with Supabase directly...");
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      console.log("Sending login request to API server");
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+        mode: 'cors',
+        cache: 'no-cache',
       });
+
+      console.log("Login response status:", response.status);
       
-      if (error) {
-        console.error("Sign in error:", error);
-        setError(error.message || 'Authentication failed');
-        setIsLoading(false);
-        return;
-      }
+      let data;
+      let responseText;
       
-      if (!data.session) {
-        console.error("No session after login");
-        setError('No session after login. Please try again.');
-        setIsLoading(false);
-        return;
-      }
-      
-      console.log("Login successful:", { 
-        session: !!data.session, 
-        user: data.user?.email,
-        metadata: data.user?.user_metadata,
-        sessionExpires: data.session?.expires_at,
-        accessToken: data.session?.access_token ? "Present" : "Missing"
-      });
-      
-      // Manually update the auth context
-      setUser(data.user);
-      
-      // Check user role and metadata
-      const userRole = data.user?.user_metadata?.role;
-      const companyId = data.user?.user_metadata?.company_id;
-      
-      console.log('User logged in:', {
-        email: data.user?.email,
-        role: userRole,
-        companyId: companyId,
-        metadata: data.user?.user_metadata
-      });
-      
-      // Set redirecting flag to prevent multiple redirects
-      setRedirecting(true);
-      
-      // Preload data if user has a company ID
-      if (companyId && userRole !== 'admin') {
+      try {
+        // First get the raw text response
+        responseText = await response.text();
+        
+        // Then try to parse it as JSON if possible
         try {
-          console.log(`Preloading company data for ID: ${companyId}`);
-          
-          // Fetch company details in the background
-          const companyPromise = supabase
-            .from('companies')
-            .select('*')
-            .eq('id', companyId)
-            .single();
-            
-          // Fetch contacts in the background
-          const contactsPromise = supabase
-            .from('contacts')
-            .select('*')
-            .eq('company_id', companyId);
-            
-          // Wait for both to complete
-          await Promise.all([companyPromise, contactsPromise]);
-          
-          console.log('Preloading complete, redirecting...');
-        } catch (preloadError) {
-          console.error('Error preloading data:', preloadError);
-          // Continue with redirect even if preloading fails
+          data = JSON.parse(responseText);
+          console.log("Response data received", { ok: response.ok });
+        } catch (parseError) {
+          console.error("Error parsing JSON response:", parseError);
+          setDebugInfo(`Server returned non-JSON response: ${responseText}`);
+          throw new Error('Invalid response format from server');
         }
+      } catch (textError) {
+        console.error("Error reading response text:", textError);
+        setDebugInfo(`Failed to read server response: ${textError.message}`);
+        throw new Error('Could not read server response');
       }
       
-      // Verify the session is stored in localStorage
-      const storedSession = localStorage.getItem('equiptrack-auth-token');
-      console.log('Session stored in localStorage:', storedSession ? "Present" : "Missing");
-      
-      // Double-check the session with Supabase
-      const { data: { session } } = await supabase.auth.getSession();
-      console.log('Double-checking session:', { 
-        exists: !!session, 
-        user: session?.user?.email
+      if (!response.ok) {
+        console.error("Server returned error:", data.error);
+        setDebugInfo(`Server error (${response.status}): ${data.error || 'Unknown error'}`);
+        throw new Error(data.error || 'Authentication failed');
+      }
+
+      // Log the response for debugging
+      console.log('Server response:', data);
+
+      // Validate response structure
+      if (!data.token || !data.user) {
+        console.error('Invalid response structure:', data);
+        setDebugInfo(`Invalid server response: Missing token or user data`);
+        throw new Error('Invalid response from server');
+      }
+
+      // Validate required user data fields
+      const { user } = data;
+      if (!user.id || !user.email || typeof user.role !== 'string') {
+        console.error('Missing required user data:', user);
+        setDebugInfo(`Invalid user data: Missing id, email, or role`);
+        throw new Error('Invalid user data received');
+      }
+
+      // Call the signIn function from AuthContext with the user data and token
+      await signIn({
+        ...data.user,
+        token: data.token,
+        role: data.user.role as UserRole // Ensure role is properly typed
       });
       
-      // Navigate to the appropriate page based on role
-      if (userRole === 'admin') {
-        console.log('Admin user, redirecting to admin dashboard');
+      toast({
+        title: "Success",
+        description: "Logged in successfully",
+      });
+
+      // Redirect based on role
+      if (data.user.role === 'admin') {
+        console.log('Redirecting admin user to /admin');
         navigate("/admin");
       } else {
-        // All non-admin users go to the company dashboard if they have a company ID
-        if (companyId) {
-          console.log(`User with company ID ${companyId}, redirecting to company dashboard`);
-          navigate(`/dashboard/company-simple?id=${companyId}`);
-        } else {
-          console.log('User has no company_id, redirecting to general dashboard');
-          navigate("/dashboard");
-        }
+        console.log('Redirecting regular user to /dashboard');
+        navigate("/dashboard");
       }
-    } catch (error: any) {
-      console.error('Login error:', error);
-      setError(error.message || 'An error occurred during login. Please check your credentials and try again.');
+    } catch (error) {
+      console.error("Login error:", error);
+      setError(error instanceof Error ? error.message : 'Authentication failed');
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Authentication failed',
+      });
+    } finally {
       setIsLoading(false);
-      setRedirecting(false);
     }
   };
 
-  // Display error message if there is one
-  useEffect(() => {
-    if (error) {
-      toast({
-        title: "Login Error",
-        description: error,
-        variant: "destructive",
-      });
-    }
-  }, [error, toast]);
+  const toggleShowPassword = () => {
+    setShowPassword(!showPassword);
+  };
 
   return (
-    <div style={{
-      width: '100%',
-      height: '100vh',
-      margin: 0,
-      padding: '20px',
-      overflow: 'hidden',
-      position: 'relative',
-      backgroundColor: '#f9fafb',
-    }}>
-      {/* Left panel with robot image - no blue background */}
-      <div style={{
-        position: 'absolute',
-        top: '20px',
-        left: '20px',
-        width: 'calc(50% - 40px)',
-        height: 'calc(100% - 40px)',
-        backgroundColor: '#f9fafb',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1,
-        borderRadius: '8px',
-      }}>
-        <img 
-          src="/lovable-uploads/robot.png" 
-          alt="Equipment Tracking Robot" 
-          style={{
-            maxWidth: '85%',
-            maxHeight: '60%',
-            objectFit: 'contain',
-          }}
-        />
+    <div className="flex min-h-screen bg-gray-100">
+      {/* Left side with robot image */}
+      <div className="hidden md:flex md:w-1/2 items-center justify-center bg-[#7496da]">
+        <div className="w-3/4 flex justify-center">
+          <img 
+            src="/images/robot.png" 
+            alt="Robot Assistant" 
+            className="w-auto h-auto max-h-[80vh]"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.onerror = null;
+              target.src = "https://placehold.co/400x500/7496da/white?text=Robot+Image";
+            }}
+          />
+        </div>
       </div>
-      
-      {/* Login form panel - fixed position */}
-      <div style={{
-        position: 'absolute',
-        top: '20px',
-        right: '20px',
-        width: 'calc(50% - 40px)',
-        height: 'calc(100% - 40px)',
-        padding: '2rem',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        zIndex: 1,
-        overflowY: 'auto',
-      }}>
-        <div style={{
-          maxWidth: '400px',
-          width: '100%',
-          margin: '0 auto',
-        }}>
-          <div style={{
-            marginBottom: '2rem',
-            textAlign: 'center',
-          }}>
-            <h1 style={{
-              fontSize: '2.25rem',
-              fontWeight: 'bold',
-              color: '#7b96d4',
-            }}>EquipTrack</h1>
+
+      {/* Right side with login form */}
+      <div className="w-full md:w-1/2 flex flex-col items-center justify-center p-4 md:p-8 bg-gray-50">
+        <div className="w-full max-w-md space-y-6">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold">EquipTrack</h1>
           </div>
           
-          <form onSubmit={handleSubmit} style={{marginBottom: '1.5rem'}}>
-            <div style={{marginBottom: '1rem'}}>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <div style={{position: 'relative'}}>
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+              <div className="relative">
+                <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                 <Input
                   id="email"
-                  type="email"
                   placeholder="Enter your email"
+                  type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"
@@ -284,27 +191,35 @@ export function Login() {
                 />
               </div>
             </div>
-            
-            <div style={{marginBottom: '1.5rem'}}>
+            <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <div style={{position: 'relative'}}>
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+              <div className="relative">
+                <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                 <Input
                   id="password"
-                  type="password"
-                  placeholder="Enter your password"
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 pr-10"
                   required
                 />
+                <button 
+                  type="button"
+                  onClick={toggleShowPassword} 
+                  className="absolute right-3 top-3 text-gray-400"
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5" />
+                  ) : (
+                    <Eye className="h-5 w-5" />
+                  )}
+                </button>
               </div>
             </div>
-            
-            <Button 
-              type="submit" 
-              variant="primaryBlue"
-              className="w-full"
+            <Button
+              type="submit"
+              className="w-full bg-[#7496da] hover:bg-[#5f7ab8]"
               disabled={isLoading}
             >
               {isLoading ? (
@@ -318,80 +233,59 @@ export function Login() {
             </Button>
           </form>
           
-          <div style={{textAlign: 'center', marginBottom: '1.5rem'}}>
+          {error && (
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-600 flex items-start">
+              <AlertCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-medium">Login failed</p>
+                <p className="text-sm">{error}</p>
+                {debugInfo && DEBUG_MODE && (
+                  <details className="mt-2 text-xs bg-red-100 p-2 rounded">
+                    <summary>Technical details</summary>
+                    <pre className="whitespace-pre-wrap">{debugInfo}</pre>
+                  </details>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Need spares card */}
+          <a 
+            href="https://basicwelding.co.uk" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="mt-10 rounded-lg border border-gray-200 shadow-sm overflow-hidden block hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex flex-wrap items-center gap-2 p-5 text-blue-500">
+              <ExternalLink size={20} className="text-blue-500" />
+              <span className="text-lg">Need spares or repairs?</span>
+              <span className="ml-auto">Visit basicwelding.co.uk</span>
+            </div>
+          </a>
+          
+          {/* Phone and Email cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mt-6">
             <a 
-              href="/admin-login" 
-              className="text-blue-600 hover:underline"
+              href="tel:01612231843" 
+              className="flex items-center justify-center md:justify-start gap-3 p-5 bg-white text-blue-500 rounded-lg border border-gray-200 shadow-sm hover:bg-gray-50 transition-colors"
             >
-              Admin Login
+              <Phone size={20} className="text-blue-500" />
+              <span className="text-lg">0161 223 1843</span>
+            </a>
+            
+            <a 
+              href="mailto:support@equiptrak.com" 
+              className="flex items-center justify-center md:justify-start gap-3 p-5 bg-white text-blue-500 rounded-lg border border-gray-200 shadow-sm hover:bg-gray-50 transition-colors"
+            >
+              <Mail size={20} className="text-blue-500" />
+              <span className="text-lg">Email Support</span>
             </a>
           </div>
           
-          {/* Contact buttons */}
-          <div style={{marginTop: '2rem'}}>
-            <a 
-              href="https://www.basicwelding.co.uk" 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="flex items-center justify-center px-6 py-3 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow mb-4"
-            >
-              <div className="flex items-center text-[#7b96d4]">
-                <ExternalLink className="h-5 w-5 mr-3" />
-                <span className="font-medium">Need spares or repairs?</span>
-              </div>
-            </a>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <a 
-                href="tel:01612231843" 
-                className="flex items-center justify-center px-6 py-3 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow"
-              >
-                <Phone className="h-5 w-5 mr-3 text-[#7b96d4]" />
-                <span className="text-gray-700">0161 223 1843</span>
-              </a>
-              
-              <a 
-                href="mailto:support@basicwelding.co.uk" 
-                className="flex items-center justify-center px-6 py-3 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow"
-              >
-                <Mail className="h-5 w-5 mr-3 text-[#7b96d4]" />
-                <span className="text-gray-700">Email Support</span>
-              </a>
-            </div>
+          <div className="mt-8 text-center text-sm text-muted-foreground">
+            Version {APP_VERSION}
           </div>
         </div>
-      </div>
-      
-      {/* Mobile view - hide blue panel and adjust form panel */}
-      <style dangerouslySetInnerHTML={{
-        __html: `
-          @media (max-width: 767px) {
-            div[style*="position: absolute"][style*="left: 20px"] {
-              display: none !important;
-            }
-            div[style*="position: absolute"][style*="right: 20px"] {
-              width: calc(100% - 40px) !important;
-              left: 20px !important;
-            }
-          }
-        `
-      }} />
-      
-      {/* Version number */}
-      <div style={{
-        position: 'absolute',
-        bottom: '0.5rem',
-        left: '0.5rem',
-        fontSize: '0.75rem',
-        color: '#6b7280',
-        zIndex: 10,
-      }}>
-        v{APP_VERSION}
-        {supabaseDebug && (
-          <span style={{marginLeft: '0.5rem'}}>
-            API: {supabaseDebug.url} ({supabaseDebug.key})
-          </span>
-        )}
       </div>
     </div>
   );

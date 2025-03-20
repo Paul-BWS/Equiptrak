@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Eye, Pencil, Trash2, MapPin, Phone } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -8,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import databaseService from "@/services/database";
 
 interface CustomerListProps {
   searchQuery?: string;
@@ -21,13 +21,12 @@ export function CustomerList({ searchQuery = "" }: CustomerListProps) {
   const { data: customers, isLoading, refetch } = useQuery({
     queryKey: ["companies"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("companies")
-        .select("*")
-        .order("company_name");
-        
-      if (error) throw error;
-      return data || [];
+      try {
+        return await databaseService.getAllCompanies();
+      } catch (error) {
+        console.error("Error fetching companies:", error);
+        throw error;
+      }
     },
   });
 
@@ -35,12 +34,7 @@ export function CustomerList({ searchQuery = "" }: CustomerListProps) {
     if (!deleteCustomerId) return;
     
     try {
-      const { error } = await supabase
-        .from("companies")
-        .delete()
-        .eq("id", deleteCustomerId);
-        
-      if (error) throw error;
+      await databaseService.deleteCompany(deleteCustomerId);
       
       toast({
         title: "Success",
@@ -64,9 +58,10 @@ export function CustomerList({ searchQuery = "" }: CustomerListProps) {
     
     const searchLower = searchQuery.toLowerCase();
     return (
-      (customer.company_name && customer.company_name.toLowerCase().includes(searchLower)) ||
+      (customer.name && customer.name.toLowerCase().includes(searchLower)) ||
       (customer.address && customer.address.toLowerCase().includes(searchLower)) ||
-      (customer.postcode && customer.postcode.toLowerCase().includes(searchLower))
+      (customer.contact_name && customer.contact_name.toLowerCase().includes(searchLower)) ||
+      (customer.contact_email && customer.contact_email.toLowerCase().includes(searchLower))
     );
   });
 
@@ -118,30 +113,66 @@ export function CustomerList({ searchQuery = "" }: CustomerListProps) {
             onClick={() => navigate(`/admin/customer/${customer.id}`)}
           >
             <div className="p-4">
-              <h3 className="text-lg font-medium mb-3">
-                {customer.company_name}
-              </h3>
+              <h3 className="text-lg font-medium mb-2">{customer.name}</h3>
               
               <div className="flex flex-wrap items-center justify-between">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
-                  {/* Address with icon */}
                   {customer.address && (
                     <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">{customer.address}, {customer.postcode}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {customer.address}
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(customer.address)}`, '_blank');
+                        }}
+                        style={iconButtonStyle}
+                        className="h-7 w-7"
+                      >
+                        <MapPin className="h-3.5 w-3.5" />
+                        <span className="sr-only">View on Map</span>
+                      </Button>
                     </div>
                   )}
                   
-                  {/* Phone with icon - REMOVED */}
+                  {customer.contact_phone && (
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-muted-foreground">{customer.contact_phone}</p>
+                      <Button 
+                        variant="outline" 
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.location.href = `tel:${customer.contact_phone}`;
+                        }}
+                        style={iconButtonStyle}
+                        className="h-7 w-7"
+                      >
+                        <Phone className="h-3.5 w-3.5" />
+                        <span className="sr-only">Call</span>
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {customer.contact_name && (
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-muted-foreground">
+                        Contact: {customer.contact_name}
+                        {customer.contact_email && ` • ${customer.contact_email}`}
+                      </p>
+                    </div>
+                  )}
                 </div>
                 
-                {/* Only show buttons on desktop */}
                 <div className="hidden sm:flex items-center gap-2 ml-auto">
                   <Button 
                     variant="outline" 
                     size="icon"
                     onClick={(e) => {
-                      e.stopPropagation(); // Prevent triggering the row click
+                      e.stopPropagation();
                       window.location.href = `/admin/customer-simple?id=${customer.id}`;
                     }}
                     style={iconButtonStyle}
@@ -153,7 +184,7 @@ export function CustomerList({ searchQuery = "" }: CustomerListProps) {
                     variant="outline" 
                     size="icon"
                     onClick={(e) => {
-                      e.stopPropagation(); // Prevent triggering the row click
+                      e.stopPropagation();
                       navigate(`/admin/customer/${customer.id}/edit`);
                     }}
                     style={iconButtonStyle}
@@ -165,7 +196,7 @@ export function CustomerList({ searchQuery = "" }: CustomerListProps) {
                     variant="outline" 
                     size="icon"
                     onClick={(e) => {
-                      e.stopPropagation(); // Prevent triggering the row click
+                      e.stopPropagation();
                       setDeleteCustomerId(customer.id);
                     }}
                     style={deleteButtonStyle}
@@ -179,13 +210,13 @@ export function CustomerList({ searchQuery = "" }: CustomerListProps) {
           </div>
         ))}
       </div>
-
+      
       <AlertDialog open={!!deleteCustomerId} onOpenChange={(open) => !open && setDeleteCustomerId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the customer and all associated data. This action cannot be undone.
+              This will permanently delete this customer and all associated data. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

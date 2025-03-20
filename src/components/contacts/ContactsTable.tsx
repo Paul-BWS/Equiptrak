@@ -158,7 +158,7 @@ export function ContactsTable({ companyId }: ContactsTableProps) {
             </TableHeader>
             <TableBody>
               {contacts.map((contact) => (
-                <TableRow key={contact.id}>
+                <TableRow key={contact.id} className="bg-gray-50 hover:bg-gray-100 shadow-sm">
                   <TableCell className="font-medium">{contact.name}</TableCell>
                   <TableCell>{contact.position || "-"}</TableCell>
                   <TableCell>
@@ -235,7 +235,7 @@ export function ContactsTable({ companyId }: ContactsTableProps) {
           contact={editingContact}
           open={!!editingContact}
           onOpenChange={(open) => !open && setEditingContact(null)}
-          onContactUpdated={fetchContacts}
+          onSuccess={fetchContacts}
         />
       )}
 
@@ -249,7 +249,7 @@ export function ContactsTable({ companyId }: ContactsTableProps) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-red-500 hover:bg-red-600">
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
