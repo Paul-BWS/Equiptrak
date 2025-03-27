@@ -56,9 +56,13 @@ export type SpotWelderEquipment = {
   id: string;
   name: string;
   serial_number: string;
-  next_test_date: string;
+  company_id: string;
   status: 'valid' | 'expired' | 'upcoming';
-  customer_id: string;
+  type: string;
+  next_test_date?: string;
+  last_test_date?: string;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type SpotWelderServiceRecord = SpotWelderRecord & {

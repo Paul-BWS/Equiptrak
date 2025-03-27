@@ -4,7 +4,7 @@ import { Conversation, Message, NewMessage, NewConversation } from "@/types/chat
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
-export function useChat(customerId?: string) {
+export function useChat(companyId?: string) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -20,18 +20,18 @@ export function useChat(customerId?: string) {
 
     try {
       console.log("Creating new conversation:", {
-        customer_id: newConversation.company_id,
+        company_id: newConversation.company_id,
         title: newConversation.title || "Support Chat",
         userId: session.user.id
       });
       
       // Create the conversation with minimal fields first
-      const { data: conversation, error: conversationError } = await supabase
-        .from("conversations")
+      const { data: conversationData, error: conversationError } = await supabase
+        .from('conversations')
         .insert({
-          customer_id: newConversation.company_id,
-          title: newConversation.title || "Support Chat",
-          status: "active",
+          company_id: newConversation.company_id,
+          title: newConversation.title,
+          status: 'active',
         })
         .select()
         .single();
@@ -47,21 +47,19 @@ export function useChat(customerId?: string) {
         return null;
       }
 
-      console.log("Created conversation:", conversation);
+      console.log("Created conversation:", conversationData);
 
       // Add both admin and customer as participants
-      const { error: participantsError } = await supabase
-        .from("conversation_participants")
-        .insert([
-          {
-            conversation_id: conversation.id,
-            user_id: session.user.id // Admin
-          },
-          {
-            conversation_id: conversation.id,
-            user_id: newConversation.company_id // Customer
-          }
-        ]);
+      const { data: conversationParticipants, error: participantsError } = await supabase
+        .from('conversation_participants')
+        .select(`
+          *,
+          companies (
+            name,
+            email
+          )
+        `)
+        .or(`company_id.eq.${newConversation.company_id},conversation_participants.user_id.eq.${session.user.id}`);
 
       if (participantsError) {
         console.error("Error adding participants:", {
@@ -76,7 +74,7 @@ export function useChat(customerId?: string) {
       // Add the initial message
       if (newConversation.initial_message) {
         console.log("Sending initial message:", {
-          conversation_id: conversation.id,
+          conversation_id: conversationData.id,
           sender_id: session.user.id,
           content: newConversation.initial_message
         });
@@ -84,7 +82,7 @@ export function useChat(customerId?: string) {
         const { error: messageError } = await supabase
           .from("messages")
           .insert({
-            conversation_id: conversation.id,
+            conversation_id: conversationData.id,
             sender_id: session.user.id,
             content: newConversation.initial_message,
           });
@@ -101,10 +99,10 @@ export function useChat(customerId?: string) {
       }
 
       // Update local state
-      setConversations(prev => [conversation, ...prev]);
-      setCurrentConversation(conversation);
+      setConversations(prev => [conversationData, ...prev]);
+      setCurrentConversation(conversationData);
       
-      return conversation;
+      return conversationData;
     } catch (error) {
       console.error("Error in createConversation:", error);
       toast.error("Failed to create conversation");
@@ -114,56 +112,39 @@ export function useChat(customerId?: string) {
 
   // Fetch conversations for the current user and company
   useEffect(() => {
-    if (!session?.user?.id || !customerId) return;
+    if (!session?.user?.id || !companyId) return;
 
     const fetchConversations = async () => {
       try {
         setLoading(true);
         
         console.log("Fetching conversations for:", {
-          customerId,
+          companyId,
           userId: session.user.id
         });
 
         // Fetch conversations with participants
-        const { data, error } = await supabase
-          .from("conversations")
-          .select(`
-            *,
-            customer:customer_id (
-              id,
-              company_name,
-              email
-            ),
-            participants:conversation_participants (
-              user_id,
-              profiles:user_id (
-                id,
-                company_name,
-                email,
-                role
-              )
-            )
-          `)
-          .or(`customer_id.eq.${customerId},conversation_participants.user_id.eq.${session.user.id}`)
-          .order("last_message_at", { ascending: false });
+        const { data: conversations, error: conversationsError } = await supabase
+          .from('conversations')
+          .select('*')
+          .eq('company_id', companyId);
 
-        if (error) {
+        if (conversationsError) {
           console.error("Error fetching conversations:", {
-            error,
-            details: error.details,
-            hint: error.hint,
-            code: error.code
+            error: conversationsError,
+            details: conversationsError.details,
+            hint: conversationsError.hint,
+            code: conversationsError.code
           });
           return;
         }
 
-        console.log("Fetched conversations:", data);
+        console.log("Fetched conversations:", conversations);
 
-        setConversations(data || []);
+        setConversations(conversations || []);
         // Set the first conversation as current if exists
-        if (data?.[0]) {
-          setCurrentConversation(data[0]);
+        if (conversations?.[0]) {
+          setCurrentConversation(conversations[0]);
         }
       } catch (error) {
         console.error("Error in fetchConversations:", error);
@@ -183,7 +164,7 @@ export function useChat(customerId?: string) {
           event: "*",
           schema: "public",
           table: "conversations",
-          filter: `customer_id=eq.${customerId}`,
+          filter: `company_id=eq.${companyId}`,
         },
         () => {
           fetchConversations();
@@ -194,7 +175,7 @@ export function useChat(customerId?: string) {
     return () => {
       conversationsSubscription.unsubscribe();
     };
-  }, [session?.user?.id, customerId]);
+  }, [session?.user?.id, companyId]);
 
   // Fetch messages for the current conversation
   useEffect(() => {

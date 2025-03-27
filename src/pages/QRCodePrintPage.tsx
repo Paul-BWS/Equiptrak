@@ -1,104 +1,154 @@
-import { useParams, useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Printer, ArrowLeft } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useParams, useLocation } from 'react-router-dom';
+import axios from 'axios';
+import { QRCodeSVG as QRCode } from 'qrcode.react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Printer } from 'lucide-react';
+import LoadingSpinner from '@/components/LoadingSpinner';
 
+// This component handles both /certificate/:id/qr and /service-certificate/:recordId/qr 
+// and /lift-certificate/:id/qr
 export default function QRCodePrintPage() {
-  const { recordId } = useParams();
-  const navigate = useNavigate();
-  const [isImageLoaded, setIsImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState<string | null>(null);
+  const location = useLocation();
+  const params = useParams();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [publicUrl, setPublicUrl] = useState<string | null>(null);
+  const [certificateNumber, setCertificateNumber] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState<string | null>(null);
   
-  const baseUrl = window.location.origin;
-  const certificateUrl = `${baseUrl}/certificate/${recordId}`;
-  
-  // Use a different QR code service
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(certificateUrl)}`;
+  // Determine the record type based on the URL path
+  const isLiftCertificate = location.pathname.includes('lift-certificate');
+  const isServiceCertificate = location.pathname.includes('service-certificate');
   
   useEffect(() => {
-    console.log('QR Code URL:', qrCodeUrl);
-    console.log('Certificate URL:', certificateUrl);
-  }, [qrCodeUrl, certificateUrl]);
+    const fetchCertificateInfo = async () => {
+      try {
+        setLoading(true);
+        
+        // Determine the API endpoint based on the type
+        let endpoint;
+        let id;
+        
+        if (isLiftCertificate) {
+          endpoint = `/api/lift-service-records/${params.id}`;
+          id = params.id;
+        } else if (isServiceCertificate) {
+          endpoint = `/api/service-records/${params.recordId}`;
+          id = params.recordId;
+        } else {
+          endpoint = `/api/certificate/${params.id}`;
+          id = params.id;
+        }
+        
+        const response = await axios.get(endpoint);
+        
+        // Get certificate info (different properties based on type)
+        const data = response.data;
+        let certificateToken;
+        let publicEndpoint;
+        
+        if (isLiftCertificate) {
+          setCertificateNumber(data.certificate_number || 'Unknown');
+          setCompanyName(data.company?.company_name || 'Unknown');
+          certificateToken = data.public_access_token;
+          publicEndpoint = `/public/lift-certificate/${id}`;
+        } else if (isServiceCertificate) {
+          setCertificateNumber(data.certificate_number || 'Unknown');
+          setCompanyName(data.company?.company_name || 'Unknown');
+          certificateToken = data.public_access_token;
+          publicEndpoint = `/public-certificate/${id}`;
+        } else {
+          setCertificateNumber(data.certificate_number || 'Unknown');
+          setCompanyName(data.customer_name || 'Unknown');
+          certificateToken = data.public_access_token;
+          publicEndpoint = `/public-certificate/${id}`;
+        }
+        
+        // Construct the public URL with token
+        if (certificateToken) {
+          // Get the full domain
+          const { protocol, host } = window.location;
+          const baseUrl = `${protocol}//${host}`;
+          const fullUrl = `${baseUrl}${publicEndpoint}?token=${certificateToken}`;
+          setPublicUrl(fullUrl);
+        } else {
+          setError('Certificate does not have a public access token.');
+        }
+        
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching certificate information:', err);
+        setError('Failed to load certificate information. Please try again later.');
+        setLoading(false);
+      }
+    };
+    
+    fetchCertificateInfo();
+  }, [params, isLiftCertificate, isServiceCertificate]);
   
   const handlePrint = () => {
     window.print();
   };
   
-  const handleBack = () => {
-    navigate(-1);
-  };
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+  
+  if (error || !publicUrl) {
+    return (
+      <div className="container max-w-md mx-auto p-6">
+        <Card className="bg-red-50 border-red-200">
+          <CardContent className="p-6">
+            <h2 className="text-lg font-semibold text-red-800 mb-2">Error</h2>
+            <p className="text-red-600">{error || 'Unable to generate QR code'}</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
   
   return (
-    <div className="min-h-screen flex flex-col items-center p-6 bg-background">
-      <div className="w-full max-w-3xl">
-        <div className="print:hidden mb-8">
-          <div className="flex justify-between items-center mb-6">
-            <Button variant="outline" onClick={handleBack} className="flex items-center gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </Button>
-            <Button onClick={handlePrint} className="flex items-center gap-2">
-              <Printer className="h-4 w-4" />
-              Print QR Code
-            </Button>
-          </div>
-          <h1 className="text-2xl font-bold mb-2">QR Code for Certificate</h1>
-          <p className="text-gray-600 mb-6">Print this QR code and place it on the equipment for easy access to the certificate.</p>
-        </div>
-        
-        <div className="bg-white p-8 rounded-lg shadow-md flex flex-col items-center mx-auto max-w-md">
-          {/* Show loading state */}
-          {!isImageLoaded && !imageError && (
-            <div className="w-[200px] h-[200px] flex items-center justify-center bg-gray-100">
-              <p className="text-gray-500">Loading QR code...</p>
-            </div>
-          )}
-          
-          {/* Show error state */}
-          {imageError && (
-            <div className="w-[200px] h-[200px] flex items-center justify-center bg-red-50 border border-red-200">
-              <div className="text-center p-4">
-                <p className="text-red-500 font-medium">Failed to load QR code</p>
-                <p className="text-sm text-red-400 mt-2">{imageError}</p>
-              </div>
-            </div>
-          )}
-          
-          {/* The actual QR code image */}
-          <img 
-            src={qrCodeUrl}
-            alt="Certificate QR Code"
-            width={200}
-            height={200}
-            style={{ 
-              border: '1px solid #eee',
-              display: isImageLoaded ? 'block' : 'none'
-            }}
-            onLoad={() => {
-              console.log('QR code image loaded successfully');
-              setIsImageLoaded(true);
-            }}
-            onError={(e) => {
-              console.error('Error loading QR code image:', e);
-              setImageError('Could not load QR code image. Please try again later.');
-              // Try an alternative service as fallback
-              e.currentTarget.src = `https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl=${encodeURIComponent(certificateUrl)}&chld=L|0`;
-            }}
-          />
-          
-          <p className="mt-4 text-center font-medium">Scan to view certificate</p>
-          <p className="text-sm text-gray-500 mt-1">Certificate ID: {recordId?.substring(0, 8)}...</p>
-          
-          {/* Debug info (only visible in development) */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="mt-6 p-4 bg-gray-100 rounded text-xs w-full">
-              <p><strong>Debug Info:</strong></p>
-              <p className="mt-1">Certificate URL: {certificateUrl}</p>
-              <p className="mt-1">QR Code URL: {qrCodeUrl}</p>
-            </div>
-          )}
-        </div>
+    <div className="container max-w-md mx-auto p-6">
+      <div className="print:hidden mb-6">
+        <Button onClick={handlePrint} className="w-full bg-[#a6e15a] hover:bg-[#95cc4f] text-white">
+          <Printer className="h-4 w-4 mr-2" />
+          Print QR Code
+        </Button>
+        <p className="text-sm text-gray-500 mt-2">
+          Click the button above to print this QR code or save it as a PDF.
+        </p>
       </div>
+      
+      <Card className="text-center p-6">
+        <CardContent className="pt-6">
+          <h1 className="text-xl font-bold mb-2">Certificate QR Code</h1>
+          <p className="text-sm text-gray-600 mb-6">
+            Scan to view certificate {certificateNumber} for {companyName}
+          </p>
+          
+          <div className="flex justify-center mb-6">
+            <div className="border p-3 inline-block bg-white">
+              <QRCode 
+                value={publicUrl}
+                size={200}
+                level="H"
+                includeMargin={true}
+              />
+            </div>
+          </div>
+          
+          <div className="text-xs text-gray-500 break-all">
+            <p className="font-semibold mb-1">URL:</p>
+            <p>{publicUrl}</p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 } 

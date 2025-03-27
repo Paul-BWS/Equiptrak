@@ -231,10 +231,10 @@ export function CompanySimple() {
               *,
               equipment_types(*)
             `)
-            .eq('customer_id', companyId);
+            .eq('company_id', companyId);
             
           if (equipmentError) {
-            console.error('Error fetching equipment with customer_id:', equipmentError);
+            console.error('Error fetching equipment with company_id:', equipmentError);
             
             // Try with company_id as fallback
             const { data: companyEquipment, error: companyEquipmentError } = await supabase
@@ -252,7 +252,7 @@ export function CompanySimple() {
               setEquipment(companyEquipment || []);
             }
           } else {
-            console.log('Equipment fetched with customer_id successfully:', equipmentData);
+            console.log('Equipment fetched with company_id successfully:', equipmentData);
             setEquipment(equipmentData || []);
           }
         }

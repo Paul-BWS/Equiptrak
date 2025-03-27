@@ -29,6 +29,8 @@ interface Equipment {
 interface EquipmentCardFactoryProps {
   equipment: Equipment;
   showCustomer?: boolean;
+  compact?: boolean;
+  onCardClick?: () => void;
   onServiceClick?: (equipmentId: string) => void;
   onViewSpotWelder?: (spotWelderId: string) => void;
   onViewRivetTool?: (rivetToolId: string) => void;
@@ -38,7 +40,9 @@ interface EquipmentCardFactoryProps {
 
 export function EquipmentCardFactory({ 
   equipment, 
-  showCustomer, 
+  showCustomer,
+  compact,
+  onCardClick,
   onServiceClick,
   onViewSpotWelder,
   onViewRivetTool,
@@ -49,7 +53,15 @@ export function EquipmentCardFactory({
   const navigate = useNavigate();
   const equipmentType = equipment.equipment_types?.name?.toLowerCase() || '';
 
+  // Use compact prop or fallback to isMobile hook
+  const isCompact = compact !== undefined ? compact : isMobile;
+
   const handleCardClick = () => {
+    if (onCardClick) {
+      onCardClick();
+      return;
+    }
+    
     if (equipmentType === 'spot_welder' && onViewSpotWelder) {
       onViewSpotWelder(equipment.id);
     } else if (equipmentType === 'rivet_tool' && onViewRivetTool) {
@@ -62,7 +74,7 @@ export function EquipmentCardFactory({
   };
 
   const renderBookButton = () => {
-    if (!isMobile && onBookClick && equipment.booking_status !== 'booked') {
+    if (!isCompact && onBookClick && equipment.booking_status !== 'booked') {
       return (
         <Button 
           variant="outline" 
@@ -95,12 +107,12 @@ export function EquipmentCardFactory({
   switch (equipmentType) {
     case 'spot_welder':
       return (
-        <div onClick={isMobile ? handleCardClick : undefined}>
+        <div onClick={isCompact ? handleCardClick : undefined}>
           <SpotWelderCard 
             equipment={equipment}
             showCustomer={showCustomer}
             onViewSpotWelder={onViewSpotWelder}
-            isMobile={isMobile}
+            isMobile={isCompact}
           />
           <div className="mt-2 flex justify-end">
             {renderBookButton()}
@@ -109,12 +121,12 @@ export function EquipmentCardFactory({
       );
     case 'rivet_tool':
       return (
-        <div onClick={isMobile ? handleCardClick : undefined}>
+        <div onClick={isCompact ? handleCardClick : undefined}>
           <RivetToolCard 
             equipment={equipment}
             showCustomer={showCustomer}
             onViewRivetTool={onViewRivetTool}
-            isMobile={isMobile}
+            isMobile={isCompact}
           />
           <div className="mt-2 flex justify-end">
             {renderBookButton()}
@@ -123,12 +135,12 @@ export function EquipmentCardFactory({
       );
     case 'compressor':
       return (
-        <div onClick={isMobile ? handleCardClick : undefined}>
+        <div onClick={isCompact ? handleCardClick : undefined}>
           <CompressorCard 
             equipment={equipment}
             showCustomer={showCustomer}
             onViewCompressor={onViewCompressor}
-            isMobile={isMobile}
+            isMobile={isCompact}
           />
           <div className="mt-2 flex justify-end">
             {renderBookButton()}
@@ -144,7 +156,7 @@ export function EquipmentCardFactory({
           <ServiceEquipmentCard 
             equipment={equipment}
             showCustomer={showCustomer}
-            isMobile={isMobile}
+            isMobile={isCompact}
           />
           <div className="mt-2 flex justify-end">
             {renderBookButton()}

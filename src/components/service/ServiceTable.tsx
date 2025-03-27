@@ -29,11 +29,11 @@ export function ServiceTable({ services, onView, onEdit, onDelete }: ServiceTabl
   const navigate = useNavigate();
   
   const handlePrintCertificate = (serviceId: string) => {
-    navigate(`/certificate/${serviceId}`);
+    navigate(`/service-certificate/${serviceId}`);
   };
   
   const handlePrintQRCode = (serviceId: string) => {
-    navigate(`/certificate/${serviceId}/qr`);
+    navigate(`/service-certificate/${serviceId}/qr`);
   };
   
   return (

@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS equipment (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     serial_number TEXT NOT NULL,
-    customer_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+    company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
     status TEXT DEFAULT 'active',
     type TEXT,
     next_test_date TIMESTAMP WITH TIME ZONE,
@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS equipment (
 );
 
 -- Create indexes for better performance
-CREATE INDEX idx_equipment_customer_id ON equipment(customer_id);
+CREATE INDEX idx_equipment_company_id ON equipment(company_id);
 CREATE INDEX idx_equipment_type ON equipment(type);
 
 -- No RLS needed

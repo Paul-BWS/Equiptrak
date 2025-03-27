@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
@@ -26,6 +26,9 @@ import {
 
 export function EquipmentTypes() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const companyId = searchParams.get('companyId');
   
   // Define equipment types with icons
   const equipmentTypes = [
@@ -57,7 +60,14 @@ export function EquipmentTypes() {
       id: "service", 
       name: "Service Records", 
       icon: <Wrench className="h-8 w-8 text-[#7b96d4]" />,
+      // Changed to use the standard service route with query parameter
       url: "/service"
+    },
+    { 
+      id: "lift-service", 
+      name: "Lift Service", 
+      icon: <Forklift className="h-8 w-8 text-[#7b96d4]" />,
+      url: "/lift-service"
     },
     { 
       id: "welder-validation", 
@@ -176,7 +186,11 @@ export function EquipmentTypes() {
             className="bg-white rounded-lg shadow-sm p-6 flex flex-col items-center justify-center cursor-pointer hover:shadow-md transition-shadow"
             onClick={() => {
               if (type.url) {
-                navigate(type.url);
+                // Always append companyId as a query parameter for all equipment types
+                const url = companyId 
+                  ? `${type.url}?companyId=${companyId}` 
+                  : type.url;
+                navigate(url);
               }
             }}
           >

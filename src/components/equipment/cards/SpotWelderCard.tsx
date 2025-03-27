@@ -58,12 +58,8 @@ export function SpotWelderCard({
   };
 
   const handlePrint = async () => {
-    if (!equipment.customer_id) {
-      toast({
-        title: "Error",
-        description: "No customer ID found for this equipment",
-        variant: "destructive",
-      });
+    if (!equipment.company_id) {
+      console.error('No company ID found for equipment:', equipment);
       return;
     }
 
@@ -93,7 +89,7 @@ export function SpotWelderCard({
       }
 
       // Navigate to the certificate page using the latest record ID
-      navigate(`/admin/customer/${equipment.customer_id}/spot-welder-certificate/${serviceRecords[0].id}`);
+      navigate(`/admin/customer/${equipment.company_id}/spot-welder-certificate/${serviceRecords[0].id}`);
     } catch (error) {
       console.error('Error in handlePrint:', error);
       toast({

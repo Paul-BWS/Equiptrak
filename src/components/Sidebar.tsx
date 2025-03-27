@@ -90,15 +90,15 @@ export function Sidebar() {
                 <Button
                   variant="ghost"
                   className={`w-full justify-start text-white hover:bg-white/10 ${
-                    isActive("/equipment-types") ? "bg-white/20" : ""
+                    isActive("/equipment-list") ? "bg-white/20" : ""
                   }`}
                   onClick={() => {
-                    navigate("/equipment-types");
+                    navigate("/equipment-list");
                     if (isMobile) setIsOpen(false);
                   }}
                 >
                   <PencilRuler className="mr-2 h-5 w-5" />
-                  Equipment Types
+                  All Equipment
                 </Button>
                 
                 <Button

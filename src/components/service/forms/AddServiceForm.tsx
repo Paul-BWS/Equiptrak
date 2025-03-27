@@ -27,6 +27,10 @@ type FormValues = {
   equipment5_serial: string;
   equipment6_name: string;
   equipment6_serial: string;
+  equipment7_name?: string;
+  equipment7_serial?: string;
+  equipment8_name?: string;
+  equipment8_serial?: string;
   notes: string;
 };
 
@@ -56,7 +60,14 @@ export function AddServiceForm({
   const queryClient = useQueryClient();
   const [isGeneratingCertNumber, setIsGeneratingCertNumber] = useState(true);
   
-  const { register, handleSubmit, setValue, watch } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    control,
+    setValue,
+    watch,
+    formState: { errors, isSubmitting }
+  } = useForm<FormValues>({
     defaultValues: {
       certificate_number: "",
       engineer_name: "",
@@ -82,23 +93,31 @@ export function AddServiceForm({
   useEffect(() => {
     const generateCertificateNumber = async () => {
       try {
-        setIsGeneratingCertNumber(true);
+        // Get authentication token
+        const token = getAuthToken();
+        if (!token) {
+          throw new Error("Not authenticated");
+        }
         
-        // Get the count of existing records to determine the next number
-        const { count, error } = await supabase
-          .from("service_records")
-          .select("*", { count: "exact", head: true });
-          
-        if (error) throw error;
+        // Call our new API endpoint to get a sequential BWS-XXXX number
+        const response = await fetch('/api/generate-certificate-number', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
         
-        // Generate certificate number (BWS-2000 + count)
-        const nextNumber = 2000 + (count || 0);
-        const certificateNumber = `BWS-${nextNumber}`;
+        if (!response.ok) {
+          throw new Error(`Failed to generate certificate number: ${response.status}`);
+        }
         
-        setValue("certificate_number", certificateNumber);
+        const data = await response.json();
+        setValue("certificate_number", data.certificateNumber);
       } catch (error) {
         console.error("Error generating certificate number:", error);
-        setValue("certificate_number", "BWS-ERROR");
+        // Fallback to a timestamp-based number if there's an error
+        const timestamp = Date.now().toString().slice(-6);
+        setValue("certificate_number", `BWS-MANUAL-${timestamp}`);
       } finally {
         setIsGeneratingCertNumber(false);
       }
@@ -117,42 +136,134 @@ export function AddServiceForm({
     }
   }, [testDate, setValue]);
 
+  // Helper function to get auth token
+  const getAuthToken = () => {
+    const storedUser = localStorage.getItem('equiptrak_user');
+    if (!storedUser) return null;
+    
+    try {
+      const userData = JSON.parse(storedUser);
+      return userData.token || null;
+    } catch (e) {
+      console.error("Error parsing user data:", e);
+      return null;
+    }
+  };
+
   const onSubmit = async (values: FormValues) => {
     try {
-      const { error } = await supabase
-        .from("service_records")
-        .insert({
-          customer_id: customerId,
-          certificate_number: values.certificate_number,
-          engineer_name: values.engineer_name,
-          test_date: values.test_date,
-          retest_date: values.retest_date,
-          status: "valid",
-          equipment1_name: values.equipment1_name,
-          equipment1_serial: values.equipment1_serial,
-          equipment2_name: values.equipment2_name,
-          equipment2_serial: values.equipment2_serial,
-          equipment3_name: values.equipment3_name,
-          equipment3_serial: values.equipment3_serial,
-          equipment4_name: values.equipment4_name,
-          equipment4_serial: values.equipment4_serial,
-          equipment5_name: values.equipment5_name,
-          equipment5_serial: values.equipment5_serial,
-          equipment6_name: values.equipment6_name,
-          equipment6_serial: values.equipment6_serial,
-          notes: values.notes,
-        });
+      // Ensure there's at least one equipment name provided
+      if (
+        !values.equipment1_name &&
+        !values.equipment2_name &&
+        !values.equipment3_name &&
+        !values.equipment4_name &&
+        !values.equipment5_name &&
+        !values.equipment6_name
+      ) {
+        toast.error("Please add at least one equipment name");
+        return;
+      }
 
-      if (error) throw error;
+      let serviceRecord: Record<string, any> = {
+        company_id: customerId,
+        certificate_number: values.certificate_number,
+        service_date: values.test_date,
+        test_date: values.test_date,
+        retest_date: values.retest_date,
+        status: 'valid', // Default status
+        notes: values.notes,
+      };
 
-      // Invalidate queries to refresh data
-      await queryClient.invalidateQueries({ queryKey: ['serviceRecords'] });
+      // Handle the engineer
+      if (values.engineer_name) {
+        console.log("Engineer name from form:", values.engineer_name);
+        serviceRecord.engineer_name = values.engineer_name;
+      } else {
+        console.log("No engineer name provided in form");
+      }
 
+      // Add equipment values
+      if (values.equipment1_name) {
+        serviceRecord.equipment1_name = values.equipment1_name;
+        serviceRecord.equipment1_serial = values.equipment1_serial || '';
+      }
+      if (values.equipment2_name) {
+        serviceRecord.equipment2_name = values.equipment2_name;
+        serviceRecord.equipment2_serial = values.equipment2_serial || '';
+      }
+      if (values.equipment3_name) {
+        serviceRecord.equipment3_name = values.equipment3_name;
+        serviceRecord.equipment3_serial = values.equipment3_serial || '';
+      }
+      if (values.equipment4_name) {
+        serviceRecord.equipment4_name = values.equipment4_name;
+        serviceRecord.equipment4_serial = values.equipment4_serial || '';
+      }
+      if (values.equipment5_name) {
+        serviceRecord.equipment5_name = values.equipment5_name;
+        serviceRecord.equipment5_serial = values.equipment5_serial || '';
+      }
+      if (values.equipment6_name) {
+        serviceRecord.equipment6_name = values.equipment6_name;
+        serviceRecord.equipment6_serial = values.equipment6_serial || '';
+      }
+      
+      console.log("Full service record being sent:", JSON.stringify(serviceRecord, null, 2));
+
+      // Get auth token
+      const token = getAuthToken();
+      if (!token) {
+        toast.error("Authentication error. Please log in again.");
+        return;
+      }
+
+      console.log("Sending POST request to /api/service-records");
+      const response = await fetch('/api/service-records', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(serviceRecord)
+      });
+
+      if (!response.ok) {
+        // Try to parse the error response as JSON
+        let errorMessage;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || `Server responded with status ${response.status}`;
+          console.error("Server error response:", errorData);
+        } catch (e) {
+          // If it's not JSON, get the text
+          const errorText = await response.text();
+          errorMessage = `Server responded with status ${response.status}: ${errorText}`;
+          console.error("Server error response (text):", errorText);
+        }
+        
+        throw new Error(errorMessage);
+      }
+      
+      const data = await response.json();
+      console.log("Service record created successfully:", data);
+      console.log("Engineer data in created record:", {
+        engineer_name: data.record.engineer_name
+      });
+      
       toast.success("Service record added successfully");
+      
+      // Invalidate queries to refresh the UI
+      queryClient.invalidateQueries({ queryKey: ["service-records"] });
+      
+      if (customerId) {
+        queryClient.invalidateQueries({ queryKey: ["service-records", customerId] });
+      }
+      
       onSuccess();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding service record:", error);
-      toast.error("Failed to add service record");
+      toast.error(error.message || "Failed to add service record");
     }
   };
 
@@ -166,7 +277,6 @@ export function AddServiceForm({
               id="certificate-number"
               {...register("certificate_number")}
               disabled={isGeneratingCertNumber}
-              placeholder="Enter certificate number"
             />
           </div>
           
@@ -212,24 +322,25 @@ export function AddServiceForm({
         </div>
         
         <div className="space-y-4">
-          <h3 className="font-medium">Equipment Details</h3>
+          <div className="grid grid-cols-2 gap-6 mb-2">
+            <h3 className="font-medium">Equipment Details</h3>
+            <h3 className="font-medium">Serial Number</h3>
+          </div>
           
           {[1, 2, 3, 4, 5, 6].map((num) => (
             <div key={num} className="grid grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor={`equipment${num}-name`}>Equipment {num}</Label>
+              <div>
                 <Input
                   id={`equipment${num}-name`}
                   {...register(`equipment${num}_name` as keyof FormValues)}
-                  placeholder="Enter equipment name"
+                  placeholder={`Equipment ${num} name`}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor={`equipment${num}-serial`}>Serial Number</Label>
+              <div>
                 <Input
                   id={`equipment${num}-serial`}
                   {...register(`equipment${num}_serial` as keyof FormValues)}
-                  placeholder="Enter serial number"
+                  placeholder={`Serial number`}
                 />
               </div>
             </div>
@@ -241,8 +352,8 @@ export function AddServiceForm({
           <Textarea
             id="notes"
             {...register("notes")}
-            placeholder="Enter notes"
             className="min-h-[100px]"
+            placeholder="Any additional notes about the service"
           />
         </div>
         

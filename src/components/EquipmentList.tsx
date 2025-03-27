@@ -1,9 +1,25 @@
-import { EquipmentCardFactory } from "./EquipmentCardFactory";
 import { useState } from "react";
 import { BookEquipmentModal } from "./equipment/BookEquipmentModal";
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
-import { createUser } from '@/utils/userService';
+import { Button } from "@/components/ui/button";
+import { 
+  CheckCircle, 
+  AlertCircle, 
+  XCircle, 
+  Wrench, 
+  CalendarPlus,
+  Search
+} from "lucide-react";
+import { format } from "date-fns";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
 
 interface Equipment {
   id: string;
@@ -20,12 +36,15 @@ interface Equipment {
     name: string;
     description: string | null;
   } | null;
+  company_name?: string;
+  equipment_type_name?: string;
 }
 
 interface EquipmentListProps {
   equipment: Equipment[];
   isLoading: boolean;
   showCustomer?: boolean;
+  compact?: boolean;
   onServiceClick?: (equipmentId: string) => void;
   onViewSpotWelder?: (spotWelderId: string) => void;
   onViewRivetTool?: (rivetToolId: string) => void;
@@ -36,7 +55,8 @@ interface EquipmentListProps {
 export function EquipmentList({ 
   equipment, 
   isLoading, 
-  showCustomer, 
+  showCustomer = false, 
+  compact = false,
   onServiceClick,
   onViewSpotWelder,
   onViewRivetTool,
@@ -44,73 +64,148 @@ export function EquipmentList({
   onBookClick
 }: EquipmentListProps) {
   const [bookingEquipmentId, setBookingEquipmentId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
 
   if (isLoading) {
-    return <div>Loading equipment...</div>;
+    return <div className="py-8 text-center text-gray-500">Loading equipment...</div>;
   }
 
   if (!equipment?.length) {
-    return <div>No equipment found.</div>;
+    return <div className="py-8 text-center text-gray-500">No equipment found.</div>;
   }
 
-  const handleEquipmentClick = (equipmentId: string) => {
-    console.log("Equipment click in EquipmentList for:", equipmentId);
-    const clickedEquipment = equipment.find(item => item.id === equipmentId);
-    if (!clickedEquipment) return;
-
-    const equipmentType = clickedEquipment.equipment_types?.name?.toLowerCase();
-    console.log("Equipment type:", equipmentType);
+  // Filter equipment based on search term
+  const filteredEquipment = equipment.filter(item => {
+    if (!searchTerm) return true;
     
-    if (equipmentType === 'spot_welder' && onViewSpotWelder) {
-      console.log("Opening spot welder modal");
-      onViewSpotWelder(equipmentId);
-    } else if (equipmentType === 'rivet_tool' && onViewRivetTool) {
-      console.log("Opening rivet tool modal");
-      onViewRivetTool(equipmentId);
-    } else if (equipmentType === 'compressor' && onViewCompressor) {
-      console.log("Opening compressor modal");
-      onViewCompressor(equipmentId);
-    } else if (onServiceClick) {
-      // For all other equipment types
-      console.log("Opening service modal");
+    const search = searchTerm.toLowerCase();
+    return (
+      item.name.toLowerCase().includes(search) ||
+      item.serial_number.toLowerCase().includes(search) ||
+      (item.profiles?.company_name || item.company_name || "").toLowerCase().includes(search) ||
+      (item.equipment_types?.name || item.equipment_type_name || "").toLowerCase().includes(search)
+    );
+  });
+
+  const handleServiceClick = (equipmentId: string) => {
+    if (onServiceClick) {
       onServiceClick(equipmentId);
     }
   };
 
   const handleBookClick = (equipmentId: string) => {
-    setBookingEquipmentId(equipmentId);
+    if (onBookClick) {
+      onBookClick(equipmentId);
+    } else {
+      setBookingEquipmentId(equipmentId);
+    }
   };
 
-  const handleEquipmentNavigation = (equipment: Equipment) => {
-    const typeName = equipment.equipment_types?.name || 'Unknown';
-    
-    switch (typeName.toLowerCase()) {
-      case 'spot welder':
-        navigate(`/admin/spot-welder/${equipment.id}`);
-        break;
-      case 'inverter':
+  // Helper to render the status badge
+  const renderStatusBadge = (status: string) => {
+    switch (status) {
+      case "valid":
+        return (
+          <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+            <CheckCircle className="mr-1 h-3 w-3" />
+            Valid
+          </div>
+        );
+      case "upcoming":
+        return (
+          <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+            <AlertCircle className="mr-1 h-3 w-3" />
+            Due Soon
+          </div>
+        );
+      case "expired":
+        return (
+          <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+            <XCircle className="mr-1 h-3 w-3" />
+            Expired
+          </div>
+        );
       default:
-        // For equipment types without dedicated pages yet
-        toast.error(`Viewing ${typeName} details will be available soon`);
-        break;
+        return null;
     }
   };
 
   return (
-    <div className="grid grid-cols-1 gap-4">
-      {equipment.map((item) => (
-        <EquipmentCardFactory 
-          key={item.id} 
-          equipment={item}
-          showCustomer={showCustomer}
-          onServiceClick={handleEquipmentClick}
-          onViewSpotWelder={onViewSpotWelder}
-          onViewRivetTool={onViewRivetTool}
-          onViewCompressor={onViewCompressor}
-          onBookClick={handleBookClick}
+    <div className="w-full">
+      <div className="mb-4 relative">
+        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input 
+          placeholder="Search equipment..."
+          className="pl-8"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
         />
-      ))}
+      </div>
+      
+      <div className="border rounded-md overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Equipment</TableHead>
+              <TableHead>Serial Number</TableHead>
+              {showCustomer && <TableHead>Company</TableHead>}
+              <TableHead>Type</TableHead>
+              <TableHead>Last Test</TableHead>
+              <TableHead>Next Test</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredEquipment.map((item) => (
+              <TableRow key={item.id}>
+                <TableCell className="font-medium">{item.name}</TableCell>
+                <TableCell>{item.serial_number}</TableCell>
+                {showCustomer && (
+                  <TableCell>
+                    {item.profiles?.company_name || item.company_name || "Unknown"}
+                  </TableCell>
+                )}
+                <TableCell>
+                  {item.equipment_types?.name || item.equipment_type_name || "Unknown"}
+                </TableCell>
+                <TableCell>
+                  {item.last_test_date 
+                    ? format(new Date(item.last_test_date), 'dd/MM/yyyy') 
+                    : "Unknown"}
+                </TableCell>
+                <TableCell>
+                  {item.next_test_date 
+                    ? format(new Date(item.next_test_date), 'dd/MM/yyyy') 
+                    : "Unknown"}
+                </TableCell>
+                <TableCell>{renderStatusBadge(item.status)}</TableCell>
+                <TableCell className="text-right space-x-2">
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => handleServiceClick(item.id)}
+                    className="h-8 px-2 py-0"
+                  >
+                    <Wrench className="h-3.5 w-3.5 mr-1" />
+                    Service
+                  </Button>
+                  <Button 
+                    size="sm"
+                    onClick={() => handleBookClick(item.id)}
+                    className="h-8 px-2 py-0"
+                  >
+                    <CalendarPlus className="h-3.5 w-3.5 mr-1" />
+                    Book
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+      
       {bookingEquipmentId && (
         <BookEquipmentModal
           equipmentId={bookingEquipmentId}

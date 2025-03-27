@@ -33,7 +33,7 @@ export type Database = {
       equipment: {
         Row: {
           created_at: string
-          customer_id: string | null
+          company_id: string | null
           id: string
           last_test_date: string
           name: string
@@ -45,7 +45,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          customer_id?: string | null
+          company_id?: string | null
           id?: string
           last_test_date: string
           name: string
@@ -57,7 +57,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          customer_id?: string | null
+          company_id?: string | null
           id?: string
           last_test_date?: string
           name?: string
@@ -69,10 +69,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "equipment_customer_id_fkey"
-            columns: ["customer_id"]
+            foreignKeyName: "equipment_company_id_fkey"
+            columns: ["company_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
           {
@@ -363,3 +363,67 @@ export type Enums<
   : PublicEnumNameOrOptions extends keyof Database["public"]["Enums"]
   ? Database["public"]["Enums"][PublicEnumNameOrOptions]
   : never
+
+export interface Equipment {
+  id: string;
+  name: string;
+  serial_number: string;
+  company_id: string;
+  type: string;
+  last_test_date: string;
+  next_test_date: string;
+  status: string;
+}
+
+export interface ServiceRecord {
+  id: string;
+  company_id: string;
+  engineer_id: string;
+  test_date: string;
+  retest_date: string;
+  status: string;
+  notes?: string;
+  equipment1_name?: string;
+  equipment1_serial?: string;
+  equipment2_name?: string;
+  equipment2_serial?: string;
+  equipment3_name?: string;
+  equipment3_serial?: string;
+  equipment4_name?: string;
+  equipment4_serial?: string;
+  equipment5_name?: string;
+  equipment5_serial?: string;
+  equipment6_name?: string;
+  equipment6_serial?: string;
+  equipment7_name?: string;
+  equipment7_serial?: string;
+  equipment8_name?: string;
+  equipment8_serial?: string;
+  created_at?: string;
+}
+
+export interface Conversation {
+  id: string;
+  company_id: string;
+  title: string;
+  status: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ConversationParticipant {
+  id: string;
+  conversation_id: string;
+  company_id: string;
+  user_id: string;
+  created_at?: string;
+}
+
+export interface Message {
+  id: string;
+  conversation_id: string;
+  company_id: string;
+  sender_id: string;
+  content: string;
+  created_at?: string;
+}

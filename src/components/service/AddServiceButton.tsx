@@ -66,21 +66,36 @@ export function AddServiceButton({ customerId, className, children }: AddService
     try {
       setIsGeneratingCertNumber(true);
       
-      // Get the count of existing records to determine the next number
-      const { count, error } = await supabase
-        .from("service_records")
-        .select("*", { count: "exact", head: true });
-        
-      if (error) throw error;
+      // Get authentication token from local storage
+      const storedUser = localStorage.getItem('equiptrak_user');
+      if (!storedUser) {
+        throw new Error("User not authenticated");
+      }
       
-      // Generate certificate number (BWS-2000 + count)
-      const nextNumber = 2000 + (count || 0);
-      const certificateNumber = `BWS-${nextNumber}`;
+      const userData = JSON.parse(storedUser);
+      if (!userData.token) {
+        throw new Error("No authentication token found");
+      }
       
-      setCertificateNumber(certificateNumber);
+      // Call our new API endpoint to get a sequential BWS-XXXX number
+      const response = await fetch('/api/generate-certificate-number', {
+        headers: {
+          'Authorization': `Bearer ${userData.token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to generate certificate number: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      setCertificateNumber(data.certificateNumber);
     } catch (error) {
       console.error("Error generating certificate number:", error);
-      setCertificateNumber("BWS-ERROR");
+      // Fallback to a manual certificate number
+      const timestamp = Date.now().toString().slice(-4);
+      setCertificateNumber(`BWS-MANUAL-${timestamp}`);
     } finally {
       setIsGeneratingCertNumber(false);
     }

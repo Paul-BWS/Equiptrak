@@ -11,15 +11,21 @@ import { DeleteServiceAlert } from "@/components/service/components/DeleteServic
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
+interface LolerEquipment {
+  id: string;
+  name: string;
+  serial_number: string;
+  company_id: string;
+  status: string;
+  type: string;
+  next_test_date?: string;
+  last_test_date?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 interface LolerCardProps {
-  equipment: {
-    id: string;
-    name: string;
-    serial_number: string;
-    next_test_date: string;
-    status: "valid" | "upcoming" | "expired";
-    customer_id: string;
-  };
+  equipment: LolerEquipment;
   onViewLoler: (id: string) => void;
   isMobile: boolean;
 }
@@ -54,7 +60,7 @@ export function LolerCard({ equipment, onViewLoler, isMobile }: LolerCardProps) 
         .single();
 
       if (serviceRecord) {
-        window.open(`/admin/customer/${equipment.customer_id}/loler-certificate/${serviceRecord.id}`, "_blank");
+        window.open(`/admin/customer/${equipment.company_id}/loler-certificate/${serviceRecord.id}`, "_blank");
       }
     } catch (error) {
       console.error("Error fetching latest service record:", error);

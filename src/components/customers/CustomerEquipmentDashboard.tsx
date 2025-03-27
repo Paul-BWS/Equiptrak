@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { EquipmentList } from "../EquipmentList";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Search, Loader2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface CustomerEquipmentDashboardProps {
@@ -29,68 +28,97 @@ export function CustomerEquipmentDashboard({
     queryFn: async () => {
       console.log("Fetching equipment for customer:", customerId);
       
-      const { data: equipmentData, error } = await supabase
-        .from("equipment")
-        .select(`
-          *,
-          companies (
-            company_name
-          )
-        `)
-        .eq('customer_id', customerId);
+      try {
+        // Use the REST API instead of Supabase
+        const response = await fetch(`/api/companies/${customerId}/equipment`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+          }
+        });
 
-      if (error) {
+        if (!response.ok) {
+          console.error("Error fetching equipment:", response.status);
+          // Return empty array to avoid errors
+          return [];
+        }
+
+        const equipmentData = await response.json();
+        console.log("Fetched customer equipment:", equipmentData);
+        
+        // Process data to match expected format
+        return equipmentData?.map(item => ({
+          ...item,
+          status: item.status as "valid" | "expired" | "upcoming",
+          profiles: { 
+            company_name: item.company_name || "Unknown Company"
+          },
+          equipment_types: { 
+            name: item.equipment_type_name || "Unknown Type",
+            description: null
+          }
+        })) || [];
+      } catch (error) {
         console.error("Error fetching equipment:", error);
-        throw error;
+        return [];
       }
-
-      console.log("Fetched customer equipment:", equipmentData);
-      return equipmentData?.map(item => ({
-        ...item,
-        status: item.status as "valid" | "expired" | "upcoming",
-        companies: item.companies && !('error' in item.companies) ? item.companies : null
-      })) || [];
     },
-    enabled: !!customerId,
+    refetchOnWindowFocus: false
   });
 
-  const filteredEquipment = equipment?.filter((item) =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.serial_number.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter equipment by search term
+  const filteredEquipment = equipment
+    ? equipment.filter(item => {
+        if (!searchTerm) return true;
+        
+        const name = item.name?.toLowerCase() || '';
+        const serial = item.serial_number?.toLowerCase() || '';
+        const search = searchTerm.toLowerCase();
+        
+        return name.includes(search) || serial.includes(search);
+      })
+    : [];
 
   return (
-    <div className="space-y-6">
-      <div className={`${isMobile ? "w-full text-center mb-6 p-4 rounded-lg bg-muted" : ""}`}>
-        <h2 className="text-3xl font-bold tracking-tight">{title}</h2>
-        {!isMobile && (
-          <p className="text-muted-foreground">
-            {description}
-          </p>
+    <div>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div>
+          <h2 className="text-xl font-bold">{title}</h2>
+          <p className="text-muted-foreground">{description}</p>
+        </div>
+        
+        {renderButtons && (
+          <div className="flex-shrink-0">
+            {renderButtons()}
+          </div>
         )}
       </div>
-      {renderButtons && (
-        <div className="w-full">
-          {renderButtons()}
+      
+      <div className="mb-4 relative">
+        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input 
+          placeholder="Search equipment..."
+          className="pl-8"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
+      
+      {isLoading ? (
+        <div className="flex justify-center items-center h-40">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+          <span className="ml-2 text-gray-700">Loading equipment...</span>
         </div>
-      )}
-      {!isMobile && (
-        <div className="bg-card rounded-lg p-6 space-y-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Search equipment..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <EquipmentList 
-            equipment={filteredEquipment || []} 
-            isLoading={isLoading} 
-            onServiceClick={onServiceClick}
-          />
+      ) : filteredEquipment.length > 0 ? (
+        <EquipmentList 
+          equipment={filteredEquipment} 
+          isLoading={isLoading}
+          showCustomer={false}
+          onServiceClick={onServiceClick}
+          compact={isMobile}
+        />
+      ) : (
+        <div className="text-center p-8 border border-dashed rounded-md">
+          <p className="text-muted-foreground">No equipment found {searchTerm ? "matching your search" : "for this company"}</p>
         </div>
       )}
     </div>

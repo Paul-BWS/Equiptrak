@@ -27,7 +27,7 @@ export function CertificateFooter({ notes, certificateId }: CertificateFooterPro
           <p className="font-bold">BWS LTD</p>
           <p>232 Briscoe Lane</p>
           <p>Manchester M40 2XG</p>
-          <p>Tel: 0161 223 9843</p>
+          <p>Tel: 0161 223 1843</p>
           <p>www.basicwelding.co.uk</p>
         </div>
         

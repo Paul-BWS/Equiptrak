@@ -4,15 +4,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, Lock, Loader2, Phone, ExternalLink, Eye, EyeOff, AlertCircle } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Mail, Lock, Loader2, Phone, ExternalLink, Eye, EyeOff, AlertCircle, Info } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import ApiClient from "@/utils/ApiClient";
 
 // Define a version number for tracking deployments
-const APP_VERSION = "1.0.4";
+const APP_VERSION = "1.0.5";
 // Set to true to show detailed error information
 const DEBUG_MODE = true;
 
 export function Login() {
+  const location = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -22,7 +25,17 @@ export function Login() {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [debugInfo, setDebugInfo] = useState<string | null>(null);
+  const [sessionMessage, setSessionMessage] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check for session messages passed via location state
+    if (location.state?.message) {
+      setSessionMessage(location.state.message);
+      // Clear the state so the message doesn't persist on page refresh
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location, navigate]);
 
   useEffect(() => {
     console.log("Current user state:", user, "Redirecting:", redirecting);
@@ -48,53 +61,23 @@ export function Login() {
     setIsLoading(true);
     setError('');
     setDebugInfo(null);
+    setSessionMessage(null);
     
     try {
       console.log("Sending login request to API server");
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
-        mode: 'cors',
-        cache: 'no-cache',
+      const response = await ApiClient.post('/api/auth/login', {
+        email,
+        password
       });
 
-      console.log("Login response status:", response.status);
-      
-      let data;
-      let responseText;
-      
-      try {
-        // First get the raw text response
-        responseText = await response.text();
-        
-        // Then try to parse it as JSON if possible
-        try {
-          data = JSON.parse(responseText);
-          console.log("Response data received", { ok: response.ok });
-        } catch (parseError) {
-          console.error("Error parsing JSON response:", parseError);
-          setDebugInfo(`Server returned non-JSON response: ${responseText}`);
-          throw new Error('Invalid response format from server');
-        }
-      } catch (textError) {
-        console.error("Error reading response text:", textError);
-        setDebugInfo(`Failed to read server response: ${textError.message}`);
-        throw new Error('Could not read server response');
-      }
-      
-      if (!response.ok) {
-        console.error("Server returned error:", data.error);
-        setDebugInfo(`Server error (${response.status}): ${data.error || 'Unknown error'}`);
-        throw new Error(data.error || 'Authentication failed');
+      if (!response.ok || !response.data) {
+        console.error("Login failed:", response.error);
+        setDebugInfo(`Login failed (${response.status}): ${response.error || 'Unknown error'}`);
+        throw new Error(response.error || 'Authentication failed');
       }
 
+      const data = response.data;
+      
       // Log the response for debugging
       console.log('Server response:', data);
 
@@ -113,10 +96,28 @@ export function Login() {
         throw new Error('Invalid user data received');
       }
 
+      // Extract token expiration if available
+      let tokenExpiry;
+      if (data.tokenExpiry) {
+        console.log('Using tokenExpiry directly from server:', data.tokenExpiry);
+        tokenExpiry = data.tokenExpiry;
+      } else if (data.expiresIn) {
+        // Calculate expiry from expiresIn seconds
+        console.log('Calculating tokenExpiry from expiresIn:', data.expiresIn, 'seconds');
+        tokenExpiry = Math.floor(Date.now() / 1000) + data.expiresIn;
+        console.log('Calculated tokenExpiry:', tokenExpiry, '(', new Date(tokenExpiry * 1000).toISOString(), ')');
+      } else {
+        // Default to 24 hours if not specified
+        console.log('No expiry information provided by server, using default 24h');
+        tokenExpiry = Math.floor(Date.now() / 1000) + 86400;
+        console.log('Default tokenExpiry:', tokenExpiry, '(', new Date(tokenExpiry * 1000).toISOString(), ')');
+      }
+
       // Call the signIn function from AuthContext with the user data and token
       await signIn({
         ...data.user,
         token: data.token,
+        tokenExpiry,
         role: data.user.role as UserRole // Ensure role is properly typed
       });
       
@@ -173,7 +174,19 @@ export function Login() {
         <div className="w-full max-w-md space-y-6">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold">EquipTrack</h1>
+            <p className="text-sm text-gray-500 mt-2">Version {APP_VERSION}</p>
           </div>
+          
+          {/* Session expired message */}
+          {sessionMessage && (
+            <Alert className="mb-4 border-amber-300 bg-amber-50">
+              <Info className="h-4 w-4 text-amber-500" />
+              <AlertTitle className="text-amber-800">Session Notice</AlertTitle>
+              <AlertDescription className="text-amber-700">
+                {sessionMessage}
+              </AlertDescription>
+            </Alert>
+          )}
           
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">

@@ -7,13 +7,17 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building, User, Mail, Phone, Smartphone, Edit, Trash2, Plus, X, Save, ArrowLeft, Loader2, Globe, Wrench, ClipboardList, Users, MessageSquare } from "lucide-react";
+import { Building, User, Mail, Phone, Smartphone, Edit, Trash2, Plus, X, Save, ArrowLeft, Loader2, Globe, Wrench, ClipboardList, Users, MessageSquare, MessageCircle, NotepadText, Pencil, MapPin, CheckCircle, Clock, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ContactInfoCard } from "@/components/contacts/ContactInfoCard";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Notes } from '@/components/shared/Notes';
+import { MapsProvider } from '@/components/maps/MapsContext';
+import { CompanyMap } from '@/components/maps/CompanyMap';
+import { ServiceRecordsTable } from "@/components/service/components/ServiceRecordsTable";
 
 interface Company {
   id: string;
@@ -48,6 +52,106 @@ interface Contact {
   updated_at?: string;
 }
 
+interface Equipment {
+  id: string;
+  name: string;
+  serial_number: string;
+  next_test_date: string;
+  status: "valid" | "expired" | "upcoming";
+}
+
+// Component for Notes Section
+const NotesSection = ({ companyId, companyName }: { companyId: string, companyName: string }) => {
+  const [notesRef, setNotesRef] = useState<HTMLDivElement | null>(null);
+
+  const handleAddNoteClick = () => {
+    if (notesRef) {
+      const addNoteButton = notesRef.querySelector('button');
+      if (addNoteButton) {
+        addNoteButton.click();
+      }
+    }
+  };
+
+  return (
+    <div className="flex-1 bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+      <div className="flex flex-row items-center justify-between mb-6">
+        <div>
+          <h2 className="text-xl font-semibold flex items-center">
+            <MessageCircle className="mr-2 h-6 w-6 text-teal-500" />
+            Notes
+          </h2>
+        </div>
+        <Button
+          onClick={handleAddNoteClick}
+          className="bg-[#a6e15a] hover:bg-opacity-90 text-white dark:bg-[#a6e15a] dark:text-white light:bg-white light:text-black light:border light:border-gray-300"
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Add Note
+        </Button>
+      </div>
+      
+      <div ref={setNotesRef}>
+        <Notes 
+          companyId={companyId} 
+          isAdmin={false}
+          hideHeader={true}
+        />
+      </div>
+    </div>
+  );
+};
+
+// Component for Equipment Status Section
+const EquipmentStatusSection = ({ 
+  companyId, 
+  counts
+}: { 
+  companyId: string, 
+  counts: { valid: number, upcoming: number, expired: number } 
+}) => {
+  return (
+    <div className="flex-1 bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+      <div className="flex flex-row items-center mb-6">
+        <h2 className="text-xl font-semibold flex items-center">
+          <ClipboardList className="mr-2 h-6 w-6 text-purple-500" />
+          Equipment Status
+        </h2>
+      </div>
+      
+      <div className="flex justify-center md:justify-around items-center gap-4 md:gap-8 py-4">
+        <div className="flex flex-col items-center">
+          <div className="h-16 w-16 rounded-full bg-green-500 flex items-center justify-center mb-2">
+            <CheckCircle className="h-8 w-8 text-white" />
+          </div>
+          <span className="text-sm font-medium text-gray-700">Valid</span>
+          <span className="text-2xl font-bold">{counts.valid}</span>
+        </div>
+        
+        <div className="flex flex-col items-center">
+          <div className="h-16 w-16 rounded-full bg-yellow-500 flex items-center justify-center mb-2">
+            <Clock className="h-8 w-8 text-white" />
+          </div>
+          <span className="text-sm font-medium text-gray-700">Upcoming</span>
+          <span className="text-2xl font-bold">{counts.upcoming}</span>
+        </div>
+        
+        <div className="flex flex-col items-center">
+          <div className="h-16 w-16 rounded-full bg-red-500 flex items-center justify-center mb-2">
+            <AlertTriangle className="h-8 w-8 text-white" />
+          </div>
+          <span className="text-sm font-medium text-gray-700">Invalid</span>
+          <span className="text-2xl font-bold">{counts.expired}</span>
+        </div>
+      </div>
+
+      <div className="text-center text-sm text-gray-500 mt-4">
+        Data from company equipment service records
+      </div>
+    </div>
+  );
+};
+
 export default function CompanyDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -55,6 +159,12 @@ export default function CompanyDetails() {
   const { toast } = useToast();
   const [company, setCompany] = useState<Company | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [equipment, setEquipment] = useState<Equipment[]>([]);
+  const [equipmentCounts, setEquipmentCounts] = useState({
+    valid: 0,
+    upcoming: 0,
+    expired: 0
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -138,6 +248,35 @@ export default function CompanyDetails() {
         if (contactsResponse.ok) {
           const contactsData = await contactsResponse.json();
           setContacts(contactsData);
+        }
+        
+        // Fetch equipment
+        const equipmentResponse = await fetch(`/api/companies/${id}/equipment`, {
+          headers: {
+            'Authorization': `Bearer ${user.token}`,
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include'
+        });
+        
+        if (equipmentResponse.ok) {
+          const equipmentData = await equipmentResponse.json();
+          setEquipment(equipmentData);
+          
+          // Calculate equipment counts
+          const counts = {
+            valid: 0,
+            upcoming: 0,
+            expired: 0
+          };
+          
+          equipmentData.forEach((item: Equipment) => {
+            if (item.status === 'valid') counts.valid++;
+            else if (item.status === 'upcoming') counts.upcoming++;
+            else if (item.status === 'expired') counts.expired++;
+          });
+          
+          setEquipmentCounts(counts);
         }
         
         setError(null);
@@ -485,765 +624,803 @@ export default function CompanyDetails() {
   }
 
   return (
-    <div className="container mx-auto p-4 max-w-6xl">
-      <div className="flex items-center mb-12">
-        <div className="flex items-center flex-1">
-          <Button variant="outline" onClick={handleBackClick} className="mr-4">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
-          </Button>
-          <h1 className="text-2xl font-bold">{company.company_name}</h1>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={handleEditClick}>
-            <Edit className="mr-2 h-4 w-4" />
-            Edit Details
-          </Button>
-          <Button variant="destructive" onClick={handleDeleteClick}>
-            <Trash2 className="mr-2 h-4 w-4" />
-            Delete
-          </Button>
+    <div className="min-h-screen bg-[#f8f9fc]">
+      <div className="border-b bg-white shadow-sm">
+        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+          <div className="flex items-center">
+            <Button variant="outline" onClick={handleBackClick} className="mr-4">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
+            </Button>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleEditClick} className="border-gray-300 bg-white hover:bg-gray-50">
+              <Edit className="mr-2 h-4 w-4" />
+              Edit Details
+            </Button>
+            <Button variant="outline" onClick={handleDeleteClick} className="border-gray-300 bg-white hover:bg-gray-50">
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete
+            </Button>
+          </div>
         </div>
       </div>
 
-      <Tabs defaultValue="details" className="space-y-8 mt-8">
-        <div className="mt-6 mb-6">
-          <TabsList className="flex flex-wrap gap-2 md:gap-4 justify-center border-0 bg-transparent">
-            <TabsTrigger 
-              value="details" 
-              className="flex flex-col items-center justify-center h-20 w-20 md:h-24 md:w-28 rounded-lg bg-white shadow-sm data-[state=active]:ring-2 data-[state=active]:ring-blue-500 hover:bg-gray-50"
-            >
-              <Building className="h-6 w-6 md:h-8 md:w-8 text-blue-500 mb-1 md:mb-2" />
-              <span className="font-medium text-xs md:text-sm">Details</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="contacts" 
-              className="flex flex-col items-center justify-center h-20 w-20 md:h-24 md:w-28 rounded-lg bg-white shadow-sm data-[state=active]:ring-2 data-[state=active]:ring-green-500 hover:bg-gray-50"
-            >
-              <User className="h-6 w-6 md:h-8 md:w-8 text-green-500 mb-1 md:mb-2" />
-              <span className="font-medium text-xs md:text-sm">Contacts</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="jobs" 
-              className="flex flex-col items-center justify-center h-20 w-20 md:h-24 md:w-28 rounded-lg bg-white shadow-sm data-[state=active]:ring-2 data-[state=active]:ring-orange-500 hover:bg-gray-50"
-            >
-              <Wrench className="h-6 w-6 md:h-8 md:w-8 text-orange-500 mb-1 md:mb-2" />
-              <span className="font-medium text-xs md:text-sm">Jobs</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="service" 
-              className="flex flex-col items-center justify-center h-20 w-20 md:h-24 md:w-28 rounded-lg bg-white shadow-sm data-[state=active]:ring-2 data-[state=active]:ring-purple-500 hover:bg-gray-50"
-            >
-              <ClipboardList className="h-6 w-6 md:h-8 md:w-8 text-purple-500 mb-1 md:mb-2" />
-              <span className="font-medium text-xs md:text-sm">Service</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="personnel" 
-              className="flex flex-col items-center justify-center h-20 w-20 md:h-24 md:w-28 rounded-lg bg-white shadow-sm data-[state=active]:ring-2 data-[state=active]:ring-amber-500 hover:bg-gray-50"
-            >
-              <Users className="h-6 w-6 md:h-8 md:w-8 text-amber-500 mb-1 md:mb-2" />
-              <span className="font-medium text-xs md:text-sm">Personnel</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="chat" 
-              className="flex flex-col items-center justify-center h-20 w-20 md:h-24 md:w-28 rounded-lg bg-white shadow-sm data-[state=active]:ring-2 data-[state=active]:ring-pink-500 hover:bg-gray-50"
-            >
-              <MessageSquare className="h-6 w-6 md:h-8 md:w-8 text-pink-500 mb-1 md:mb-2" />
-              <span className="font-medium text-xs md:text-sm">Chat</span>
-            </TabsTrigger>
-          </TabsList>
-        </div>
-        
-        <TabsContent value="details" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Building className="mr-2 h-5 w-5 text-blue-500" />
-                {company.company_name}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-muted-foreground">Company Name</Label>
-                  <div className="font-medium">{company.company_name}</div>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Telephone</Label>
-                  <div className="font-medium">
-                    {company.telephone ? (
-                      <a href={`tel:${company.telephone}`} className="text-primary hover:underline flex items-center">
-                        <Phone className="h-4 w-4 mr-1" />
-                        {company.telephone}
-                      </a>
-                    ) : (
-                      "N/A"
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Address</Label>
-                  <div className="font-medium">{company.address || "N/A"}</div>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">City</Label>
-                  <div className="font-medium">{company.city || "N/A"}</div>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">County</Label>
-                  <div className="font-medium">{company.county || "N/A"}</div>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Postcode</Label>
-                  <div className="font-medium">{company.postcode || "N/A"}</div>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Country</Label>
-                  <div className="font-medium">{company.country || "N/A"}</div>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Industry</Label>
-                  <div className="font-medium">{company.industry || "N/A"}</div>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Website</Label>
-                  <div className="font-medium">
-                    {company.website ? (
-                      <a href={company.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center">
-                        <Globe className="h-4 w-4 mr-1" />
-                        {company.website}
-                      </a>
-                    ) : (
-                      "N/A"
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Contact Name</Label>
-                  <div className="font-medium">{company.contact_name || "N/A"}</div>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Contact Email</Label>
-                  <div className="font-medium">
-                    {company.contact_email ? (
-                      <a href={`mailto:${company.contact_email}`} className="text-primary hover:underline flex items-center">
-                        <Mail className="h-4 w-4 mr-1" />
-                        {company.contact_email}
-                      </a>
-                    ) : (
-                      "N/A"
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Contact Phone</Label>
-                  <div className="font-medium">
-                    {company.contact_phone ? (
-                      <a href={`tel:${company.contact_phone}`} className="text-primary hover:underline flex items-center">
-                        <Phone className="h-4 w-4 mr-1" />
-                        {company.contact_phone}
-                      </a>
-                    ) : (
-                      "N/A"
-                    )}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="contacts" className="space-y-4">
-          <div className="bg-white rounded-lg p-6 shadow-sm">
-            <div className="flex flex-row items-center justify-between mb-6">
-              <div>
-                <h2 className="text-xl font-semibold flex items-center">
-                  <User className="mr-2 h-6 w-6 text-green-500" />
-                  {company.company_name}
-                </h2>
-              </div>
-              <Button size="sm" onClick={() => setIsAddContactDialogOpen(true)} className="bg-[#a6e15a] hover:bg-opacity-90 text-white">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Contact
-              </Button>
-            </div>
-            
-            {contacts.length === 0 ? (
-              <p>No contacts found for this company.</p>
-            ) : (
-              <ContactInfoCard 
-                contacts={contacts}
-                title=""
-                showHeader={false}
-                onEditContact={(contactId) => {
-                  const contact = contacts.find(c => c.id === contactId);
-                  if (contact) handleEditContact(contact);
-                }}
-                onDeleteContact={handleDeleteContact}
-              />
-            )}
+      <div className="container mx-auto p-4 max-w-6xl">
+        <Tabs defaultValue="details" className="mt-8">
+          <div className="flex justify-center mb-20">
+            <TabsList className="flex flex-wrap gap-2 md:gap-4 justify-center border-0 bg-transparent p-4 rounded-lg shadow-sm">
+              <TabsTrigger 
+                value="details" 
+                className="flex flex-col items-center justify-center h-20 w-20 md:h-24 md:w-28 rounded-lg bg-white shadow-sm data-[state=active]:ring-2 data-[state=active]:ring-blue-500 hover:bg-gray-50"
+              >
+                <Building className="h-6 w-6 md:h-8 md:w-8 text-blue-500 mb-1 md:mb-2" />
+                <span className="font-medium text-xs md:text-sm">Details</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="contacts" 
+                className="flex flex-col items-center justify-center h-20 w-20 md:h-24 md:w-28 rounded-lg bg-white shadow-sm data-[state=active]:ring-2 data-[state=active]:ring-green-500 hover:bg-gray-50"
+              >
+                <User className="h-6 w-6 md:h-8 md:w-8 text-green-500 mb-1 md:mb-2" />
+                <span className="font-medium text-xs md:text-sm">Contacts</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="jobs" 
+                className="flex flex-col items-center justify-center h-20 w-20 md:h-24 md:w-28 rounded-lg bg-white shadow-sm data-[state=active]:ring-2 data-[state=active]:ring-orange-500 hover:bg-gray-50"
+              >
+                <Wrench className="h-6 w-6 md:h-8 md:w-8 text-orange-500 mb-1 md:mb-2" />
+                <span className="font-medium text-xs md:text-sm">Jobs</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="service" 
+                className="flex flex-col items-center justify-center h-20 w-20 md:h-24 md:w-28 rounded-lg bg-white shadow-sm data-[state=active]:ring-2 data-[state=active]:ring-purple-500 hover:bg-gray-50"
+              >
+                <ClipboardList className="h-6 w-6 md:h-8 md:w-8 text-purple-500 mb-1 md:mb-2" />
+                <span className="font-medium text-xs md:text-sm">Service</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="personnel" 
+                className="flex flex-col items-center justify-center h-20 w-20 md:h-24 md:w-28 rounded-lg bg-white shadow-sm data-[state=active]:ring-2 data-[state=active]:ring-amber-500 hover:bg-gray-50"
+              >
+                <Users className="h-6 w-6 md:h-8 md:w-8 text-amber-500 mb-1 md:mb-2" />
+                <span className="font-medium text-xs md:text-sm">Personnel</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="chat" 
+                className="flex flex-col items-center justify-center h-20 w-20 md:h-24 md:w-28 rounded-lg bg-white shadow-sm data-[state=active]:ring-2 data-[state=active]:ring-pink-500 hover:bg-gray-50"
+              >
+                <MessageSquare className="h-6 w-6 md:h-8 md:w-8 text-pink-500 mb-1 md:mb-2" />
+                <span className="font-medium text-xs md:text-sm">Chat</span>
+              </TabsTrigger>
+            </TabsList>
           </div>
-        </TabsContent>
-        
-        {/* Jobs Tab */}
-        <TabsContent value="jobs" className="space-y-4">
-          <div className="bg-white rounded-lg p-6 shadow-sm">
-            <div className="flex flex-row items-center justify-between mb-6">
-              <div>
-                <h2 className="text-xl font-semibold flex items-center">
-                  <Wrench className="mr-2 h-6 w-6 text-orange-500" />
-                  {company.company_name}
-                </h2>
-              </div>
-              <Button size="sm" className="bg-[#a6e15a] hover:bg-opacity-90 text-white">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Job
-              </Button>
-            </div>
-            
-            <div className="bg-gray-50 p-4 rounded-lg border border-dashed border-gray-300 text-center">
-              <p className="text-gray-500">Job tracking functionality coming soon. This section will display all current and past jobs for {company.company_name}.</p>
-            </div>
-          </div>
-        </TabsContent>
-        
-        {/* Service Tab */}
-        <TabsContent value="service" className="space-y-4">
-          <div className="bg-white rounded-lg p-6 shadow-sm">
-            <div className="flex flex-row items-center justify-between mb-6">
-              <div>
-                <h2 className="text-xl font-semibold flex items-center">
-                  <ClipboardList className="mr-2 h-6 w-6 text-purple-500" />
-                  {company.company_name}
-                </h2>
-              </div>
-              <Button size="sm" className="bg-[#a6e15a] hover:bg-opacity-90 text-white">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Service Record
-              </Button>
-            </div>
-            
-            <div className="bg-gray-50 p-4 rounded-lg border border-dashed border-gray-300 text-center">
-              <p className="text-gray-500">Service record management interface will be available here. Track maintenance, repairs, and service history for all equipment.</p>
-            </div>
-          </div>
-        </TabsContent>
-        
-        {/* Personnel Tab */}
-        <TabsContent value="personnel" className="space-y-4">
-          <div className="bg-white rounded-lg p-6 shadow-sm">
-            <div className="flex flex-row items-center justify-between mb-6">
-              <div>
-                <h2 className="text-xl font-semibold flex items-center">
-                  <Users className="mr-2 h-6 w-6 text-amber-500" />
-                  {company.company_name}
-                </h2>
-              </div>
-              <Button size="sm" className="bg-[#a6e15a] hover:bg-opacity-90 text-white">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Personnel
-              </Button>
-            </div>
-            
-            <div className="bg-gray-50 p-4 rounded-lg border border-dashed border-gray-300 text-center">
-              <p className="text-gray-500">Manage personnel information, certifications, and training records for {company.company_name} staff.</p>
-            </div>
-          </div>
-        </TabsContent>
-        
-        {/* Chat Tab */}
-        <TabsContent value="chat" className="space-y-4">
-          <div className="bg-white rounded-lg p-6 shadow-sm">
-            <div className="flex flex-row items-center justify-between mb-6">
-              <div>
-                <h2 className="text-xl font-semibold flex items-center">
-                  <MessageSquare className="mr-2 h-6 w-6 text-pink-500" />
-                  {company.company_name}
-                </h2>
-              </div>
-            </div>
-            
-            <div className="bg-gray-50 p-6 rounded-lg min-h-[400px] flex flex-col">
-              <div className="flex-1 mb-4 overflow-y-auto">
-                <div className="bg-gray-100 p-3 rounded-lg mb-2 max-w-[80%]">
-                  <p className="text-sm font-medium">System</p>
-                  <p>Welcome to the communication channel for {company.company_name}.</p>
-                  <p className="text-xs text-gray-500 mt-1">Today, 9:30 AM</p>
-                </div>
-              </div>
-              
-              <div className="flex gap-2">
-                <Input placeholder="Type your message..." className="flex-1" />
-                <Button className="bg-[#a6e15a] hover:bg-opacity-90 text-white">
-                  Send
-                </Button>
-              </div>
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Edit Company Details</DialogTitle>
-            <DialogDescription>
-              Make changes to the company information below
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="company_name">Company Name *</Label>
-              <Input
-                id="company_name"
-                name="company_name"
-                value={editFormData.company_name || ""}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="telephone">Telephone</Label>
-              <Input
-                id="telephone"
-                name="telephone"
-                type="tel"
-                value={editFormData.telephone || ""}
-                onChange={handleInputChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="address">Address</Label>
-              <Input
-                id="address"
-                name="address"
-                value={editFormData.address || ""}
-                onChange={handleInputChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="city">City</Label>
-              <Input
-                id="city"
-                name="city"
-                value={editFormData.city || ""}
-                onChange={handleInputChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="county">County</Label>
-              <Input
-                id="county"
-                name="county"
-                value={editFormData.county || ""}
-                onChange={handleInputChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="postcode">Postcode</Label>
-              <Input
-                id="postcode"
-                name="postcode"
-                value={editFormData.postcode || ""}
-                onChange={handleInputChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="country">Country</Label>
-              <Input
-                id="country"
-                name="country"
-                value={editFormData.country || ""}
-                onChange={handleInputChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="industry">Industry</Label>
-              <Input
-                id="industry"
-                name="industry"
-                value={editFormData.industry || ""}
-                onChange={handleInputChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="website">Website</Label>
-              <Input
-                id="website"
-                name="website"
-                type="url"
-                value={editFormData.website || ""}
-                onChange={handleInputChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="contact_name">Contact Name</Label>
-              <Input
-                id="contact_name"
-                name="contact_name"
-                value={editFormData.contact_name || ""}
-                onChange={handleInputChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="contact_email">Contact Email</Label>
-              <Input
-                id="contact_email"
-                name="contact_email"
-                type="email"
-                value={editFormData.contact_email || ""}
-                onChange={handleInputChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="contact_phone">Contact Phone</Label>
-              <Input
-                id="contact_phone"
-                name="contact_phone"
-                type="tel"
-                value={editFormData.contact_phone || ""}
-                onChange={handleInputChange}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveCompany} disabled={isSaving}>
-              {isSaving ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="mr-2 h-4 w-4" />
-                  Save Changes
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isAddContactDialogOpen} onOpenChange={setIsAddContactDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Add New Contact</DialogTitle>
-            <DialogDescription>
-              Add a new contact to {company?.company_name}. Enable system access to allow them to log in.
-            </DialogDescription>
-          </DialogHeader>
           
-          <form onSubmit={(e) => { e.preventDefault(); handleAddContact(); }}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="mt-10">
+            <TabsContent value="details" className="space-y-4">
+              <div className="flex flex-col md:flex-row gap-6">
+                <Card className="flex-1 shadow-sm border-gray-200">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center text-xl font-semibold">
+                      <Building className="mr-2 h-6 w-6 text-blue-500" />
+                      {company.company_name}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-y-4 gap-x-6">
+                      <div>
+                        <Label className="text-muted-foreground text-sm">Company Name</Label>
+                        <div className="font-medium mt-1">{company.company_name}</div>
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground text-sm">Telephone</Label>
+                        <div className="font-medium mt-1">
+                          {company.telephone ? (
+                            <a href={`tel:${company.telephone}`} className="text-primary hover:underline flex items-center">
+                              <Phone className="h-4 w-4 mr-1" />
+                              {company.telephone}
+                            </a>
+                          ) : (
+                            "N/A"
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground text-sm">Address</Label>
+                        <div className="font-medium mt-1">{company.address || "N/A"}</div>
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground text-sm">City</Label>
+                        <div className="font-medium mt-1">{company.city || "N/A"}</div>
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground text-sm">County</Label>
+                        <div className="font-medium mt-1">{company.county || "N/A"}</div>
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground text-sm">Postcode</Label>
+                        <div className="font-medium mt-1">{company.postcode || "N/A"}</div>
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground text-sm">Country</Label>
+                        <div className="font-medium mt-1">{company.country || "N/A"}</div>
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground text-sm">Industry</Label>
+                        <div className="font-medium mt-1">{company.industry || "N/A"}</div>
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground text-sm">Website</Label>
+                        <div className="font-medium mt-1">
+                          {company.website ? (
+                            <a href={company.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center">
+                              <Globe className="h-4 w-4 mr-1" />
+                              {company.website}
+                            </a>
+                          ) : (
+                            "N/A"
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground text-sm">Contact Name</Label>
+                        <div className="font-medium mt-1">{company.contact_name || "N/A"}</div>
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground text-sm">Contact Email</Label>
+                        <div className="font-medium mt-1">
+                          {company.contact_email ? (
+                            <a href={`mailto:${company.contact_email}`} className="text-primary hover:underline flex items-center">
+                              <Mail className="h-4 w-4 mr-1" />
+                              {company.contact_email}
+                            </a>
+                          ) : (
+                            "N/A"
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground text-sm">Contact Phone</Label>
+                        <div className="font-medium mt-1">
+                          {company.contact_phone ? (
+                            <a href={`tel:${company.contact_phone}`} className="text-primary hover:underline flex items-center">
+                              <Phone className="h-4 w-4 mr-1" />
+                              {company.contact_phone}
+                            </a>
+                          ) : (
+                            "N/A"
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                  <div className="p-4 border-b border-gray-200">
+                    <h3 className="text-lg font-medium flex items-center">
+                      <MapPin className="mr-2 h-5 w-5 text-blue-500" />
+                      Location
+                    </h3>
+                  </div>
+                  <div className="p-0 h-[400px]">
+                    <MapsProvider>
+                      <CompanyMap 
+                        address={[
+                          company.address,
+                          company.city,
+                          company.county,
+                          company.postcode,
+                          company.country
+                        ].filter(Boolean).join(', ')} 
+                      />
+                    </MapsProvider>
+                  </div>
+                </div>
+              </div>
+
+              {/* Notes Section (moved from tab) */}
+              <NotesSection companyId={company.id} companyName={company.company_name} />
+
+              {/* Equipment Status Section */}
+              <EquipmentStatusSection companyId={company.id} counts={equipmentCounts} />
+            </TabsContent>
+            
+            <TabsContent value="contacts" className="space-y-4">
+              <div className="bg-white rounded-lg p-6 shadow-sm">
+                <div className="flex flex-row items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-xl font-semibold flex items-center">
+                      <User className="mr-2 h-6 w-6 text-green-500" />
+                      {company.company_name}
+                    </h2>
+                  </div>
+                  <Button size="sm" onClick={() => setIsAddContactDialogOpen(true)} className="bg-[#a6e15a] hover:bg-opacity-90 text-white">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Contact
+                  </Button>
+                </div>
+                
+                {contacts.length === 0 ? (
+                  <p>No contacts found for this company.</p>
+                ) : (
+                  <ContactInfoCard 
+                    contacts={contacts}
+                    title=""
+                    showHeader={false}
+                    onEditContact={(contactId) => {
+                      const contact = contacts.find(c => c.id === contactId);
+                      if (contact) handleEditContact(contact);
+                    }}
+                    onDeleteContact={handleDeleteContact}
+                  />
+                )}
+              </div>
+            </TabsContent>
+            
+            {/* Jobs Tab */}
+            <TabsContent value="jobs" className="space-y-4">
+              <div className="bg-white rounded-lg p-6 shadow-sm">
+                <div className="flex flex-row items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-xl font-semibold flex items-center">
+                      <Wrench className="mr-2 h-6 w-6 text-orange-500" />
+                      {company.company_name}
+                    </h2>
+                  </div>
+                  <Button size="sm" className="bg-[#a6e15a] hover:bg-opacity-90 text-white">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Job
+                  </Button>
+                </div>
+                
+                <div className="bg-gray-50 p-4 rounded-lg border border-dashed border-gray-300 text-center">
+                  <p className="text-gray-500">Job tracking functionality coming soon. This section will display all current and past jobs for {company.company_name}.</p>
+                </div>
+              </div>
+            </TabsContent>
+            
+            {/* Service Tab */}
+            <TabsContent value="service" className="space-y-4">
+              <div className="bg-white rounded-lg p-6 shadow-sm">
+                <div className="flex flex-row items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-xl font-semibold flex items-center">
+                      <ClipboardList className="mr-2 h-6 w-6 text-purple-500" />
+                      {company.company_name}
+                    </h2>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    className="bg-[#a6e15a] hover:bg-opacity-90 text-white"
+                    onClick={() => navigate(`/equipment-types?companyId=${id}`)}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Equipment Types
+                  </Button>
+                </div>
+                
+                {/* Service Records Table */}
+                <ServiceRecordsTable customerId={id} />
+              </div>
+            </TabsContent>
+            
+            {/* Personnel Tab */}
+            <TabsContent value="personnel" className="space-y-4">
+              <div className="bg-white rounded-lg p-6 shadow-sm">
+                <div className="flex flex-row items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-xl font-semibold flex items-center">
+                      <Users className="mr-2 h-6 w-6 text-amber-500" />
+                      {company.company_name}
+                    </h2>
+                  </div>
+                  <Button size="sm" className="bg-[#a6e15a] hover:bg-opacity-90 text-white">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Personnel
+                  </Button>
+                </div>
+                
+                <div className="bg-gray-50 p-4 rounded-lg border border-dashed border-gray-300 text-center">
+                  <p className="text-gray-500">Manage personnel information, certifications, and training records for {company.company_name} staff.</p>
+                </div>
+              </div>
+            </TabsContent>
+            
+            {/* Chat Tab */}
+            <TabsContent value="chat" className="space-y-4">
+              <div className="bg-white rounded-lg p-6 shadow-sm">
+                <div className="flex flex-row items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-xl font-semibold flex items-center">
+                      <MessageSquare className="mr-2 h-6 w-6 text-pink-500" />
+                      {company.company_name}
+                    </h2>
+                  </div>
+                </div>
+                
+                <div className="bg-gray-50 p-6 rounded-lg min-h-[400px] flex flex-col">
+                  <div className="flex-1 mb-4 overflow-y-auto">
+                    <div className="bg-gray-100 p-3 rounded-lg mb-2 max-w-[80%]">
+                      <p className="text-sm font-medium">System</p>
+                      <p>Welcome to the communication channel for {company.company_name}.</p>
+                      <p className="text-xs text-gray-500 mt-1">Today, 9:30 AM</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Input placeholder="Type your message..." className="flex-1" />
+                    <Button className="bg-[#a6e15a] hover:bg-opacity-90 text-white">
+                      Send
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+          </div>
+        </Tabs>
+
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Edit Company Details</DialogTitle>
+              <DialogDescription>
+                Make changes to the company information below
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="first_name">First Name *</Label>
+                <Label htmlFor="company_name">Company Name *</Label>
                 <Input
-                  id="first_name"
-                  value={newContact.first_name}
-                  onChange={(e) => setNewContact(prev => ({ ...prev, first_name: e.target.value }))}
+                  id="company_name"
+                  name="company_name"
+                  value={editFormData.company_name || ""}
+                  onChange={handleInputChange}
                   required
                 />
               </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="last_name">Last Name *</Label>
-                <Input
-                  id="last_name"
-                  value={newContact.last_name}
-                  onChange={(e) => setNewContact(prev => ({ ...prev, last_name: e.target.value }))}
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={newContact.email}
-                  onChange={(e) => setNewContact(prev => ({ ...prev, email: e.target.value }))}
-                  required={newContact.has_system_access}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="job_title">Job Title</Label>
-                <Input
-                  id="job_title"
-                  value={newContact.job_title}
-                  onChange={(e) => setNewContact(prev => ({ ...prev, job_title: e.target.value }))}
-                />
-              </div>
-              
               <div className="space-y-2">
                 <Label htmlFor="telephone">Telephone</Label>
                 <Input
                   id="telephone"
-                  value={newContact.telephone}
-                  onChange={(e) => setNewContact(prev => ({ ...prev, telephone: e.target.value }))}
+                  name="telephone"
+                  type="tel"
+                  value={editFormData.telephone || ""}
+                  onChange={handleInputChange}
                 />
               </div>
-              
               <div className="space-y-2">
-                <Label htmlFor="mobile">Mobile</Label>
+                <Label htmlFor="address">Address</Label>
                 <Input
-                  id="mobile"
-                  value={newContact.mobile}
-                  onChange={(e) => setNewContact(prev => ({ ...prev, mobile: e.target.value }))}
+                  id="address"
+                  name="address"
+                  value={editFormData.address || ""}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="city">City</Label>
+                <Input
+                  id="city"
+                  name="city"
+                  value={editFormData.city || ""}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="county">County</Label>
+                <Input
+                  id="county"
+                  name="county"
+                  value={editFormData.county || ""}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="postcode">Postcode</Label>
+                <Input
+                  id="postcode"
+                  name="postcode"
+                  value={editFormData.postcode || ""}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="country">Country</Label>
+                <Input
+                  id="country"
+                  name="country"
+                  value={editFormData.country || ""}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="industry">Industry</Label>
+                <Input
+                  id="industry"
+                  name="industry"
+                  value={editFormData.industry || ""}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="website">Website</Label>
+                <Input
+                  id="website"
+                  name="website"
+                  type="url"
+                  value={editFormData.website || ""}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact_name">Contact Name</Label>
+                <Input
+                  id="contact_name"
+                  name="contact_name"
+                  value={editFormData.contact_name || ""}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact_email">Contact Email</Label>
+                <Input
+                  id="contact_email"
+                  name="contact_email"
+                  type="email"
+                  value={editFormData.contact_email || ""}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact_phone">Contact Phone</Label>
+                <Input
+                  id="contact_phone"
+                  name="contact_phone"
+                  type="tel"
+                  value={editFormData.contact_phone || ""}
+                  onChange={handleInputChange}
                 />
               </div>
             </div>
-            
-            <div className="space-y-4 mt-4">
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="is_primary" 
-                  checked={newContact.is_primary}
-                  onCheckedChange={(checked) => setNewContact(prev => ({ ...prev, is_primary: checked as boolean }))}
-                />
-                <Label htmlFor="is_primary">Primary Contact</Label>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="has_system_access" 
-                  checked={newContact.has_system_access}
-                  onCheckedChange={(checked) => {
-                    const hasAccess = checked as boolean;
-                    setNewContact(prev => ({ 
-                      ...prev, 
-                      has_system_access: hasAccess,
-                      // Clear password if disabling system access
-                      password: hasAccess ? prev.password : undefined
-                    }));
-                  }}
-                />
-                <Label htmlFor="has_system_access">Enable System Access</Label>
-              </div>
-              
-              {newContact.has_system_access && (
-                <div className="space-y-4 border rounded-lg p-4 bg-gray-50">
-                  <div className="space-y-2">
-                    <Label htmlFor="role">Role</Label>
-                    <Select 
-                      value={newContact.role}
-                      onValueChange={(value) => setNewContact(prev => ({ ...prev, role: value as 'user' | 'admin' }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="user">User</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password (Optional)</Label>
-                    <div className="flex space-x-2">
-                      <Input
-                        id="password"
-                        type="text"
-                        value={newContact.password || ''}
-                        onChange={(e) => setNewContact(prev => ({ ...prev, password: e.target.value }))}
-                        placeholder="Leave empty to auto-generate"
-                      />
-                    </div>
-                    <p className="text-sm text-gray-500">
-                      If left empty, a secure password will be generated automatically.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            <DialogFooter className="mt-6">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsAddContactDialogOpen(false)}
-              >
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button 
-                type="submit"
-                className="bg-a6e15a text-black hover:bg-opacity-90"
-                disabled={isAddingContact}
-              >
-                {isAddingContact ? 'Adding...' : 'Add Contact'}
+              <Button onClick={handleSaveCompany} disabled={isSaving}>
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Changes
+                  </>
+                )}
               </Button>
             </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
 
-      <Dialog open={isEditContactDialogOpen} onOpenChange={setIsEditContactDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Edit Contact</DialogTitle>
-            <DialogDescription>
-              Edit contact information for {editingContact?.first_name} {editingContact?.last_name}
-            </DialogDescription>
-          </DialogHeader>
-          
-          {editingContact && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit_first_name">First Name *</Label>
-                <Input
-                  id="edit_first_name"
-                  value={editingContact.first_name}
-                  onChange={(e) => setEditingContact(prev => prev ? ({ ...prev, first_name: e.target.value }) : null)}
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="edit_last_name">Last Name *</Label>
-                <Input
-                  id="edit_last_name"
-                  value={editingContact.last_name}
-                  onChange={(e) => setEditingContact(prev => prev ? ({ ...prev, last_name: e.target.value }) : null)}
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="edit_email">Email</Label>
-                <Input
-                  id="edit_email"
-                  type="email"
-                  value={editingContact.email || ''}
-                  onChange={(e) => setEditingContact(prev => prev ? ({ ...prev, email: e.target.value }) : null)}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="edit_telephone">Telephone</Label>
-                <Input
-                  id="edit_telephone"
-                  type="tel"
-                  value={editingContact.telephone || ''}
-                  onChange={(e) => setEditingContact(prev => prev ? ({ ...prev, telephone: e.target.value }) : null)}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="edit_mobile">Mobile</Label>
-                <Input
-                  id="edit_mobile"
-                  type="tel"
-                  value={editingContact.mobile || ''}
-                  onChange={(e) => setEditingContact(prev => prev ? ({ ...prev, mobile: e.target.value }) : null)}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="edit_job_title">Job Title</Label>
-                <Input
-                  id="edit_job_title"
-                  value={editingContact.job_title || ''}
-                  onChange={(e) => setEditingContact(prev => prev ? ({ ...prev, job_title: e.target.value }) : null)}
-                />
-              </div>
-              
-              <div className="col-span-2 space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="edit_is_primary"
-                    checked={editingContact.is_primary}
-                    onCheckedChange={(checked) => 
-                      setEditingContact(prev => prev ? ({ ...prev, is_primary: checked === true }) : null)
-                    }
+        <Dialog open={isAddContactDialogOpen} onOpenChange={setIsAddContactDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Add New Contact</DialogTitle>
+              <DialogDescription>
+                Add a new contact to {company?.company_name}. Enable system access to allow them to log in.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <form onSubmit={(e) => { e.preventDefault(); handleAddContact(); }}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="first_name">First Name *</Label>
+                  <Input
+                    id="first_name"
+                    value={newContact.first_name}
+                    onChange={(e) => setNewContact(prev => ({ ...prev, first_name: e.target.value }))}
+                    required
                   />
-                  <Label htmlFor="edit_is_primary">Primary Contact</Label>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="last_name">Last Name *</Label>
+                  <Input
+                    id="last_name"
+                    value={newContact.last_name}
+                    onChange={(e) => setNewContact(prev => ({ ...prev, last_name: e.target.value }))}
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={newContact.email}
+                    onChange={(e) => setNewContact(prev => ({ ...prev, email: e.target.value }))}
+                    required={newContact.has_system_access}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="job_title">Job Title</Label>
+                  <Input
+                    id="job_title"
+                    value={newContact.job_title}
+                    onChange={(e) => setNewContact(prev => ({ ...prev, job_title: e.target.value }))}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="telephone">Telephone</Label>
+                  <Input
+                    id="telephone"
+                    value={newContact.telephone}
+                    onChange={(e) => setNewContact(prev => ({ ...prev, telephone: e.target.value }))}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="mobile">Mobile</Label>
+                  <Input
+                    id="mobile"
+                    value={newContact.mobile}
+                    onChange={(e) => setNewContact(prev => ({ ...prev, mobile: e.target.value }))}
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-4 mt-4">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="is_primary" 
+                    checked={newContact.is_primary}
+                    onCheckedChange={(checked) => setNewContact(prev => ({ ...prev, is_primary: checked as boolean }))}
+                  />
+                  <Label htmlFor="is_primary">Primary Contact</Label>
                 </div>
                 
                 <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="edit_has_system_access"
-                    checked={editingContact.has_system_access}
-                    onCheckedChange={(checked) => 
-                      setEditingContact(prev => prev ? ({ ...prev, has_system_access: checked === true }) : null)
-                    }
+                  <Checkbox 
+                    id="has_system_access" 
+                    checked={newContact.has_system_access}
+                    onCheckedChange={(checked) => {
+                      const hasAccess = checked as boolean;
+                      setNewContact(prev => ({ 
+                        ...prev, 
+                        has_system_access: hasAccess,
+                        // Clear password if disabling system access
+                        password: hasAccess ? prev.password : undefined
+                      }));
+                    }}
                   />
-                  <Label htmlFor="edit_has_system_access">Enable System Access</Label>
+                  <Label htmlFor="has_system_access">Enable System Access</Label>
                 </div>
                 
-                {editingContact.has_system_access && (
-                  <div className="space-y-2">
-                    <Label htmlFor="edit_role">User Role</Label>
-                    <Select
-                      value={editingContact.role || 'user'}
-                      onValueChange={(value) => 
-                        setEditingContact(prev => prev ? ({ ...prev, role: value as 'user' | 'admin' }) : null)
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="user">User</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
-                      </SelectContent>
-                    </Select>
+                {newContact.has_system_access && (
+                  <div className="space-y-4 border rounded-lg p-4 bg-gray-50">
+                    <div className="space-y-2">
+                      <Label htmlFor="role">Role</Label>
+                      <Select 
+                        value={newContact.role}
+                        onValueChange={(value) => setNewContact(prev => ({ ...prev, role: value as 'user' | 'admin' }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="user">User</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Password (Optional)</Label>
+                      <div className="flex space-x-2">
+                        <Input
+                          id="password"
+                          type="text"
+                          value={newContact.password || ''}
+                          onChange={(e) => setNewContact(prev => ({ ...prev, password: e.target.value }))}
+                          placeholder="Leave empty to auto-generate"
+                        />
+                      </div>
+                      <p className="text-sm text-gray-500">
+                        If left empty, a secure password will be generated automatically.
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
-            </div>
-          )}
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditContactDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleUpdateContact} disabled={isUpdatingContact}>
-              {isUpdatingContact ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Updating...
-                </>
-              ) : (
-                'Update Contact'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              
+              <DialogFooter className="mt-6">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsAddContactDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit"
+                  className="bg-a6e15a text-black hover:bg-opacity-90"
+                  disabled={isAddingContact}
+                >
+                  {isAddingContact ? 'Adding...' : 'Add Contact'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the company
-              "{company.company_name}" and all of its associated data.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDeleteCompany} 
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={isDeleting}
-            >
-              {isDeleting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                'Delete'
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        <Dialog open={isEditContactDialogOpen} onOpenChange={setIsEditContactDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Edit Contact</DialogTitle>
+              <DialogDescription>
+                Edit contact information for {editingContact?.first_name} {editingContact?.last_name}
+              </DialogDescription>
+            </DialogHeader>
+            
+            {editingContact && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit_first_name">First Name *</Label>
+                  <Input
+                    id="edit_first_name"
+                    value={editingContact.first_name}
+                    onChange={(e) => setEditingContact(prev => prev ? ({ ...prev, first_name: e.target.value }) : null)}
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="edit_last_name">Last Name *</Label>
+                  <Input
+                    id="edit_last_name"
+                    value={editingContact.last_name}
+                    onChange={(e) => setEditingContact(prev => prev ? ({ ...prev, last_name: e.target.value }) : null)}
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="edit_email">Email</Label>
+                  <Input
+                    id="edit_email"
+                    type="email"
+                    value={editingContact.email || ''}
+                    onChange={(e) => setEditingContact(prev => prev ? ({ ...prev, email: e.target.value }) : null)}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="edit_telephone">Telephone</Label>
+                  <Input
+                    id="edit_telephone"
+                    type="tel"
+                    value={editingContact.telephone || ''}
+                    onChange={(e) => setEditingContact(prev => prev ? ({ ...prev, telephone: e.target.value }) : null)}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="edit_mobile">Mobile</Label>
+                  <Input
+                    id="edit_mobile"
+                    type="tel"
+                    value={editingContact.mobile || ''}
+                    onChange={(e) => setEditingContact(prev => prev ? ({ ...prev, mobile: e.target.value }) : null)}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="edit_job_title">Job Title</Label>
+                  <Input
+                    id="edit_job_title"
+                    value={editingContact.job_title || ''}
+                    onChange={(e) => setEditingContact(prev => prev ? ({ ...prev, job_title: e.target.value }) : null)}
+                  />
+                </div>
+                
+                <div className="col-span-2 space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="edit_is_primary"
+                      checked={editingContact.is_primary}
+                      onCheckedChange={(checked) => 
+                        setEditingContact(prev => prev ? ({ ...prev, is_primary: checked === true }) : null)
+                      }
+                    />
+                    <Label htmlFor="edit_is_primary">Primary Contact</Label>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="edit_has_system_access"
+                      checked={editingContact.has_system_access}
+                      onCheckedChange={(checked) => 
+                        setEditingContact(prev => prev ? ({ ...prev, has_system_access: checked === true }) : null)
+                      }
+                    />
+                    <Label htmlFor="edit_has_system_access">Enable System Access</Label>
+                  </div>
+                  
+                  {editingContact.has_system_access && (
+                    <div className="space-y-2">
+                      <Label htmlFor="edit_role">User Role</Label>
+                      <Select
+                        value={editingContact.role || 'user'}
+                        onValueChange={(value) => 
+                          setEditingContact(prev => prev ? ({ ...prev, role: value as 'user' | 'admin' }) : null)
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="user">User</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditContactDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleUpdateContact} disabled={isUpdatingContact}>
+                {isUpdatingContact ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  'Update Contact'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the company
+                "{company.company_name}" and all of its associated data.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleDeleteCompany} 
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete'
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
     </div>
   );
 }

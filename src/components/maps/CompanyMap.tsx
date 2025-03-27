@@ -15,7 +15,7 @@ export function CompanyMap({ address }: CompanyMapProps) {
   
   const mapContainerStyle = {
     width: '100%',
-    height: '300px',
+    height: '100%',
   };
   
   const defaultCenter = {
@@ -68,7 +68,7 @@ export function CompanyMap({ address }: CompanyMapProps) {
 
   if (error) {
     return (
-      <div className="bg-red-50 p-4 rounded-md border border-red-200 text-red-700">
+      <div className="bg-red-50 h-full flex items-center justify-center p-4 text-red-700">
         <p>Error loading map: {error}</p>
       </div>
     );
@@ -76,7 +76,7 @@ export function CompanyMap({ address }: CompanyMapProps) {
 
   if (isLoading) {
     return (
-      <div className="bg-gray-50 p-4 rounded-md border border-gray-200 flex justify-center">
+      <div className="bg-gray-50 h-full flex items-center justify-center">
         <p>Loading map...</p>
       </div>
     );
@@ -85,18 +85,16 @@ export function CompanyMap({ address }: CompanyMapProps) {
   // Use a placeholder div instead of the actual Google Maps component
   // until you have a valid API key
   return (
-    <div className="border rounded-md overflow-hidden h-[300px]">
-      <div className="w-full h-full bg-gray-100 flex flex-col items-center justify-center p-4 text-center">
-        <p className="text-gray-600 mb-2">Map would display here for address:</p>
-        <p className="font-semibold mb-4">{address}</p>
-        <p className="text-sm text-gray-500">Google Maps integration coming soon</p>
-      </div>
+    <div className="w-full h-full bg-gray-100 flex flex-col items-center justify-center p-4 text-center">
+      <p className="text-gray-600 mb-2">Map would display here for address:</p>
+      <p className="font-semibold mb-4">{address}</p>
+      <p className="text-sm text-gray-500">Google Maps integration coming soon</p>
     </div>
   );
   
   /* Uncomment this when you have a valid Google Maps API key
   return (
-    <div className="border rounded-md overflow-hidden h-[300px]">
+    <div className="w-full h-full">
       <LoadScript googleMapsApiKey={googleMapsApiKey} onLoad={() => setMapLoaded(true)}>
         {mapLoaded && (
           <GoogleMap

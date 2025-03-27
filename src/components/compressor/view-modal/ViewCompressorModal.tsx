@@ -27,18 +27,15 @@ export function ViewCompressorModal({ equipmentId, open, onOpenChange }: ViewCom
     try {
       // Fetch compressor details
       const { data: compressorData, error: compressorError } = await supabase
-        .from("equipment")
+        .from('compressor_equipment')
         .select(`
           *,
-          profiles:customer_id (
-            company_name
-          ),
-          equipment_types (
+          companies (
             name,
-            description
+            email
           )
         `)
-        .eq("id", equipmentId)
+        .eq('id', equipmentId)
         .single();
 
       if (compressorError) throw compressorError;
@@ -96,7 +93,7 @@ export function ViewCompressorModal({ equipmentId, open, onOpenChange }: ViewCom
               <div>
                 <h3 className="text-lg font-semibold mb-2">Customer Information</h3>
                 <div className="space-y-2">
-                  <p><span className="font-medium">Company:</span> {compressor.profiles?.company_name || "N/A"}</p>
+                  <p><span className="font-medium">Company:</span> {compressor.companies?.name || "N/A"}</p>
                   <p><span className="font-medium">Location:</span> {compressor.location || "N/A"}</p>
                 </div>
               </div>

@@ -42,18 +42,36 @@ export function AddServiceCertificateModal({ isOpen, onClose, customerId }: AddS
     setIsSubmitting(true);
     
     try {
-      const { error } = await supabase
-        .from("service_certificates")
+      const { data: serviceData, error: serviceError } = await supabase
+        .from('service_records')
         .insert({
-          customer_id: customerId,
-          certificate_number: certificateNumber,
-          issue_date: issueDate.toISOString(),
-          retest_date: retestDate.toISOString(),
-          engineer,
-          status: new Date() > retestDate ? "expired" : "valid",
-        });
+          company_id: customerId,
+          engineer_id: user.id,
+          test_date: values.test_date,
+          retest_date: values.next_test_date,
+          status: 'valid',
+          notes: values.notes,
+          equipment1_name: values.equipment1_name,
+          equipment1_serial: values.equipment1_serial,
+          equipment2_name: values.equipment2_name,
+          equipment2_serial: values.equipment2_serial,
+          equipment3_name: values.equipment3_name,
+          equipment3_serial: values.equipment3_serial,
+          equipment4_name: values.equipment4_name,
+          equipment4_serial: values.equipment4_serial,
+          equipment5_name: values.equipment5_name,
+          equipment5_serial: values.equipment5_serial,
+          equipment6_name: values.equipment6_name,
+          equipment6_serial: values.equipment6_serial,
+          equipment7_name: values.equipment7_name,
+          equipment7_serial: values.equipment7_serial,
+          equipment8_name: values.equipment8_name,
+          equipment8_serial: values.equipment8_serial,
+        })
+        .select()
+        .single();
         
-      if (error) throw error;
+      if (serviceError) throw serviceError;
       
       toast({
         title: "Success",

@@ -32,6 +32,7 @@
     "@radix-ui/react-toggle-group": "^1.1.2",
     "@radix-ui/react-tooltip": "^1.1.8",
     "@react-google-maps/api": "^2.20.5",
+    "@supabase/auth-helpers-react": "^0.5.0",
     "@tanstack/react-query": "^5.66.0",
     "@tanstack/react-query-devtools": "^5.66.0",
     "@testing-library/jest-dom": "^5.17.0",
@@ -39,6 +40,7 @@
     "@testing-library/user-event": "^13.5.0",
     "@types/pg": "^8.11.11",
     "@vitejs/plugin-react": "^4.0.4",
+    "axios": "^1.8.4",
     "bcrypt": "^5.1.1",
     "body-parser": "^1.20.2",
     "class-variance-authority": "^0.7.1",
@@ -57,6 +59,7 @@
     "node-fetch": "^2.7.0",
     "pg": "^8.14.1",
     "postcss-import": "^16.1.0",
+    "qrcode.react": "^4.2.0",
     "react": "^18.2.0",
     "react-day-picker": "^9.5.1",
     "react-dom": "^18.2.0",
@@ -80,11 +83,16 @@
     "dev": "vite",
     "api": "node src/server/api.js",
     "dev:all": "concurrently \"npm run api\" \"npm run dev\"",
-    "start": "vite",
+    "dev:start": "concurrently --kill-others-on-fail \"npm run api\" \"npm run dev\"",
+    "dev:stop": "pkill -f \"node src/server/api.js\" || true && pkill -f \"vite\" || true",
+    "start": "node src/server/api.js",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "start:prod": "NODE_ENV=production node src/server/api.js",
+    "build:all": "npm run build && echo 'Build completed. Use npm run start:prod to start the production server.'",
+    "deploy": "./scripts/deploy.sh"
   },
   "eslintConfig": {
     "extends": [

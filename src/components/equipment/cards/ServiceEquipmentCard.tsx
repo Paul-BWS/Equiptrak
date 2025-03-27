@@ -14,7 +14,7 @@ interface ServiceEquipmentCardProps {
     serial_number: string;
     next_test_date: string;
     status: "valid" | "expired" | "upcoming";
-    customer_id?: string;
+    company_id?: string;
     companies?: {
       company_name: string | null;
     } | null;
@@ -43,8 +43,8 @@ export function ServiceEquipmentCard({ equipment, showCustomer, isMobile }: Serv
   };
 
   const handleCustomerClick = () => {
-    if (equipment.customer_id) {
-      navigate(`/admin/customers/${equipment.customer_id}`);
+    if (equipment.company_id) {
+      navigate(`/admin/customers/${equipment.company_id}`);
     }
   };
 
@@ -87,7 +87,7 @@ export function ServiceEquipmentCard({ equipment, showCustomer, isMobile }: Serv
               )}
               
               {/* Only show Customer button on desktop */}
-              {!isMobile && equipment.customer_id && (
+              {!isMobile && equipment.company_id && (
                 <Button 
                   size="sm" 
                   variant="outline"

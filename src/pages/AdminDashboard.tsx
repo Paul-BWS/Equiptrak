@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Building, LogOut, Plus, Search, ChevronRight } from "lucide-react";
+import { Building, LogOut, Plus, Search, ChevronRight, Pencil } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -85,32 +85,105 @@ export default function AdminDashboard() {
     const fetchCompanies = async () => {
       try {
         setLoading(true);
-        setError("Fetching companies..."); // Debug message
-        console.log("Fetching companies with token:", user?.token ? "Token exists" : "No token");
+        setError(null);
+        
+        // Check if we have a user and token
+        if (!user || !user.token) {
+          console.error("No user or token available", { user });
+          setError("Authentication required. Please log in again.");
+          setLoading(false);
+          return;
+        }
+        
+        console.log("Attempting to connect to API at /api/companies");
+        console.log("User token available:", !!user.token);
         
         const response = await fetch('/api/companies', {
           headers: {
-            'Authorization': `Bearer ${user?.token}`,
+            'Authorization': `Bearer ${user.token}`,
             'Content-Type': 'application/json'
           },
           credentials: 'include'
+        }).catch(err => {
+          console.error("Fetch error details:", {
+            message: err.message,
+            name: err.name,
+            stack: err.stack
+          });
+          throw err;
         });
         
-        console.log("Companies response status:", response.status);
+        console.log("API Response received:", {
+          status: response.status,
+          statusText: response.statusText,
+          headers: Object.fromEntries(response.headers.entries())
+        });
         
         if (!response.ok) {
           const errorText = await response.text();
-          console.error("Error response:", errorText);
+          console.error("API Error response:", {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorText
+          });
+          
+          if (response.status === 401) {
+            setError("Authentication failed. Please log in again.");
+            toast({
+              title: "Authentication Error",
+              description: "Your session may have expired. Please log in again.",
+              variant: "destructive",
+              duration: 5000
+            });
+          } else {
+            setError(`Failed to fetch companies: ${response.status} ${errorText}`);
+            toast({
+              title: "Connection Error",
+              description: `Failed to connect to backend (Status: ${response.status})`,
+              variant: "destructive",
+              duration: 5000
+            });
+          }
+          
           throw new Error(`Failed to fetch companies: ${response.status} ${errorText}`);
         }
         
         const data = await response.json();
-        console.log("Companies data received:", data);
+        console.log("Companies data received:", {
+          count: data.length,
+          firstCompany: data[0] ? data[0].company_name : 'No companies'
+        });
+        
         setCompanies(data);
-        setError(null);
+        toast({
+          title: "Connected to API",
+          description: `Successfully loaded ${data.length} companies`,
+          variant: "default",
+          className: "bg-[#a6e15a] text-black border-none",
+          duration: 3000
+        });
+
       } catch (err) {
-        console.error("Error fetching companies:", err);
-        setError("Failed to load companies. Please try again later.");
+        console.error("Error fetching companies:", {
+          error: err,
+          message: err.message,
+          type: err.name,
+          stack: err.stack
+        });
+        
+        if (!error) {
+          const errorMessage = err.message.includes('Failed to fetch') 
+            ? 'Cannot connect to the backend server. Please check if the server is running.'
+            : 'Failed to load companies. Please try again later.';
+            
+          setError(errorMessage);
+          toast({
+            title: "Connection Error",
+            description: errorMessage,
+            variant: "destructive",
+            duration: 5000
+          });
+        }
       } finally {
         setLoading(false);
       }
@@ -135,21 +208,39 @@ export default function AdminDashboard() {
   const handleAddCompany = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      console.log("Attempting to add company:", newCompany);
+      
+      if (!user?.token) {
+        throw new Error('No authentication token available');
+      }
+
       const response = await fetch('/api/companies', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user?.token}`
+          'Authorization': `Bearer ${user.token}`
         },
         credentials: 'include',
         body: JSON.stringify(newCompany),
       });
 
+      console.log("Add company response:", {
+        status: response.status,
+        statusText: response.statusText
+      });
+
       if (!response.ok) {
-        throw new Error('Failed to add company');
+        const errorText = await response.text();
+        console.error("Failed to add company:", {
+          status: response.status,
+          error: errorText
+        });
+        throw new Error(`Failed to add company: ${errorText}`);
       }
 
       const addedCompany = await response.json();
+      console.log("Successfully added company:", addedCompany);
+      
       setCompanies([...companies, addedCompany]);
       setIsAddModalOpen(false);
       setNewCompany({
@@ -170,18 +261,26 @@ export default function AdminDashboard() {
       toast({
         title: "Success",
         description: "Company added successfully",
+        className: "bg-[#a6e15a] text-black border-none",
       });
-    } catch (error) {
-      console.error('Error adding company:', error);
+    } catch (error: any) {
+      console.error('Error adding company:', {
+        error,
+        message: error.message,
+        stack: error.stack
+      });
+      
       toast({
         title: "Error",
-        description: "Failed to add company. Please try again.",
+        description: error.message || "Failed to add company. Please try again.",
         variant: "destructive",
+        duration: 5000
       });
     }
   };
 
   const filteredCompanies = companies.filter(company =>
+    company && company.company_name && 
     company.company_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -190,10 +289,16 @@ export default function AdminDashboard() {
       <div className="border-b bg-white shadow-sm">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-semibold">Admin Dashboard</h1>
-          <Button variant="outline" onClick={handleLogout}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Logout
-          </Button>
+          <div className="text-gray-600 flex items-center">
+            <span className="font-medium">Hello {user?.email?.split('@')[0] || 'Admin'}</span>
+            <span className="mx-2">•</span>
+            <span>{new Date().toLocaleDateString('en-US', { 
+              weekday: 'long',
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric' 
+            })}</span>
+          </div>
         </div>
       </div>
 
@@ -203,7 +308,7 @@ export default function AdminDashboard() {
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-semibold">Manage Companies</h2>
               <Button 
-                className="bg-[#6c8aec] hover:bg-[#5a75d9] text-white"
+                className="bg-[#a6e15a] hover:bg-[#95cc4f] text-white"
                 onClick={() => setIsAddModalOpen(true)}
               >
                 <Plus className="mr-2 h-4 w-4" />
@@ -260,7 +365,7 @@ export default function AdminDashboard() {
                         </TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="sm" className="text-[#6c8aec] hover:text-[#5a75d9] hover:bg-[#f8f9fc]">
-                            Manage
+                            <Pencil className="mr-2 h-4 w-4" />
                             <ChevronRight className="ml-2 h-4 w-4" />
                           </Button>
                         </TableCell>
@@ -403,7 +508,7 @@ export default function AdminDashboard() {
                     <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>
                       Cancel
                     </Button>
-                    <Button type="submit" className="bg-[#6c8aec] hover:bg-[#5a75d9] text-white">
+                    <Button type="submit" className="bg-[#a6e15a] hover:bg-[#95cc4f] text-white">
                       Add Company
                     </Button>
                   </DialogFooter>

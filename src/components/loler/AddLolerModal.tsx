@@ -213,66 +213,56 @@ export function AddLolerModal({ customerId }: AddLolerModalProps) {
       console.log("Creating equipment record with:", {
         name: values.name,
         serial_number: values.serial_number,
-        customer_id: customerId,
+        company_id: customerId,
         type_id: lolerType.id,
       });
 
-      const { data: equipment, error: equipmentError } = await supabase
-        .from("equipment")
+      const { data: lolerData, error: lolerError } = await supabase
+        .from('loler_equipment')
         .insert({
           name: values.name,
           serial_number: values.serial_number,
-          customer_id: customerId,
-          type_id: lolerType.id,
-          last_test_date: values.test_date,
+          company_id: customerId,
+          status: 'valid',
+          type: 'loler',
           next_test_date: format(addDays(new Date(values.test_date), 364), "yyyy-MM-dd"),
-          status: "valid"
+          last_test_date: values.test_date,
         })
         .select()
         .single();
 
-      if (equipmentError) {
-        console.error("Error creating equipment:", equipmentError);
-        throw equipmentError;
+      if (lolerError) {
+        console.error("Error creating equipment:", lolerError);
+        throw lolerError;
       }
-      console.log("Created equipment:", equipment);
+      console.log("Created equipment:", lolerData);
 
       // Create LOLER service record
       console.log("Creating LOLER service record");
-      const { error: serviceError } = await supabase
-        .from("loler_service_records")
+      const { data: user, error: userError } = await supabase
+        .from("users")
+        .select("id")
+        .eq("email", "admin@example.com")
+        .single();
+
+      if (userError) {
+        console.error("Error fetching user:", userError);
+        throw userError;
+      }
+
+      const { data: serviceData, error: serviceError } = await supabase
+        .from('loler_service_records')
         .insert({
-          equipment_id: equipment.id,
-          engineer_id: values.engineer_id,
-          certificate_number: values.certificate_number,
-          inspection_date: values.test_date,
+          equipment_id: lolerData.id,
+          company_id: customerId,
+          engineer_id: user.id,
+          test_date: values.test_date,
           retest_date: format(addDays(new Date(values.test_date), 364), "yyyy-MM-dd"),
-          capacity_kg: parseFloat(values.safe_working_load),
-          safe_to_operate: "Yes" as const,
-          platform_condition_result: values.platform_condition_result || "PASS",
-          platform_condition_notes: values.platform_condition_notes || "",
-          control_box_result: values.control_box_result || "PASS",
-          control_box_notes: values.control_box_notes || "",
-          hydraulic_system_result: values.hydraulic_system_result || "PASS",
-          hydraulic_system_notes: values.hydraulic_system_notes || "",
-          main_structure_result: values.main_structure_result || "PASS",
-          main_structure_notes: values.main_structure_notes || "",
-          oil_levels_result: values.oil_levels_result || "PASS",
-          oil_levels_notes: values.oil_levels_notes || "",
-          rollers_guides_result: values.rollers_guides_result || "PASS",
-          rollers_guides_notes: values.rollers_guides_notes || "",
-          safety_mechanism_result: values.safety_mechanism_result || "PASS",
-          safety_mechanism_notes: values.safety_mechanism_notes || "",
-          scissor_operation_result: values.scissor_operation_result || "PASS",
-          scissor_operation_notes: values.scissor_operation_notes || "",
-          securing_bolts_result: values.securing_bolts_result || "PASS",
-          securing_bolts_notes: values.securing_bolts_notes || "",
-          toe_guards_result: values.toe_guards_result || "PASS",
-          toe_guards_notes: values.toe_guards_notes || "",
-          lubrication_result: values.lubrication_result || "PASS",
-          lubrication_notes: values.lubrication_notes || "",
-          qualifications: "HNC Electrical Mechanical Engineering"
-        });
+          status: 'valid',
+          notes: values.notes,
+        })
+        .select()
+        .single();
 
       if (serviceError) {
         console.error("Error creating service record:", serviceError);

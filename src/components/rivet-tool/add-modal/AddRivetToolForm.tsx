@@ -89,7 +89,7 @@ export function AddRivetToolForm({ customerId, onSuccess, onCancel }: AddRivetTo
         .insert({
           name: data.model,
           serial_number: data.serialNumber,
-          customer_id: customerId,
+          company_id: customerId,
           type_id: equipmentTypeId,
           last_test_date: data.test_date,
           next_test_date: data.retest_date,

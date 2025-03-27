@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, Save, Plus, Trash2 } from "lucide-react";
+import { Pencil, Save, Plus, Trash2, MessageCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface Note {
@@ -35,8 +34,6 @@ export function Notes({
   const [isAddingNote, setIsAddingNote] = useState(false);
   const { toast } = useToast();
 
-  console.log('Notes component rendered:', { companyId, isAdmin, user: !!user, hideHeader });
-
   // Fetch notes
   useEffect(() => {
     const fetchNotes = async () => {
@@ -48,22 +45,19 @@ export function Notes({
       setIsLoading(true);
       try {
         console.log('Fetching notes for company:', companyId);
-        const { data, error } = await supabase
-          .from('notes')
-          .select('*')
-          .eq('company_id', companyId)
-          .order('created_at', { ascending: false });
+        const response = await fetch(`/api/companies/${companyId}/notes`, {
+          headers: {
+            'Authorization': `Bearer ${user.token}`,
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include'
+        });
         
-        if (error) {
-          console.error('Error fetching notes:', error);
-          toast({
-            title: "Error",
-            description: "Failed to load notes. Please try again.",
-            variant: "destructive"
-          });
-          return;
+        if (!response.ok) {
+          throw new Error('Failed to fetch notes');
         }
         
+        const data = await response.json();
         console.log('Notes fetched successfully:', data);
         setNotes(data || []);
       } catch (error) {
@@ -86,61 +80,42 @@ export function Notes({
   // Add a new note
   const handleAddNote = async () => {
     if (!newNote.trim() || !user || !companyId) {
-      console.error('Missing required data:', { 
-        noteContent: !!newNote.trim(), 
-        user: !!user, 
-        companyId: !!companyId 
-      });
       toast({
         title: "Error",
-        description: "Missing required information. Please try again.",
+        description: "Please enter a note.",
         variant: "destructive"
       });
       return;
     }
     
     try {
-      console.log('Adding note for company:', companyId);
-      console.log('Current user:', user.id);
+      const response = await fetch(`/api/companies/${companyId}/notes`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${user.token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          content: newNote 
+        }),
+        credentials: 'include'
+      });
       
-      // Create a new note object
-      const newNoteObj = {
-        content: newNote,
-        company_id: companyId,
-        created_by: user.id
-      };
-      
-      console.log('New note object:', newNoteObj);
-      
-      // Insert the note
-      const { data, error } = await supabase
-        .from('notes')
-        .insert(newNoteObj)
-        .select();
-        
-      if (error) {
-        console.error('Error adding note:', error);
-        toast({
-          title: "Error",
-          description: `Failed to add note: ${error.message}`,
-          variant: "destructive"
-        });
-        return;
+      if (!response.ok) {
+        throw new Error('Failed to add note');
       }
       
-      console.log('Note added successfully:', data);
+      const data = await response.json();
       
       // Add the new note to the list
-      if (data && data.length > 0) {
-        setNotes([data[0], ...notes]);
-        setNewNote("");
-        setIsAddingNote(false);
-        
-        toast({
-          title: "Success",
-          description: "Note added successfully",
-        });
-      }
+      setNotes([data, ...notes]);
+      setNewNote("");
+      setIsAddingNote(false);
+      
+      toast({
+        title: "Success",
+        description: "Note added successfully",
+      });
     } catch (error) {
       console.error('Error adding note:', error);
       toast({
@@ -156,19 +131,20 @@ export function Notes({
     if (!editingContent.trim() || !user) return;
     
     try {
-      const { error } = await supabase
-        .from('notes')
-        .update({ content: editingContent })
-        .eq('id', noteId);
-        
-      if (error) {
-        console.error('Error updating note:', error);
-        toast({
-          title: "Error",
-          description: "Failed to update note. Please try again.",
-          variant: "destructive"
-        });
-        return;
+      const response = await fetch(`/api/companies/${companyId}/notes/${noteId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${user.token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          content: editingContent 
+        }),
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update note');
       }
       
       // Update the note in the list
@@ -198,19 +174,17 @@ export function Notes({
     if (!user) return;
     
     try {
-      const { error } = await supabase
-        .from('notes')
-        .delete()
-        .eq('id', noteId);
-        
-      if (error) {
-        console.error('Error deleting note:', error);
-        toast({
-          title: "Error",
-          description: "Failed to delete note. Please try again.",
-          variant: "destructive"
-        });
-        return;
+      const response = await fetch(`/api/companies/${companyId}/notes/${noteId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${user.token}`,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete note');
       }
       
       // Remove the note from the list
@@ -257,11 +231,6 @@ export function Notes({
     setIsAddingNote(!isAddingNote);
   };
 
-  // Expose the toggleAddNote function to the window object
-  if (typeof window !== 'undefined') {
-    (window as any).toggleAddNote = toggleAddNote;
-  }
-
   const notesContent = (
     <>
       {isAddingNote && (
@@ -274,7 +243,7 @@ export function Notes({
             rows={3}
           />
           <div className="flex justify-end">
-            <Button onClick={handleAddNote}>
+            <Button onClick={handleAddNote} className="bg-[#a6e15a] hover:bg-opacity-90 text-white">
               <Save className="h-4 w-4 mr-1" /> Save Note
             </Button>
           </div>
@@ -316,6 +285,7 @@ export function Notes({
                     <Button 
                       size="sm" 
                       onClick={() => handleUpdateNote(note.id)}
+                      className="bg-[#a6e15a] hover:bg-opacity-90 text-white"
                     >
                       <Save className="h-4 w-4 mr-1" /> Save
                     </Button>
@@ -370,12 +340,16 @@ export function Notes({
   return (
     <Card className="w-full">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-lg">Notes</CardTitle>
+        <CardTitle className="text-lg flex items-center">
+          <MessageCircle className="h-5 w-5 mr-2 text-teal-500" />
+          Notes
+        </CardTitle>
         <Button 
           variant="outline" 
           size="sm" 
           onClick={toggleAddNote}
           id="notes-add-button"
+          className="bg-[#a6e15a] hover:bg-opacity-90 text-white"
         >
           {isAddingNote ? "Cancel" : <><Plus className="h-4 w-4 mr-1" /> Add Note</>}
         </Button>

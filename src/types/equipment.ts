@@ -2,15 +2,16 @@ export interface Equipment {
   id: string;
   name: string;
   serial_number: string;
-  next_test_date: string;
+  company_id?: string;
+  status?: string;
+  type?: string;
+  next_test_date?: string;
+  last_test_date?: string;
+  created_at?: string;
+  updated_at?: string;
   location?: string;
   manufacturer?: string;
   notes?: string;
-  status: "valid" | "expired" | "upcoming";
-  customer_id?: string;
-  companies?: {
-    company_name: string | null;
-  } | null;
   equipment_types?: {
     name: string;
     description: string | null;

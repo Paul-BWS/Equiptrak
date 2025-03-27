@@ -51,21 +51,23 @@ export function AddCompressorModal({ customerId }: AddCompressorModalProps) {
       const nextTestDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
       
       // Direct insert with correct field names
-      const { error } = await supabase
-        .from("equipment")
+      const { data: compressorData, error: compressorError } = await supabase
+        .from('compressor_equipment')
         .insert({
-          customer_id: customerId,
           name: formData.name,
           serial_number: formData.serial_number,
-          model: formData.model,
-          manufacturer: formData.manufacturer,
+          company_id: customerId,
+          status: 'valid',
+          type: 'compressor',
           next_test_date: nextTestDate,
-          type: "compressor" // Use type field instead of equipment_type
-        });
+          last_test_date: new Date().toISOString(),
+        })
+        .select()
+        .single();
 
-      if (error) {
-        console.error("Error inserting compressor:", error);
-        throw error;
+      if (compressorError) {
+        console.error("Error inserting compressor:", compressorError);
+        throw compressorError;
       }
 
       // Invalidate queries to refresh the list

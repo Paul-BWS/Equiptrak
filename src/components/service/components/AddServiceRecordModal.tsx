@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
+import { format, addDays } from "date-fns";
 
 interface AddServiceRecordModalProps {
   isOpen: boolean;
@@ -17,16 +18,22 @@ interface AddServiceRecordModalProps {
 }
 
 export function AddServiceRecordModal({ isOpen, onClose, customerId }: AddServiceRecordModalProps) {
-  const [serviceDate, setServiceDate] = useState<Date | undefined>(new Date());
-  const [nextServiceDate, setNextServiceDate] = useState<Date | undefined>(
-    new Date(new Date().setFullYear(new Date().getFullYear() + 1))
-  );
-  const [technicianName, setTechnicianName] = useState("");
-  const [notes, setNotes] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const [technicianName, setTechnicianName] = useState("");
+  const [serviceDate, setServiceDate] = useState<Date>(new Date());
+  const [nextServiceDate, setNextServiceDate] = useState<Date>(addDays(new Date(), 364));
+  const [notes, setNotes] = useState("");
+  
+  // Update next service date when service date changes
+  useEffect(() => {
+    if (serviceDate) {
+      // Calculate next service date as 364 days after service date
+      setNextServiceDate(addDays(serviceDate, 364));
+    }
+  }, [serviceDate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,25 +50,44 @@ export function AddServiceRecordModal({ isOpen, onClose, customerId }: AddServic
     setIsSubmitting(true);
     
     try {
-      const { data, error } = await supabase
-        .from("service_records")
-        .insert({
-          customer_id: customerId,
-          service_date: serviceDate.toISOString(),
-          next_service_date: nextServiceDate.toISOString(),
-          technician_name: technicianName,
-          notes: notes,
-          status: "completed"
-        })
-        .select();
-      
-      if (error) {
-        throw error;
-      }
+      // Prepare data for insert
+      const recordData = {
+        company_id: customerId,
+        engineer_id: user.id,
+        test_date: format(serviceDate, "yyyy-MM-dd"),
+        retest_date: format(nextServiceDate, "yyyy-MM-dd"),
+        status: "valid",
+        notes: notes,
+        equipment1_name: "",
+        equipment1_serial: "",
+        equipment2_name: "",
+        equipment2_serial: "",
+        equipment3_name: "",
+        equipment3_serial: "",
+        equipment4_name: "",
+        equipment4_serial: "",
+        equipment5_name: "",
+        equipment5_serial: "",
+        equipment6_name: "",
+        equipment6_serial: "",
+        equipment7_name: "",
+        equipment7_serial: "",
+        equipment8_name: "",
+        equipment8_serial: "",
+      };
+
+      // Use promise chaining for supabase insert
+      const { data: serviceData, error: serviceError } = await supabase
+        .from('service_records')
+        .insert(recordData)
+        .select()
+        .single();
+
+      if (serviceError) throw serviceError;
       
       toast({
-        title: "Service record added",
-        description: "The service record has been added successfully",
+        title: "Success",
+        description: "Service record added successfully"
       });
       
       // Refresh the service records list
@@ -71,19 +97,19 @@ export function AddServiceRecordModal({ isOpen, onClose, customerId }: AddServic
       onClose();
       resetForm();
     } catch (error: any) {
+      console.error("Error creating service record:", error);
       toast({
-        title: "Error adding service record",
-        description: error.message || "An error occurred while adding the service record",
-        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to create service record",
+        variant: "destructive"
       });
-    } finally {
       setIsSubmitting(false);
     }
   };
   
   const resetForm = () => {
     setServiceDate(new Date());
-    setNextServiceDate(new Date(new Date().setFullYear(new Date().getFullYear() + 1)));
+    setNextServiceDate(addDays(new Date(), 364));
     setTechnicianName("");
     setNotes("");
   };
@@ -98,7 +124,7 @@ export function AddServiceRecordModal({ isOpen, onClose, customerId }: AddServic
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="service-date">Service Date</Label>
+              <Label htmlFor="service-date" className="text-xs text-gray-500 font-medium">SERVICE DATE</Label>
               <DatePicker
                 date={serviceDate}
                 setDate={setServiceDate}
@@ -107,7 +133,7 @@ export function AddServiceRecordModal({ isOpen, onClose, customerId }: AddServic
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="next-service-date">Next Service Date</Label>
+              <Label htmlFor="next-service-date" className="text-xs text-gray-500 font-medium">NEXT SERVICE DATE</Label>
               <DatePicker
                 date={nextServiceDate}
                 setDate={setNextServiceDate}
@@ -117,24 +143,26 @@ export function AddServiceRecordModal({ isOpen, onClose, customerId }: AddServic
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="technician">Technician Name</Label>
+            <Label htmlFor="technician" className="text-xs text-gray-500 font-medium">TECHNICIAN NAME</Label>
             <Input
               id="technician"
               value={technicianName}
               onChange={(e) => setTechnicianName(e.target.value)}
-              placeholder="Enter technician name"
+              placeholder=""
               required
+              className="bg-gray-50"
             />
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
+            <Label htmlFor="notes" className="text-xs text-gray-500 font-medium">NOTES</Label>
             <Textarea
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Enter service notes"
+              placeholder=""
               rows={4}
+              className="bg-gray-50"
             />
           </div>
           
@@ -142,7 +170,11 @@ export function AddServiceRecordModal({ isOpen, onClose, customerId }: AddServic
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button 
+              type="submit" 
+              className="bg-[#a6e15a] hover:bg-opacity-90 text-white dark:bg-[#a6e15a] dark:text-white light:bg-white light:text-black light:border light:border-gray-300"
+              disabled={isSubmitting}
+            >
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, forwardRef, useImperativeHandle } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ClipboardCheck, Trash2, Eye, Calendar, User, RefreshCw, FileText, Printer, QrCode } from "lucide-react";
@@ -15,6 +15,10 @@ interface ServiceRecordsTableProps {
   customerId?: string;
   searchQuery?: string;
 }
+
+export type ServiceRecordsTableRef = {
+  refetch: () => void;
+};
 
 function calculateStatus(retestDate: string | null): "valid" | "upcoming" | "invalid" {
   if (!retestDate) return "invalid";
@@ -35,46 +39,103 @@ function calculateStatus(retestDate: string | null): "valid" | "upcoming" | "inv
   }
 }
 
-export function ServiceRecordsTable({ customerId, searchQuery = "" }: ServiceRecordsTableProps) {
+export const ServiceRecordsTable = forwardRef<ServiceRecordsTableRef, ServiceRecordsTableProps>(
+  ({ customerId, searchQuery = "" }, ref) => {
   const [deleteRecordId, setDeleteRecordId] = useState<string | null>(null);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { theme } = useTheme();
 
-  const { data: records, isLoading, refetch } = useQuery({
-    queryKey: ["service-records", customerId],
+  const { data: records, isLoading, refetch, error } = useQuery({
+    queryKey: ["service-records", customerId, searchQuery],
     queryFn: async () => {
-      let url = 'http://localhost:3001/api/service-records';
+      let url = '/api/service-records';
       if (customerId) {
-        url += `?customerId=${customerId}`;
+        url += `?company_id=${customerId}`;
       }
       if (searchQuery) {
         url += `${customerId ? '&' : '?'}search=${encodeURIComponent(searchQuery)}`;
       }
       
-      const response = await fetch(url, {
-        credentials: 'include'
-      });
+      console.log(`Fetching service records from: ${url}`);
       
-      if (!response.ok) {
-        const error = await response.text();
-        console.error("Error fetching service records:", error);
-        throw new Error(error);
+      // Get authentication token
+      const storedUser = localStorage.getItem('equiptrak_user');
+      let headers = {};
+      
+      if (storedUser) {
+        try {
+          const userData = JSON.parse(storedUser);
+          if (userData.token) {
+            headers = {
+              'Authorization': `Bearer ${userData.token}`,
+              'Content-Type': 'application/json'
+            };
+          }
+        } catch (e) {
+          console.error("Error parsing user data:", e);
+        }
       }
       
-      const data = await response.json();
-      return data;
+      try {
+        console.log("Fetching service records with headers:", headers);
+        const response = await fetch(url, {
+          headers,
+          credentials: 'include'
+        });
+        
+        console.log(`Service records response status: ${response.status}`);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Error fetching service records: Status ${response.status}`, errorText);
+          throw new Error(`Failed to fetch service records: ${response.status} ${errorText}`);
+        }
+        
+        const data = await response.json();
+        console.log(`Successfully retrieved ${data.length} service records`);
+        console.log("First few records:", data.slice(0, 2));
+        return data;
+      } catch (error) {
+        console.error("Error in service records request:", error);
+        throw error;
+      }
     },
+    staleTime: 0, // Always refetch data when queryKey changes
     retry: 1,
   });
+
+  // Expose the refetch function through the ref
+  useImperativeHandle(ref, () => ({
+    refetch
+  }));
 
   const handleDelete = async () => {
     if (!deleteRecordId) return;
     
     try {
-      const response = await fetch(`http://localhost:3001/api/service-records/${deleteRecordId}`, {
+      // Get authentication token
+      const storedUser = localStorage.getItem('equiptrak_user');
+      let headers = {};
+      
+      if (storedUser) {
+        try {
+          const userData = JSON.parse(storedUser);
+          if (userData.token) {
+            headers = {
+              'Authorization': `Bearer ${userData.token}`,
+              'Content-Type': 'application/json'
+            };
+          }
+        } catch (e) {
+          console.error("Error parsing user data:", e);
+        }
+      }
+      
+      const response = await fetch(`/api/service-records/${deleteRecordId}`, {
         method: 'DELETE',
+        headers,
         credentials: 'include'
       });
       
@@ -105,12 +166,27 @@ export function ServiceRecordsTable({ customerId, searchQuery = "" }: ServiceRec
   };
 
   const handlePrintQRCode = (serviceId: string) => {
-    // TODO: Implement QR code printing
-    console.log('Print QR code for service:', serviceId);
+    navigate(`/service-certificate/${serviceId}/qr`);
   };
 
   if (isLoading) {
     return <div className="text-center py-4">Loading service records...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 border rounded-lg bg-red-50 text-red-800">
+        <h3 className="font-semibold mb-2">Error loading service records</h3>
+        <p>{error instanceof Error ? error.message : "Unknown error occurred"}</p>
+        <Button 
+          onClick={() => refetch()} 
+          variant="outline" 
+          className="mt-2"
+        >
+          Try Again
+        </Button>
+      </div>
+    );
   }
 
   if (!records || records.length === 0) {
@@ -121,6 +197,65 @@ export function ServiceRecordsTable({ customerId, searchQuery = "" }: ServiceRec
     );
   }
 
+  // Prepare rows for display - one row per certificate
+  const serviceRows = records.map(record => {
+    // Find the first piece of equipment
+    let firstEquipment = null;
+    let equipmentCount = 0;
+    
+    // Check for equipment in the record
+    for (let i = 1; i <= 8; i++) {
+      const nameField = `equipment${i}_name`;
+      if (record[nameField]) {
+        equipmentCount++;
+        if (!firstEquipment) {
+          firstEquipment = {
+            name: record[nameField],
+            serial: record[`equipment${i}_serial`] || 'N/A'
+          };
+        }
+      }
+    }
+    
+    // Properly handle engineer name from various possible sources
+    let engineerName = 'Not assigned';
+    // Log the available engineer fields for debugging
+    console.log(`Engineer fields for record ${record.id}:`, {
+      engineer: record.engineer,
+      engineer_name: record.engineer_name,
+      engineer_id: record.engineer_id
+    });
+
+    if (record.engineer && record.engineer.name) {
+      engineerName = record.engineer.name;
+      console.log(`Using engineer.name: ${engineerName}`);
+    } else if (record.engineer_name) {
+      engineerName = record.engineer_name;
+      console.log(`Using engineer_name: ${engineerName}`);
+    } else if (record.engineer_id) {
+      engineerName = record.engineer_id;
+      console.log(`Using engineer_id: ${engineerName}`);
+    } else if (record.engineer && typeof record.engineer === 'string') {
+      engineerName = record.engineer;
+      console.log(`Using engineer string value: ${engineerName}`);
+    }
+    
+    console.log(`Resolved engineer name for record ${record.id}: ${engineerName}`);
+    
+    return {
+      id: record.id,
+      certificate_number: record.certificate_number,
+      service_date: record.service_date || record.test_date,
+      retest_date: record.retest_date || record.next_service_date,
+      engineer_name: engineerName,
+      status: record.status || calculateStatus(record.retest_date || record.next_service_date),
+      equipment_name: firstEquipment ? firstEquipment.name : (record.equipment_name || (record.equipment && record.equipment.name) || 'N/A'),
+      serial_number: firstEquipment ? firstEquipment.serial : (record.serial_number || (record.equipment && record.equipment.serial_number) || 'N/A'),
+      equipmentCount: equipmentCount,
+      record: record // Keep the full record for the modal
+    };
+  });
+
   return (
     <div className="space-y-4">
       <div className="rounded-md border">
@@ -129,6 +264,7 @@ export function ServiceRecordsTable({ customerId, searchQuery = "" }: ServiceRec
             <tr className="border-b bg-muted/50">
               <th className="p-2 text-left">Equipment</th>
               <th className="p-2 text-left">Serial Number</th>
+              <th className="p-2 text-left">Certificate No.</th>
               <th className="p-2 text-left">Service Date</th>
               <th className="p-2 text-left">Retest Date</th>
               <th className="p-2 text-left">Status</th>
@@ -136,87 +272,118 @@ export function ServiceRecordsTable({ customerId, searchQuery = "" }: ServiceRec
             </tr>
           </thead>
           <tbody>
-            {records.map((record) => {
-              const status = calculateStatus(record.retest_date);
-              const statusColor = getStatusColor(status);
-              
-              return (
-                <tr key={record.id} className="border-b">
-                  <td className="p-2">{record.equipment_name}</td>
-                  <td className="p-2">{record.serial_number}</td>
-                  <td className="p-2">{format(new Date(record.service_date), 'dd/MM/yyyy')}</td>
-                  <td className="p-2">{record.retest_date ? format(new Date(record.retest_date), 'dd/MM/yyyy') : 'N/A'}</td>
-                  <td className="p-2">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusColor}`}>
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
-                    </span>
-                  </td>
-                  <td className="p-2 text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setSelectedServiceId(record.id)}
-                        title="View Details"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => handlePrintCertificate(record.id)}
-                        title="Print Certificate"
-                      >
-                        <FileText className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => handlePrintQRCode(record.id)}
-                        title="Print QR Code"
-                      >
-                        <QrCode className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        onClick={() => setDeleteRecordId(record.id)}
-                        title="Delete Record"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
+            {serviceRows.map((row) => (
+              <tr 
+                key={row.id} 
+                className="border-b hover:bg-muted/50 cursor-pointer"
+                onClick={() => setSelectedServiceId(row.id)}
+              >
+                <td className="p-2">
+                  <div className="flex flex-col">
+                    <span>{row.equipment_name}</span>
+                    {row.equipmentCount > 1 && (
+                      <span className="text-xs text-muted-foreground">
+                        +{row.equipmentCount - 1} more items
+                      </span>
+                    )}
+                  </div>
+                </td>
+                <td className="p-2">{row.serial_number}</td>
+                <td className="p-2 font-medium">{row.certificate_number || "-"}</td>
+                <td className="p-2">
+                  {row.service_date ? format(new Date(row.service_date), 'dd/MM/yyyy') : 'N/A'}
+                </td>
+                <td className="p-2">
+                  {row.retest_date ? format(new Date(row.retest_date), 'dd/MM/yyyy') : 'N/A'}
+                </td>
+                <td className="p-2">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    row.status === 'valid' ? 'bg-green-100 text-green-800' : 
+                    row.status === 'upcoming' ? 'bg-yellow-100 text-yellow-800' : 
+                    'bg-red-100 text-red-800'
+                  }`}>
+                    {row.status === 'valid' ? 'Valid' : 
+                     row.status === 'upcoming' ? 'Upcoming' : 
+                     'Invalid'}
+                  </span>
+                </td>
+                <td className="p-2 text-right space-x-1">
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedServiceId(row.id);
+                    }}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePrintCertificate(row.id);
+                    }}
+                  >
+                    <Printer className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePrintQRCode(row.id);
+                    }}
+                  >
+                    <QrCode className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteRecordId(row.id);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
 
-      <AlertDialog open={!!deleteRecordId} onOpenChange={() => setDeleteRecordId(null)}>
+      {/* View/Edit service modal */}
+      {selectedServiceId && (
+        <ServiceDetailsModal
+          serviceId={selectedServiceId}
+          open={!!selectedServiceId}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSelectedServiceId(null);
+              refetch();
+            }
+          }}
+        />
+      )}
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={!!deleteRecordId} onOpenChange={(open) => !open && setDeleteRecordId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>Delete Service Record</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the service record.
+              Are you sure you want to delete this service record? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {selectedServiceId && (
-        <ViewServiceModal
-          serviceId={selectedServiceId}
-          onClose={() => setSelectedServiceId(null)}
-        />
-      )}
     </div>
   );
-}
+});

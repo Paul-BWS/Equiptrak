@@ -32,11 +32,8 @@ export function UserEquipment() {
         // Fetch equipment data
         const { data: equipmentData, error: equipmentError } = await supabase
           .from('equipment')
-          .select(`
-            *,
-            equipment_types(*)
-          `)
-          .eq('customer_id', companyId);
+          .select('*')
+          .eq('company_id', companyId);
           
         if (equipmentError) {
           console.error('Error fetching equipment:', equipmentError);
