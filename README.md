@@ -1,56 +1,7 @@
-# Welcome to your Lovable project
+
 
 ## Project info
 
-**URL**: https://lovable.dev/projects/c4a2989c-8c9f-4a33-8ad3-cd43f7fe2a6b
-
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/c4a2989c-8c9f-4a33-8ad3-cd43f7fe2a6b) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
 
 This project is built with .
 
@@ -60,13 +11,8 @@ This project is built with .
 - shadcn-ui
 - Tailwind CSS
 
-## How can I deploy this project?
 
-Simply open [Lovable](https://lovable.dev/projects/c4a2989c-8c9f-4a33-8ad3-cd43f7fe2a6b) and click on Share -> Publish.
 
-## I want to use a custom domain - is that possible?
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
 
 # EquipTrack
 
@@ -86,7 +32,7 @@ EquipTrack is a comprehensive equipment tracking and servicing application desig
 - React (with Vite)
 - TypeScript
 - Express.js backend API
-- PostgreSQL database
+- Self-hosted PostgreSQL database (no external service providers)
 - TailwindCSS & shadcn/ui
 - JWT authentication
 
@@ -101,10 +47,10 @@ npm install
 ```
 3. Start the development servers:
 ```
-npm run dev:all
+npm run dev:server
 ```
 
-This will start both the frontend (Vite) and backend (Express.js) servers.
+This will start the backend server from the `/server` directory on port 3001 and the frontend (Vite) on port 3000.
 
 ## Troubleshooting
 
@@ -130,7 +76,7 @@ If you're seeing a blank screen when accessing the app:
 1. Check the browser console for errors
 2. Make sure both servers are running:
    ```
-   npm run dev:all
+   npm run dev:server
    ```
 3. Try accessing the test page to diagnose API connectivity:
    ```
@@ -148,10 +94,29 @@ If you're getting logged out frequently or seeing authentication errors:
 
 ## Server Management
 
-- Start both servers: `npm run dev:all`
+The main server file is `server/index.js`, which handles all API endpoints including:
+- Authentication and user management
+- Company and equipment management
+- Service records and certificates
+- Work orders and maintenance tracking
+
+Server Commands:
+- Start both servers: `npm run dev:server` (Backend on 3001, Frontend on 3000)
+- Start backend only: `npm run server`
 - Start frontend only: `npm run dev`
-- Start API server only: `npm run api`
 - Stop all servers: `npm run dev:stop`
+
+Server Configuration:
+- Default port: 3001 (configurable via PORT environment variable)
+- Database connection: PostgreSQL (configured via environment variables)
+- Authentication: JWT-based with token expiration
+- CORS enabled for localhost:3000 and localhost:5173
+
+Important Notes:
+- Make sure PostgreSQL is running before starting the server
+- Check .env file exists in the server directory with correct database credentials
+- Server logs will show successful database connection on startup
+- Test endpoint available at http://localhost:3001/api/test
 
 ## Additional Resources
 

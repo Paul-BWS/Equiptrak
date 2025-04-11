@@ -52,20 +52,20 @@ async function checkContacts() {
       console.log('No contacts found in the database.');
     }
     
-    // Check if any contacts are associated with companies
-    if (result.rows.length > 0 && result.rows[0].company_id) {
-      console.log('\nChecking company associations for contacts:');
-      
-      const companyContacts = await pool.query(`
-        SELECT c.id, c.name, COUNT(ct.id) as contact_count
+    // Check company associations for contacts
+    try {
+      console.log('Checking company associations for contacts:');
+      const companiesResult = await pool.query(`
+        SELECT c.id, c.company_name, COUNT(ct.id) as contact_count
         FROM companies c
         LEFT JOIN contacts ct ON c.id = ct.company_id
-        GROUP BY c.id, c.name
+        GROUP BY c.id, c.company_name
         ORDER BY contact_count DESC
       `);
       
-      console.log('Companies and their contact counts:');
-      console.table(companyContacts.rows);
+      console.table(companiesResult.rows);
+    } catch (error) {
+      console.error('Error querying database:', error);
     }
     
   } catch (error) {

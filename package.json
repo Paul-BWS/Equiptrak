@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@chakra-ui/react": "^3.15.1",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "^1.2.3",
     "@radix-ui/react-alert-dialog": "^1.1.6",
@@ -51,9 +54,11 @@
     "date-fns": "^4.1.0",
     "embla-carousel-react": "^8.5.2",
     "express": "^4.18.3",
+    "framer-motion": "^12.6.3",
     "input-otp": "^1.4.2",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.474.0",
+    "multer": "^1.4.5-lts.2",
     "next": "^15.1.6",
     "next-themes": "^0.4.4",
     "node-fetch": "^2.7.0",
@@ -69,6 +74,7 @@
     "react-resizable-panels": "^2.1.7",
     "react-router-dom": "^6.29.0",
     "react-scripts": "5.0.1",
+    "react-signature-canvas": "^1.1.0-alpha.2",
     "react-to-print": "^3.0.5",
     "recharts": "^2.15.1",
     "sonner": "^1.7.4",
@@ -84,6 +90,9 @@
     "api": "node src/server/api.js",
     "dev:all": "concurrently \"npm run api\" \"npm run dev\"",
     "dev:start": "concurrently --kill-others-on-fail \"npm run api\" \"npm run dev\"",
+    "dev:fixed-ports": "concurrently --kill-others-on-fail \"PORT=3001 node src/server/api.js\" \"PORT=3000 npm run dev\"",
+    "dev:server": "concurrently --kill-others-on-fail \"cd server && PORT=3001 node server-start.js\" \"PORT=3000 npm run dev\"",
+    "server": "cd server && PORT=3001 node server-start.js",
     "dev:stop": "pkill -f \"node src/server/api.js\" || true && pkill -f \"vite\" || true",
     "start": "node src/server/api.js",
     "build": "tsc && vite build",
@@ -92,7 +101,8 @@
     "eject": "react-scripts eject",
     "start:prod": "NODE_ENV=production node src/server/api.js",
     "build:all": "npm run build && echo 'Build completed. Use npm run start:prod to start the production server.'",
-    "deploy": "./scripts/deploy.sh"
+    "deploy": "./scripts/deploy.sh",
+    "setup:certificate": "node scripts/create-certificate-sequence.js"
   },
   "eslintConfig": {
     "extends": [

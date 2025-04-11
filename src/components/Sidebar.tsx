@@ -15,7 +15,9 @@ import {
   PencilRuler,
   ArrowLeft,
   Building,
-  Database
+  Database,
+  ClipboardList,
+  Package
 } from "lucide-react";
 
 export function Sidebar() {
@@ -104,29 +106,43 @@ export function Sidebar() {
                 <Button
                   variant="ghost"
                   className={`w-full justify-start text-white hover:bg-white/10 ${
-                    isActive("/compressors") ? "bg-white/20" : ""
+                    isActive("/personnel") ? "bg-white/20" : ""
                   }`}
                   onClick={() => {
-                    navigate("/compressors");
+                    navigate("/personnel");
                     if (isMobile) setIsOpen(false);
                   }}
                 >
-                  <FileText className="mr-2 h-5 w-5" />
-                  Compressors
+                  <Users className="mr-2 h-5 w-5" />
+                  All Personnel
+                </Button>
+                
+                <Button
+                  variant="ghost"
+                  className={`w-full justify-start text-white hover:bg-white/10 ${
+                    isActive("/work-orders") ? "bg-white/20" : ""
+                  }`}
+                  onClick={() => {
+                    navigate("/work-orders");
+                    if (isMobile) setIsOpen(false);
+                  }}
+                >
+                  <ClipboardList className="mr-2 h-5 w-5" />
+                  Jobs
                 </Button>
 
                 <Button
                   variant="ghost"
                   className={`w-full justify-start text-white hover:bg-white/10 ${
-                    isActive("/spot-welders") ? "bg-white/20" : ""
+                    isActive("/products") ? "bg-white/20" : ""
                   }`}
                   onClick={() => {
-                    navigate("/spot-welders");
+                    navigate("/products");
                     if (isMobile) setIsOpen(false);
                   }}
                 >
-                  <FileText className="mr-2 h-5 w-5" />
-                  Spot Welders
+                  <Package className="mr-2 h-5 w-5" />
+                  Products
                 </Button>
               </>
             ) : (
@@ -158,6 +174,20 @@ export function Sidebar() {
                 >
                   <PencilRuler className="mr-2 h-5 w-5" />
                   Equipment
+                </Button>
+                
+                <Button
+                  variant="ghost"
+                  className={`w-full justify-start text-white hover:bg-white/10 ${
+                    isActive("/work-orders") ? "bg-white/20" : ""
+                  }`}
+                  onClick={() => {
+                    navigate("/work-orders");
+                    if (isMobile) setIsOpen(false);
+                  }}
+                >
+                  <ClipboardList className="mr-2 h-5 w-5" />
+                  Jobs
                 </Button>
               </>
             )}

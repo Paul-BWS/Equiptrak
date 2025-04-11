@@ -4,18 +4,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, Lock, Loader2, Phone, ExternalLink, Eye, EyeOff, AlertCircle, Info } from "lucide-react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Mail, Lock, Loader2, Phone, ExternalLink, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import ApiClient from "@/utils/ApiClient";
 
 // Define a version number for tracking deployments
-const APP_VERSION = "1.0.5";
+const APP_VERSION = "1.0.4";
 // Set to true to show detailed error information
 const DEBUG_MODE = true;
 
+// API base URL
+const API_BASE_URL = 'http://localhost:3001';
+
 export function Login() {
-  const location = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -25,17 +26,7 @@ export function Login() {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [debugInfo, setDebugInfo] = useState<string | null>(null);
-  const [sessionMessage, setSessionMessage] = useState<string | null>(null);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    // Check for session messages passed via location state
-    if (location.state?.message) {
-      setSessionMessage(location.state.message);
-      // Clear the state so the message doesn't persist on page refresh
-      navigate(location.pathname, { replace: true });
-    }
-  }, [location, navigate]);
 
   useEffect(() => {
     console.log("Current user state:", user, "Redirecting:", redirecting);
@@ -61,22 +52,50 @@ export function Login() {
     setIsLoading(true);
     setError('');
     setDebugInfo(null);
-    setSessionMessage(null);
     
     try {
-      console.log("Sending login request to API server");
-      const response = await ApiClient.post('/api/auth/login', {
-        email,
-        password
-      });
-
-      if (!response.ok || !response.data) {
-        console.error("Login failed:", response.error);
-        setDebugInfo(`Login failed (${response.status}): ${response.error || 'Unknown error'}`);
-        throw new Error(response.error || 'Authentication failed');
+      // First check if the server is accessible
+      console.log("Testing server connection...");
+      try {
+        const healthCheck = await fetch(`${API_BASE_URL}/api/test`, {
+          method: 'GET',
+          mode: 'cors',
+          credentials: 'include'
+        });
+        
+        if (!healthCheck.ok) {
+          throw new Error('Server health check failed');
+        }
+      } catch (healthError) {
+        console.error("Server health check failed:", healthError);
+        setDebugInfo(`Server connection failed: ${healthError.message}`);
+        throw new Error('Unable to connect to server. Please check if the server is running.');
       }
 
-      const data = response.data;
+      console.log("Sending login request directly with fetch");
+      const loginResponse = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          email: email, 
+          password: password 
+        }),
+        credentials: 'include',
+        mode: 'cors'
+      });
+      
+      console.log("Login response status:", loginResponse.status);
+      
+      if (!loginResponse.ok) {
+        const errorText = await loginResponse.text();
+        console.error("Server returned error:", errorText);
+        setDebugInfo(`Server error (${loginResponse.status}): ${errorText || 'Unknown error'}`);
+        throw new Error(errorText || 'Authentication failed');
+      }
+
+      const data = await loginResponse.json();
       
       // Log the response for debugging
       console.log('Server response:', data);
@@ -89,36 +108,18 @@ export function Login() {
       }
 
       // Validate required user data fields
-      const { user } = data;
-      if (!user.id || !user.email || typeof user.role !== 'string') {
-        console.error('Missing required user data:', user);
+      const { user: userData } = data;
+      if (!userData.id || !userData.email || typeof userData.role !== 'string') {
+        console.error('Missing required user data:', userData);
         setDebugInfo(`Invalid user data: Missing id, email, or role`);
         throw new Error('Invalid user data received');
       }
 
-      // Extract token expiration if available
-      let tokenExpiry;
-      if (data.tokenExpiry) {
-        console.log('Using tokenExpiry directly from server:', data.tokenExpiry);
-        tokenExpiry = data.tokenExpiry;
-      } else if (data.expiresIn) {
-        // Calculate expiry from expiresIn seconds
-        console.log('Calculating tokenExpiry from expiresIn:', data.expiresIn, 'seconds');
-        tokenExpiry = Math.floor(Date.now() / 1000) + data.expiresIn;
-        console.log('Calculated tokenExpiry:', tokenExpiry, '(', new Date(tokenExpiry * 1000).toISOString(), ')');
-      } else {
-        // Default to 24 hours if not specified
-        console.log('No expiry information provided by server, using default 24h');
-        tokenExpiry = Math.floor(Date.now() / 1000) + 86400;
-        console.log('Default tokenExpiry:', tokenExpiry, '(', new Date(tokenExpiry * 1000).toISOString(), ')');
-      }
-
       // Call the signIn function from AuthContext with the user data and token
       await signIn({
-        ...data.user,
+        ...userData,
         token: data.token,
-        tokenExpiry,
-        role: data.user.role as UserRole // Ensure role is properly typed
+        role: userData.role as UserRole // Ensure role is properly typed
       });
       
       toast({
@@ -127,7 +128,7 @@ export function Login() {
       });
 
       // Redirect based on role
-      if (data.user.role === 'admin') {
+      if (userData.role === 'admin') {
         console.log('Redirecting admin user to /admin');
         navigate("/admin");
       } else {
@@ -136,11 +137,12 @@ export function Login() {
       }
     } catch (error) {
       console.error("Login error:", error);
-      setError(error instanceof Error ? error.message : 'Authentication failed');
+      const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
+      setError(errorMessage);
       toast({
         variant: "destructive",
-        title: "Error",
-        description: error instanceof Error ? error.message : 'Authentication failed',
+        title: "Login Failed",
+        description: errorMessage,
       });
     } finally {
       setIsLoading(false);
@@ -174,19 +176,7 @@ export function Login() {
         <div className="w-full max-w-md space-y-6">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold">EquipTrack</h1>
-            <p className="text-sm text-gray-500 mt-2">Version {APP_VERSION}</p>
           </div>
-          
-          {/* Session expired message */}
-          {sessionMessage && (
-            <Alert className="mb-4 border-amber-300 bg-amber-50">
-              <Info className="h-4 w-4 text-amber-500" />
-              <AlertTitle className="text-amber-800">Session Notice</AlertTitle>
-              <AlertDescription className="text-amber-700">
-                {sessionMessage}
-              </AlertDescription>
-            </Alert>
-          )}
           
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
@@ -261,42 +251,90 @@ export function Login() {
               </div>
             </div>
           )}
-
-          {/* Need spares card */}
-          <a 
-            href="https://basicwelding.co.uk" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="mt-10 rounded-lg border border-gray-200 shadow-sm overflow-hidden block hover:bg-gray-50 transition-colors"
-          >
-            <div className="flex flex-wrap items-center gap-2 p-5 text-blue-500">
-              <ExternalLink size={20} className="text-blue-500" />
-              <span className="text-lg">Need spares or repairs?</span>
-              <span className="ml-auto">Visit basicwelding.co.uk</span>
-            </div>
-          </a>
           
-          {/* Phone and Email cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mt-6">
+          {/* Debug button - only visible when debug mode is on */}
+          {DEBUG_MODE && (
+            <div className="mt-4">
+              <Button 
+                type="button" 
+                variant="outline"
+                className="w-full"
+                onClick={async () => {
+                  try {
+                    setIsLoading(true);
+                    setError('');
+                    setDebugInfo('Testing connection...');
+                    
+                    // Test basic endpoint
+                    const testResponse = await fetch(`${API_BASE_URL}/api/test`, {
+                      method: 'GET',
+                      mode: 'cors',
+                      credentials: 'include'
+                    });
+                    
+                    const testData = await testResponse.text();
+                    setDebugInfo(prev => prev + '\nBasic test: ' + (testResponse.ok ? 'OK' : 'Failed') + 
+                      '\nStatus: ' + testResponse.status +
+                      '\nResponse: ' + testData);
+                    
+                    // Test echo endpoint
+                    const echoResponse = await fetch(`${API_BASE_URL}/api/debug/echo`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json'
+                      },
+                      body: JSON.stringify({ 
+                        test: 'data',
+                        time: new Date().toISOString()
+                      }),
+                      mode: 'cors',
+                      credentials: 'include'
+                    });
+                    
+                    const echoData = await echoResponse.json();
+                    setDebugInfo(prev => prev + '\n\nEcho test: ' + (echoResponse.ok ? 'OK' : 'Failed') +
+                      '\nResponse: ' + JSON.stringify(echoData, null, 2));
+                    
+                  } catch (error) {
+                    setError('Connection test failed');
+                    setDebugInfo('Error: ' + (error instanceof Error ? error.message : String(error)));
+                  } finally {
+                    setIsLoading(false);
+                  }
+                }}
+              >
+                Test Server Connection
+              </Button>
+            </div>
+          )}
+          
+          {/* Contact buttons */}
+          <div className="mt-8 space-y-4">
             <a 
-              href="tel:01612231843" 
-              className="flex items-center justify-center md:justify-start gap-3 p-5 bg-white text-blue-500 rounded-lg border border-gray-200 shadow-sm hover:bg-gray-50 transition-colors"
+              href="https://www.basicwelding.co.uk" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="flex items-center justify-center px-6 py-3 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow"
             >
-              <Phone size={20} className="text-blue-500" />
-              <span className="text-lg">0161 223 1843</span>
+              <div className="flex items-center text-[#7496da]">
+                <ExternalLink className="h-5 w-5 mr-3" />
+                <span className="font-medium">Need spares or repairs?</span>
+              </div>
             </a>
             
-            <a 
-              href="mailto:support@equiptrak.com" 
-              className="flex items-center justify-center md:justify-start gap-3 p-5 bg-white text-blue-500 rounded-lg border border-gray-200 shadow-sm hover:bg-gray-50 transition-colors"
-            >
-              <Mail size={20} className="text-blue-500" />
-              <span className="text-lg">Email Support</span>
-            </a>
-          </div>
-          
-          <div className="mt-8 text-center text-sm text-muted-foreground">
-            Version {APP_VERSION}
+            <div className="grid grid-cols-2 gap-4">
+              <a 
+                href="tel:01612231843" 
+                className="flex items-center justify-center px-6 py-3 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow"
+              >
+                <Phone className="h-5 w-5 mr-3 text-[#7496da]" />
+                <span className="text-gray-700">0161 223 1843</span>
+              </a>
+              
+              <div className="flex items-center justify-center px-6 py-3 bg-white rounded-lg shadow-md">
+                <span className="text-xs text-gray-500">v{APP_VERSION}</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>

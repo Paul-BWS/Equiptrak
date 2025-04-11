@@ -12,8 +12,8 @@ export function TestPage() {
     const checkApiStatus = async () => {
       try {
         // Use our new ApiClient
-        const directResponse = await fetch('http://localhost:3001/health');
-        setDirectApiUrl(directResponse.ok ? 'http://localhost:3001' : null);
+        const directResponse = await fetch('http://localhost:3002/api/health');
+        setDirectApiUrl(directResponse.ok ? 'http://localhost:3002' : null);
         
         // First try a simple endpoint that doesn't require auth
         const response = await ApiClient.get('/api/health');
@@ -67,7 +67,7 @@ export function TestPage() {
     
     try {
       // Try direct access to API
-      const response = await fetch('http://localhost:3001/api/auth/login', {
+      const response = await fetch('http://localhost:3002/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

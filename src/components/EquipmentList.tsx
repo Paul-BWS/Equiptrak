@@ -64,7 +64,6 @@ export function EquipmentList({
   onBookClick
 }: EquipmentListProps) {
   const [bookingEquipmentId, setBookingEquipmentId] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
 
   if (isLoading) {
@@ -74,19 +73,6 @@ export function EquipmentList({
   if (!equipment?.length) {
     return <div className="py-8 text-center text-gray-500">No equipment found.</div>;
   }
-
-  // Filter equipment based on search term
-  const filteredEquipment = equipment.filter(item => {
-    if (!searchTerm) return true;
-    
-    const search = searchTerm.toLowerCase();
-    return (
-      item.name.toLowerCase().includes(search) ||
-      item.serial_number.toLowerCase().includes(search) ||
-      (item.profiles?.company_name || item.company_name || "").toLowerCase().includes(search) ||
-      (item.equipment_types?.name || item.equipment_type_name || "").toLowerCase().includes(search)
-    );
-  });
 
   const handleServiceClick = (equipmentId: string) => {
     if (onServiceClick) {
@@ -133,16 +119,6 @@ export function EquipmentList({
 
   return (
     <div className="w-full">
-      <div className="mb-4 relative">
-        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input 
-          placeholder="Search equipment..."
-          className="pl-8"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
-      
       <div className="border rounded-md overflow-x-auto">
         <Table>
           <TableHeader>
@@ -158,7 +134,7 @@ export function EquipmentList({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredEquipment.map((item) => (
+            {equipment.map((item) => (
               <TableRow key={item.id}>
                 <TableCell className="font-medium">{item.name}</TableCell>
                 <TableCell>{item.serial_number}</TableCell>

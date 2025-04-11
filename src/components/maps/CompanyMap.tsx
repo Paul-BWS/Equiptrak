@@ -1,18 +1,20 @@
 import { useEffect, useState } from 'react';
-import { useMaps } from './MapsContext';
-import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
+import { useMaps } from '@/contexts/MapsContext';
+import { GoogleMap, Marker } from '@react-google-maps/api';
 
 interface CompanyMapProps {
   address: string;
 }
 
 export function CompanyMap({ address }: CompanyMapProps) {
-  const { coordinates, setCoordinates, isLoading, setIsLoading, error, setError } = useMaps();
-  const [mapLoaded, setMapLoaded] = useState(false);
-  
-  // Use import.meta.env instead of process.env for Vite
+  const { isLoaded, loadError: contextLoadError } = useMaps();
+  const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null);
+  const [geocodingError, setGeocodingError] = useState<string | null>(null);
+  const [isGeocoding, setIsGeocoding] = useState(true);
+
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
-  
+  console.log('Using Google Maps API Key:', googleMapsApiKey ? `${googleMapsApiKey.substring(0, 5)}...` : 'Key not found!');
+
   const mapContainerStyle = {
     width: '100%',
     height: '100%',
@@ -24,21 +26,20 @@ export function CompanyMap({ address }: CompanyMapProps) {
   };
 
   useEffect(() => {
+    if (!isLoaded || !googleMapsApiKey) {
+      setIsGeocoding(false);
+      return;
+    }
     if (!address) {
-      setError("No address provided");
+      setGeocodingError("No address provided");
+      setIsGeocoding(false);
       return;
     }
 
-    // For now, let's just use a placeholder instead of making API calls
-    // This avoids needing an actual Google Maps API key for development
-    setIsLoading(true);
-    setTimeout(() => {
-      setCoordinates(defaultCenter);
-      setIsLoading(false);
-    }, 500);
-    
-    // Comment out the actual geocoding for now
-    /*
+    setIsGeocoding(true);
+    setGeocodingError(null);
+    setCoordinates(null);
+
     const geocodeAddress = async () => {
       try {
         const response = await fetch(
@@ -46,30 +47,36 @@ export function CompanyMap({ address }: CompanyMapProps) {
         );
         
         const data = await response.json();
+        console.log("Geocoding API response:", data);
         
         if (data.status === 'OK' && data.results.length > 0) {
           const { lat, lng } = data.results[0].geometry.location;
           setCoordinates({ lat, lng });
-          setError(null);
+          setGeocodingError(null);
         } else {
-          setError("Could not find coordinates for this address");
+          setGeocodingError(`Could not find coordinates. Status: ${data.status}${data.error_message ? ` - ${data.error_message}` : ''}`);
+          console.error("Geocoding error details:", data);
         }
       } catch (err) {
-        setError("Error geocoding address");
+        setGeocodingError(`Error calling Geocoding API: ${(err as Error).message}`);
         console.error(err);
       } finally {
-        setIsLoading(false);
+        setIsGeocoding(false);
       }
     };
     
     geocodeAddress();
-    */
-  }, [address, setCoordinates, setError, setIsLoading]);
+    
+  }, [address, googleMapsApiKey, isLoaded]);
+
+  const error = contextLoadError?.message || geocodingError;
+  const isLoading = !isLoaded || isGeocoding;
 
   if (error) {
     return (
-      <div className="bg-red-50 h-full flex items-center justify-center p-4 text-red-700">
-        <p>Error loading map: {error}</p>
+      <div className="bg-red-50 h-full flex items-center justify-center p-4 text-red-700 text-center">
+        <p>Error loading map:</p>
+        <p className="text-sm">{error}</p>
       </div>
     );
   }
@@ -77,36 +84,20 @@ export function CompanyMap({ address }: CompanyMapProps) {
   if (isLoading) {
     return (
       <div className="bg-gray-50 h-full flex items-center justify-center">
-        <p>Loading map...</p>
+        <p>Loading map data...</p> 
       </div>
     );
   }
 
-  // Use a placeholder div instead of the actual Google Maps component
-  // until you have a valid API key
-  return (
-    <div className="w-full h-full bg-gray-100 flex flex-col items-center justify-center p-4 text-center">
-      <p className="text-gray-600 mb-2">Map would display here for address:</p>
-      <p className="font-semibold mb-4">{address}</p>
-      <p className="text-sm text-gray-500">Google Maps integration coming soon</p>
-    </div>
-  );
-  
-  /* Uncomment this when you have a valid Google Maps API key
   return (
     <div className="w-full h-full">
-      <LoadScript googleMapsApiKey={googleMapsApiKey} onLoad={() => setMapLoaded(true)}>
-        {mapLoaded && (
-          <GoogleMap
-            mapContainerStyle={mapContainerStyle}
-            center={coordinates || defaultCenter}
-            zoom={15}
-          >
-            {coordinates && <Marker position={coordinates} />}
-          </GoogleMap>
-        )}
-      </LoadScript>
+        <GoogleMap
+          mapContainerStyle={mapContainerStyle}
+          center={coordinates || defaultCenter}
+          zoom={coordinates ? 12 : 8} 
+        >
+          {coordinates && <Marker position={coordinates} />}
+        </GoogleMap>
     </div>
   );
-  */
 }

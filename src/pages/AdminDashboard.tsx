@@ -22,39 +22,41 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 
 interface Company {
   id: string;
-  company_name: string;
+  company_name: string;  // Primary company name field
   address?: string;
-  created_at?: string;
-  phone?: string;
-  email?: string;
-  contact_name?: string;
   city?: string;
   county?: string;
   postcode?: string;
   country?: string;
   telephone?: string;
-  industry?: string;
+  email?: string;
   website?: string;
+  company_type?: string;
+  status?: string;
+  credit_rating?: string;
+  site_address?: string;
+  billing_address?: string;
+  contact_name?: string;
   contact_email?: string;
   contact_phone?: string;
+  industry?: string;
+  company_status?: string;
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface NewCompany {
   company_name: string;
   address: string;
   city: string;
-  county: string;
   postcode: string;
-  country: string;
   telephone: string;
-  industry: string;
-  website: string;
-  contact_name: string;
-  contact_email: string;
-  contact_phone: string;
+  email: string;
 }
 
 export default function AdminDashboard() {
@@ -70,15 +72,9 @@ export default function AdminDashboard() {
     company_name: "",
     address: "",
     city: "",
-    county: "",
     postcode: "",
-    country: "",
     telephone: "",
-    industry: "",
-    website: "",
-    contact_name: "",
-    contact_email: "",
-    contact_phone: "",
+    email: ""
   });
 
   useEffect(() => {
@@ -87,82 +83,40 @@ export default function AdminDashboard() {
         setLoading(true);
         setError(null);
         
-        // Check if we have a user and token
-        if (!user || !user.token) {
-          console.error("No user or token available", { user });
-          setError("Authentication required. Please log in again.");
-          setLoading(false);
+        // Check if user token exists
+        if (!user?.token) {
+          console.error('No authentication token available');
+          setError('No authentication token available. Please login again.');
+          toast({
+            title: "Authentication Error",
+            description: "Please login again to continue",
+            variant: "destructive"
+          });
+          navigate('/login');
           return;
         }
         
-        console.log("Attempting to connect to API at /api/companies");
-        console.log("User token available:", !!user.token);
-        
+        console.log('Fetching companies from API with auth token...');
         const response = await fetch('/api/companies', {
           headers: {
-            'Authorization': `Bearer ${user.token}`,
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include'
-        }).catch(err => {
-          console.error("Fetch error details:", {
-            message: err.message,
-            name: err.name,
-            stack: err.stack
-          });
-          throw err;
-        });
-        
-        console.log("API Response received:", {
-          status: response.status,
-          statusText: response.statusText,
-          headers: Object.fromEntries(response.headers.entries())
-        });
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("API Error response:", {
-            status: response.status,
-            statusText: response.statusText,
-            error: errorText
-          });
-          
-          if (response.status === 401) {
-            setError("Authentication failed. Please log in again.");
-            toast({
-              title: "Authentication Error",
-              description: "Your session may have expired. Please log in again.",
-              variant: "destructive",
-              duration: 5000
-            });
-          } else {
-            setError(`Failed to fetch companies: ${response.status} ${errorText}`);
-            toast({
-              title: "Connection Error",
-              description: `Failed to connect to backend (Status: ${response.status})`,
-              variant: "destructive",
-              duration: 5000
-            });
+            'Authorization': `Bearer ${user.token}`
           }
-          
-          throw new Error(`Failed to fetch companies: ${response.status} ${errorText}`);
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Companies fetched successfully:', data);
+          setCompanies(data);
+        } else {
+          console.error('Failed to fetch companies from API, status:', response.status);
+          const errorMessage = `Failed to fetch companies (Status: ${response.status})`;
+          setError(errorMessage);
+          toast({
+            title: "Error",
+            description: errorMessage,
+            variant: "destructive"
+          });
         }
-        
-        const data = await response.json();
-        console.log("Companies data received:", {
-          count: data.length,
-          firstCompany: data[0] ? data[0].company_name : 'No companies'
-        });
-        
-        setCompanies(data);
-        toast({
-          title: "Connected to API",
-          description: `Successfully loaded ${data.length} companies`,
-          variant: "default",
-          className: "bg-[#a6e15a] text-black border-none",
-          duration: 3000
-        });
-
       } catch (err) {
         console.error("Error fetching companies:", {
           error: err,
@@ -171,26 +125,24 @@ export default function AdminDashboard() {
           stack: err.stack
         });
         
-        if (!error) {
-          const errorMessage = err.message.includes('Failed to fetch') 
-            ? 'Cannot connect to the backend server. Please check if the server is running.'
-            : 'Failed to load companies. Please try again later.';
-            
-          setError(errorMessage);
-          toast({
-            title: "Connection Error",
-            description: errorMessage,
-            variant: "destructive",
-            duration: 5000
-          });
-        }
+        const errorMessage = err.message.includes('Failed to fetch') 
+          ? 'Cannot connect to the backend server. Please check if the server is running.'
+          : 'Failed to load companies. Please try again later.';
+          
+        setError(errorMessage);
+        toast({
+          title: "Connection Error",
+          description: errorMessage,
+          variant: "destructive",
+          duration: 5000
+        });
       } finally {
         setLoading(false);
       }
     };
 
     fetchCompanies();
-  }, [user?.token]);
+  }, [user, navigate]);
 
   const handleLogout = async () => {
     try {
@@ -214,6 +166,18 @@ export default function AdminDashboard() {
         throw new Error('No authentication token available');
       }
 
+      // Create payload with company_name for the API
+      const payload = {
+        company_name: newCompany.company_name,
+        address: newCompany.address,
+        city: newCompany.city,
+        postcode: newCompany.postcode,
+        telephone: newCompany.telephone,
+        email: newCompany.email,
+        // Set status to Active by default
+        status: 'Active'
+      };
+
       const response = await fetch('/api/companies', {
         method: 'POST',
         headers: {
@@ -221,7 +185,7 @@ export default function AdminDashboard() {
           'Authorization': `Bearer ${user.token}`
         },
         credentials: 'include',
-        body: JSON.stringify(newCompany),
+        body: JSON.stringify(payload),
       });
 
       console.log("Add company response:", {
@@ -241,27 +205,26 @@ export default function AdminDashboard() {
       const addedCompany = await response.json();
       console.log("Successfully added company:", addedCompany);
       
-      setCompanies([...companies, addedCompany]);
+      // Add company_name for UI compatibility
+      const companyWithDisplayName = {
+        ...addedCompany,
+        company_name: addedCompany.company_name || addedCompany.name || ''
+      };
+      
+      setCompanies([...companies, companyWithDisplayName]);
       setIsAddModalOpen(false);
       setNewCompany({
         company_name: "",
         address: "",
         city: "",
-        county: "",
         postcode: "",
-        country: "",
         telephone: "",
-        industry: "",
-        website: "",
-        contact_name: "",
-        contact_email: "",
-        contact_phone: "",
+        email: ""
       });
 
       toast({
         title: "Success",
         description: "Company added successfully",
-        className: "bg-[#a6e15a] text-black border-none",
       });
     } catch (error: any) {
       console.error('Error adding company:', {
@@ -289,15 +252,24 @@ export default function AdminDashboard() {
       <div className="border-b bg-white shadow-sm">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-semibold">Admin Dashboard</h1>
-          <div className="text-gray-600 flex items-center">
-            <span className="font-medium">Hello {user?.email?.split('@')[0] || 'Admin'}</span>
-            <span className="mx-2">•</span>
-            <span>{new Date().toLocaleDateString('en-US', { 
-              weekday: 'long',
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
-            })}</span>
+          <div className="flex items-center">
+            <div className="text-gray-600 items-center mr-4 hidden sm:flex">
+              <span className="font-medium">Hello {user?.email?.split('@')[0] || 'Admin'}</span>
+              <span className="mx-2">•</span>
+              <span>{new Date().toLocaleDateString('en-US', { 
+                weekday: 'long',
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })}</span>
+            </div>
+            <Button 
+              className="bg-white sm:bg-[#21c15b] hover:bg-gray-100 sm:hover:bg-[#21c15b]/90 text-[#21c15b] sm:text-white border border-[#21c15b]"
+              onClick={() => setIsAddModalOpen(true)}
+            >
+              <Plus className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Add Company</span>
+            </Button>
           </div>
         </div>
       </div>
@@ -307,13 +279,6 @@ export default function AdminDashboard() {
           <div className="p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-semibold">Manage Companies</h2>
-              <Button 
-                className="bg-[#a6e15a] hover:bg-[#95cc4f] text-white"
-                onClick={() => setIsAddModalOpen(true)}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Company
-              </Button>
             </div>
 
             <div className="relative mb-6">
@@ -343,14 +308,14 @@ export default function AdminDashboard() {
                       <TableHead className="text-gray-600">Company Name</TableHead>
                       <TableHead className="text-gray-600">Address</TableHead>
                       <TableHead className="text-gray-600">Added Date</TableHead>
-                      <TableHead className="text-right text-gray-600">Actions</TableHead>
+                      <TableHead className="text-right text-gray-600 hidden sm:table-cell">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredCompanies.map((company) => (
                       <TableRow 
                         key={company.id}
-                        className="cursor-pointer hover:bg-gray-50"
+                        className="cursor-pointer hover:bg-gray-50 hover:shadow-md transition-shadow"
                         onClick={() => handleCompanyClick(company.id)}
                       >
                         <TableCell className="font-medium">
@@ -363,8 +328,16 @@ export default function AdminDashboard() {
                         <TableCell>
                           {new Date(company.created_at || Date.now()).toLocaleDateString()}
                         </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" className="text-[#6c8aec] hover:text-[#5a75d9] hover:bg-[#f8f9fc]">
+                        <TableCell className="text-right hidden sm:table-cell">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-[#6c8aec] hover:text-[#5a75d9] hover:bg-[#f8f9fc]"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCompanyClick(company.id);
+                            }}
+                          >
                             <Pencil className="mr-2 h-4 w-4" />
                             <ChevronRight className="ml-2 h-4 w-4" />
                           </Button>
@@ -375,6 +348,10 @@ export default function AdminDashboard() {
                 </Table>
               </div>
             )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+              {/* Shopify Integration card has been removed from here */}
+            </div>
 
             <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
               <DialogContent className="sm:max-w-[425px]">
@@ -396,32 +373,22 @@ export default function AdminDashboard() {
                       />
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="address">Address</Label>
-                        <Input
-                          id="address"
-                          value={newCompany.address}
-                          onChange={(e) => setNewCompany({ ...newCompany, address: e.target.value })}
-                        />
-                      </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="address">Address</Label>
+                      <Input
+                        id="address"
+                        value={newCompany.address}
+                        onChange={(e) => setNewCompany({ ...newCompany, address: e.target.value })}
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
                       <div className="grid gap-2">
                         <Label htmlFor="city">City</Label>
                         <Input
                           id="city"
                           value={newCompany.city}
                           onChange={(e) => setNewCompany({ ...newCompany, city: e.target.value })}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="county">County</Label>
-                        <Input
-                          id="county"
-                          value={newCompany.county}
-                          onChange={(e) => setNewCompany({ ...newCompany, county: e.target.value })}
                         />
                       </div>
                       <div className="grid gap-2">
@@ -433,82 +400,30 @@ export default function AdminDashboard() {
                         />
                       </div>
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="country">Country</Label>
-                        <Input
-                          id="country"
-                          value={newCompany.country}
-                          onChange={(e) => setNewCompany({ ...newCompany, country: e.target.value })}
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="telephone">Telephone</Label>
-                        <Input
-                          id="telephone"
-                          type="tel"
-                          value={newCompany.telephone}
-                          onChange={(e) => setNewCompany({ ...newCompany, telephone: e.target.value })}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="industry">Industry</Label>
-                        <Input
-                          id="industry"
-                          value={newCompany.industry}
-                          onChange={(e) => setNewCompany({ ...newCompany, industry: e.target.value })}
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="website">Website</Label>
-                        <Input
-                          id="website"
-                          type="url"
-                          value={newCompany.website}
-                          onChange={(e) => setNewCompany({ ...newCompany, website: e.target.value })}
-                        />
-                      </div>
-                    </div>
-
+                    
                     <div className="grid gap-2">
-                      <Label htmlFor="contact_name">Contact Name</Label>
+                      <Label htmlFor="telephone">Telephone</Label>
                       <Input
-                        id="contact_name"
-                        value={newCompany.contact_name}
-                        onChange={(e) => setNewCompany({ ...newCompany, contact_name: e.target.value })}
+                        id="telephone"
+                        value={newCompany.telephone}
+                        onChange={(e) => setNewCompany({ ...newCompany, telephone: e.target.value })}
                       />
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="contact_email">Contact Email</Label>
-                        <Input
-                          id="contact_email"
-                          type="email"
-                          value={newCompany.contact_email}
-                          onChange={(e) => setNewCompany({ ...newCompany, contact_email: e.target.value })}
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="contact_phone">Contact Phone</Label>
-                        <Input
-                          id="contact_phone"
-                          type="tel"
-                          value={newCompany.contact_phone}
-                          onChange={(e) => setNewCompany({ ...newCompany, contact_phone: e.target.value })}
-                        />
-                      </div>
+                    
+                    <div className="grid gap-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        value={newCompany.email}
+                        onChange={(e) => setNewCompany({ ...newCompany, email: e.target.value })}
+                      />
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit" className="bg-[#a6e15a] hover:bg-[#95cc4f] text-white">
+                    <Button 
+                      type="submit" 
+                      className="bg-[#22c55e] hover:bg-opacity-90 text-white"
+                    >
                       Add Company
                     </Button>
                   </DialogFooter>

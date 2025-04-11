@@ -22,12 +22,31 @@ export default function QRCodePrintPage() {
   const isLiftCertificate = location.pathname.includes('lift-certificate');
   const isServiceCertificate = location.pathname.includes('service-certificate');
   
+  // Check if we have a temporary record passed via state (our workaround)
+  const tempRecord = location.state?.tempRecord;
+  
   useEffect(() => {
     const fetchCertificateInfo = async () => {
       try {
         setLoading(true);
         
-        // Determine the API endpoint based on the type
+        // If we have a temporary record for lift certificates, use it directly
+        if (tempRecord && isLiftCertificate) {
+          setCertificateNumber(tempRecord.certificate_number || 'Unknown');
+          setCompanyName(tempRecord.company?.company_name || 'Unknown');
+          
+          // Create the public URL with the temporary token
+          const { protocol, host } = window.location;
+          const baseUrl = `${protocol}//${host}`;
+          const publicEndpoint = `/public/lift-certificate/${params.id}`;
+          const fullUrl = `${baseUrl}${publicEndpoint}?token=${tempRecord.public_access_token}`;
+          
+          setPublicUrl(fullUrl);
+          setLoading(false);
+          return;
+        }
+        
+        // Regular flow - determine the API endpoint based on the type
         let endpoint;
         let id;
         
@@ -86,7 +105,7 @@ export default function QRCodePrintPage() {
     };
     
     fetchCertificateInfo();
-  }, [params, isLiftCertificate, isServiceCertificate]);
+  }, [params, isLiftCertificate, isServiceCertificate, tempRecord]);
   
   const handlePrint = () => {
     window.print();

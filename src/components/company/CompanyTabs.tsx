@@ -9,24 +9,32 @@ import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { MapsProvider } from '@/components/maps/MapsContext';
 
 interface Company {
   id: string;
   name?: string;
   company_name?: string;
-  email?: string;
-  telephone?: string;
   address?: string;
   city?: string;
   county?: string;
   postcode?: string;
   country?: string;
-  created_at?: string;
+  telephone?: string;
+  email?: string;
+  website?: string;
+  company_type?: string;
+  status?: string;
+  credit_rating?: string;
+  site_address?: string;
+  billing_address?: string;
+  contact_name?: string;
   contact_email?: string;
   contact_phone?: string;
   industry?: string;
-  website?: string;
+  company_status?: string;
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface Equipment {
@@ -137,9 +145,7 @@ export function CompanyTabs({ company, equipment, isEquipmentLoading }: CompanyT
       </TabsContent>
 
       <TabsContent value="contacts">
-        <MapsProvider>
-          <ContactList companyId={company.id} />
-        </MapsProvider>
+        <ContactList companyId={company.id} />
       </TabsContent>
 
       <TabsContent value="equipment">

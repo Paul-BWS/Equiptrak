@@ -132,14 +132,12 @@ export default function CompanyDetails() {
         </DialogContent>
       </Dialog>
 
-      <MapsProvider>
-        <CompanyTabs
-          company={company}
-          equipment={equipment || []}
-          isEquipmentLoading={isEquipmentLoading}
-          customerId={customerId}
-        />
-      </MapsProvider>
+      <CompanyTabs
+        company={company}
+        equipment={equipment || []}
+        isEquipmentLoading={isEquipmentLoading}
+        customerId={customerId}
+      />
     </div>
   );
 }

@@ -209,44 +209,6 @@ export default function EquipmentListPage() {
       <div className="container mx-auto p-6">
         <h1 className="text-2xl font-bold mb-6">All Equipment</h1>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center">
-                <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
-                Valid
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{validCount}</div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center">
-                <AlertCircle className="mr-2 h-4 w-4 text-amber-500" />
-                Due for Re-test
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{upcomingCount}</div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center">
-                <XCircle className="mr-2 h-4 w-4 text-red-500" />
-                Expired
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{expiredCount}</div>
-            </CardContent>
-          </Card>
-        </div>
-        
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="flex-1">
             <Input

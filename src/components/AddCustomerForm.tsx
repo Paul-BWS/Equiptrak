@@ -3,24 +3,32 @@ import { useForm } from "react-hook-form";
 import { Button } from "./ui/button";
 import { Form } from "./ui/form";
 import { FormField } from "./forms/FormField";
-import { AddressSection } from "./forms/AddressSection";
 import { z } from "zod";
 import { useToast } from "./ui/use-toast";
 
+// Updated schema to include all possible fields
 const companyFormSchema = z.object({
   id: z.string().optional(),
   company_name: z.string().min(1, "Company name is required"),
-  telephone: z.string().optional(),
   address: z.string().optional(),
   city: z.string().optional(),
   county: z.string().optional(),
   postcode: z.string().optional(),
   country: z.string().optional(),
-  industry: z.string().optional(),
-  website: z.string().optional().nullable().transform(val => val || ''),
+  telephone: z.string().optional(),
+  email: z.string().optional(),
+  website: z.string().optional(),
+  company_type: z.string().optional(),
+  status: z.string().optional(),
+  credit_rating: z.string().optional(),
+  site_address: z.string().optional(),
+  billing_address: z.string().optional(),
   contact_name: z.string().optional(),
   contact_email: z.string().optional(),
   contact_phone: z.string().optional(),
+  industry: z.string().optional(),
+  company_status: z.string().optional(),
+  notes: z.string().optional(),
 });
 
 type CompanyFormValues = z.infer<typeof companyFormSchema>;
@@ -46,17 +54,25 @@ export function AddCustomerForm({
     resolver: zodResolver(companyFormSchema),
     defaultValues: initialData || {
       company_name: "",
-      telephone: "",
       address: "",
       city: "",
       county: "",
       postcode: "",
-      country: "United Kingdom",
-      industry: "",
+      country: "",
+      telephone: "",
+      email: "",
       website: "",
+      company_type: "",
+      status: "Active",
+      credit_rating: "",
+      site_address: "",
+      billing_address: "",
       contact_name: "",
       contact_email: "",
       contact_phone: "",
+      industry: "",
+      company_status: "",
+      notes: "",
     },
   });
 
@@ -67,19 +83,25 @@ export function AddCustomerForm({
       // Clean up empty strings to null for optional fields
       const cleanData = {
         ...data,
-        company_name: data.company_name, // Ensure company_name is preserved
-        name: data.company_name, // Also set name field for API compatibility
-        website: data.website || null,
-        telephone: data.telephone || null,
-        industry: data.industry || null,
         address: data.address || null,
         city: data.city || null,
         county: data.county || null,
         postcode: data.postcode || null,
-        country: data.country || 'United Kingdom',
+        country: data.country || null,
+        telephone: data.telephone || null,
+        email: data.email || null,
+        website: data.website || null,
+        company_type: data.company_type || null,
+        status: data.status || 'Active',
+        credit_rating: data.credit_rating || null,
+        site_address: data.site_address || null,
+        billing_address: data.billing_address || null,
         contact_name: data.contact_name || null,
         contact_email: data.contact_email || null,
         contact_phone: data.contact_phone || null,
+        industry: data.industry || null,
+        company_status: data.company_status || null,
+        notes: data.notes || null,
       };
       
       console.log('Clean data being sent to API:', cleanData);
@@ -159,54 +181,83 @@ export function AddCustomerForm({
             label="Company Name"
             placeholder="Enter company name"
           />
+          
+          <FormField
+            form={form}
+            name="address"
+            label="Address"
+            placeholder="Enter address"
+          />
 
+          <FormField
+            form={form}
+            name="city"
+            label="City"
+            placeholder="Enter city"
+          />
+          
+          <FormField
+            form={form}
+            name="county"
+            label="County"
+            placeholder="Enter county"
+          />
+
+          <FormField
+            form={form}
+            name="postcode"
+            label="Postcode"
+            placeholder="Enter postcode"
+          />
+          
+          <FormField
+            form={form}
+            name="country"
+            label="Country"
+            placeholder="Enter country"
+          />
+          
           <FormField
             form={form}
             name="telephone"
-            label="Main Telephone"
-            placeholder="Enter main telephone number"
+            label="Telephone"
+            placeholder="Enter telephone"
           />
-
+          
           <FormField
             form={form}
-            name="industry"
-            label="Industry"
-            placeholder="e.g. Manufacturing, Construction, etc."
+            name="email"
+            label="Email"
+            placeholder="Enter email"
           />
-
+          
           <FormField
             form={form}
             name="website"
             label="Website"
-            placeholder="https://example.com"
+            placeholder="Enter website"
           />
-
-          <div className="space-y-4 border p-4 rounded-md">
-            <h3 className="font-medium">Contact Information</h3>
-            
-            <FormField
-              form={form}
-              name="contact_name"
-              label="Contact Name"
-              placeholder="Enter contact person's name"
-            />
-            
-            <FormField
-              form={form}
-              name="contact_email"
-              label="Contact Email"
-              placeholder="Enter contact email"
-            />
-            
-            <FormField
-              form={form}
-              name="contact_phone"
-              label="Contact Phone"
-              placeholder="Enter contact phone number"
-            />
-          </div>
-
-          <AddressSection form={form} />
+          
+          <FormField
+            form={form}
+            name="industry"
+            label="Industry"
+            placeholder="Enter industry"
+          />
+          
+          <FormField
+            form={form}
+            name="company_status"
+            label="Company Status"
+            placeholder="Enter company status"
+          />
+          
+          <FormField
+            form={form}
+            name="credit_rating"
+            label="Credit Rating"
+            placeholder="Enter credit rating"
+          />
         </div>
 
         <Button 

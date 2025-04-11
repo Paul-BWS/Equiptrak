@@ -1,15 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Search, ArrowLeft, Plus } from "lucide-react";
+import { Search, ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ServiceRecordsTable, ServiceRecordsTableRef } from "@/components/service/components/ServiceRecordsTable";
 import { AddServiceModal } from "@/components/service/modals/AddServiceModal";
 import { useTheme } from "@/components/theme-provider";
 import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export function Service() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -23,7 +25,11 @@ export function Service() {
   }, [companyId]);
 
   const handleBack = () => {
-    navigate(-1);
+    if (companyId) {
+      navigate(`/company/${companyId}`);
+    } else {
+      navigate(-1);
+    }
   };
 
   const handleServiceAdded = () => {
@@ -39,6 +45,56 @@ export function Service() {
       if (tableRef.current) {
         tableRef.current.refetch();
       }
+    }
+  };
+
+  const handleCleanupTestData = async () => {
+    if (!companyId) return;
+    
+    try {
+      setIsCleaningUp(true);
+      
+      // Get auth token
+      const storedUser = localStorage.getItem('equiptrak_user');
+      let token = '';
+      
+      if (storedUser) {
+        try {
+          const userData = JSON.parse(storedUser);
+          token = userData.token || '';
+        } catch (e) {
+          console.error("Error parsing user data:", e);
+        }
+      }
+      
+      // Call the cleanup endpoint
+      const response = await fetch(`/api/service-records/delete-test-data?companyId=${companyId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Server responded with status ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log("Cleanup result:", result);
+      
+      toast.success(`Removed ${result.deletedCount} test records`);
+      
+      // Refresh the data
+      if (tableRef.current) {
+        tableRef.current.refetch();
+      }
+      
+    } catch (error) {
+      console.error("Error cleaning up test data:", error);
+      toast.error("Failed to clean up test data");
+    } finally {
+      setIsCleaningUp(false);
     }
   };
 
@@ -59,12 +115,26 @@ export function Service() {
             <h1 className="text-2xl font-bold">Service Records</h1>
           </div>
           
-          {companyId && (
-            <AddServiceModal 
-              customerId={companyId} 
-              onSuccess={handleServiceAdded} 
-            />
-          )}
+          <div className="flex items-center gap-2">
+            {companyId && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={handleCleanupTestData}
+                  disabled={isCleaningUp}
+                  className="flex items-center gap-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  {isCleaningUp ? 'Cleaning...' : 'Remove Test Data'}
+                </Button>
+                
+                <AddServiceModal 
+                  customerId={companyId} 
+                  onSuccess={handleServiceAdded} 
+                />
+              </>
+            )}
+          </div>
         </div>
       </div>
 

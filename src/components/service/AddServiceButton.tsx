@@ -218,7 +218,7 @@ export function AddServiceButton({ customerId, className, children }: AddService
           setOpen(true);
           generateCertificateNumber();
         }}
-        className={`bg-[#7b96d4] hover:bg-[#6a85c3] text-white ${className}`}
+        className={`bg-[#22c55e] hover:bg-[#16a34a] text-white ${className}`}
       >
         {children || (
           <>

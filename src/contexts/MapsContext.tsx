@@ -15,7 +15,8 @@ const MapsContext = createContext<MapsContextType | undefined>(undefined);
 const libraries: Libraries = ["places", "geocoding"];
 
 // Use the API key from the environment
-const MAPS_API_KEY = 'AIzaSyD60aJEPIY4wu6bj0cP-ATuDVJonjHNz3E';
+// const MAPS_API_KEY = 'AIzaSyD60aJEPIY4wu6bj0cP-ATuDVJonjHNz3E'; // Remove hardcoded key
+const MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 
 export function MapsProvider({ children }: { children: ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false);

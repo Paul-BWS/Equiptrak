@@ -14,7 +14,14 @@ export function Admin() {
   return (
     <div className="container mx-auto py-6 space-y-6 relative" style={{ backgroundColor: "#f5f5f5" }}>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Customer Management</h1>
+        <h1 className="text-2xl font-bold">Manage Companies</h1>
+        <Button 
+          onClick={() => setIsAddCustomerOpen(true)}
+          className="bg-[#15803d] hover:bg-opacity-90 text-white rounded-lg flex items-center gap-2 px-4 py-2"
+        >
+          <Plus className="h-5 w-5" />
+          Add Company
+        </Button>
       </div>
       
       <div className="relative">
@@ -30,14 +37,6 @@ export function Admin() {
       <div className="bg-white rounded-lg border shadow-sm p-6">
         <CustomerList searchQuery={searchQuery} />
       </div>
-      
-      {/* Floating Add Customer button */}
-      <Button 
-        onClick={() => setIsAddCustomerOpen(true)}
-        className="fixed bottom-8 right-8 rounded-full w-16 h-16 shadow-lg bg-[#7b96d4] hover:bg-[#6a85c3] flex items-center justify-center"
-      >
-        <Plus className="h-8 w-8" />
-      </Button>
       
       <CustomerDialogs.Create
         open={isAddCustomerOpen}

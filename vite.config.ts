@@ -43,9 +43,18 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
           ws: true,
-          onError: (err: Error) => {
-            console.error('❌ API Proxy Error:', err);
-          },
+          rewrite: (path) => path,
+          configure: (proxy, options) => {
+            proxy.on('error', (err, req, res) => {
+              console.error('❌ API Proxy Error:', err);
+            });
+            proxy.on('proxyReq', (proxyReq, req, res) => {
+              console.log('📤 Outgoing API Request:', req.method, req.url);
+            });
+            proxy.on('proxyRes', (proxyRes, req, res) => {
+              console.log('📥 Incoming API Response:', proxyRes.statusCode, req.url);
+            });
+          }
         } as ProxyOptions,
       },
       hmr: {

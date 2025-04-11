@@ -43,7 +43,7 @@ export function AddServiceModal({
     }}>
       <DialogTrigger asChild>
         <Button 
-          className="bg-[#a6e15a] hover:bg-[#95cc4f] text-white gap-2"
+          className="bg-[#22c55e] hover:bg-opacity-90 text-white gap-2"
           onClick={() => {
             console.log("Add Service button clicked");
             setOpen(true);

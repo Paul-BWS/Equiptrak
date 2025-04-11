@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from "@/contexts/AuthContext";
 
 type FormValues = {
   certificate_number: string;
@@ -58,7 +59,6 @@ export function AddServiceForm({
   onCancel
 }: AddServiceFormProps) {
   const queryClient = useQueryClient();
-  const [isGeneratingCertNumber, setIsGeneratingCertNumber] = useState(true);
   
   const {
     register,
@@ -89,43 +89,6 @@ export function AddServiceForm({
     }
   });
 
-  // Generate certificate number on load
-  useEffect(() => {
-    const generateCertificateNumber = async () => {
-      try {
-        // Get authentication token
-        const token = getAuthToken();
-        if (!token) {
-          throw new Error("Not authenticated");
-        }
-        
-        // Call our new API endpoint to get a sequential BWS-XXXX number
-        const response = await fetch('/api/generate-certificate-number', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Failed to generate certificate number: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        setValue("certificate_number", data.certificateNumber);
-      } catch (error) {
-        console.error("Error generating certificate number:", error);
-        // Fallback to a timestamp-based number if there's an error
-        const timestamp = Date.now().toString().slice(-6);
-        setValue("certificate_number", `BWS-MANUAL-${timestamp}`);
-      } finally {
-        setIsGeneratingCertNumber(false);
-      }
-    };
-    
-    generateCertificateNumber();
-  }, [setValue]);
-
   const testDate = watch("test_date");
   
   // Update retest date when test date changes
@@ -136,120 +99,51 @@ export function AddServiceForm({
     }
   }, [testDate, setValue]);
 
-  // Helper function to get auth token
-  const getAuthToken = () => {
-    const storedUser = localStorage.getItem('equiptrak_user');
-    if (!storedUser) return null;
-    
-    try {
-      const userData = JSON.parse(storedUser);
-      return userData.token || null;
-    } catch (e) {
-      console.error("Error parsing user data:", e);
-      return null;
-    }
-  };
-
   const onSubmit = async (values: FormValues) => {
     try {
-      // Ensure there's at least one equipment name provided
-      if (
-        !values.equipment1_name &&
-        !values.equipment2_name &&
-        !values.equipment3_name &&
-        !values.equipment4_name &&
-        !values.equipment5_name &&
-        !values.equipment6_name
-      ) {
-        toast.error("Please add at least one equipment name");
-        return;
-      }
-
-      let serviceRecord: Record<string, any> = {
-        company_id: customerId,
-        certificate_number: values.certificate_number,
-        service_date: values.test_date,
-        test_date: values.test_date,
-        retest_date: values.retest_date,
-        status: 'valid', // Default status
-        notes: values.notes,
-      };
-
-      // Handle the engineer
-      if (values.engineer_name) {
-        console.log("Engineer name from form:", values.engineer_name);
-        serviceRecord.engineer_name = values.engineer_name;
-      } else {
-        console.log("No engineer name provided in form");
-      }
-
-      // Add equipment values
-      if (values.equipment1_name) {
-        serviceRecord.equipment1_name = values.equipment1_name;
-        serviceRecord.equipment1_serial = values.equipment1_serial || '';
-      }
-      if (values.equipment2_name) {
-        serviceRecord.equipment2_name = values.equipment2_name;
-        serviceRecord.equipment2_serial = values.equipment2_serial || '';
-      }
-      if (values.equipment3_name) {
-        serviceRecord.equipment3_name = values.equipment3_name;
-        serviceRecord.equipment3_serial = values.equipment3_serial || '';
-      }
-      if (values.equipment4_name) {
-        serviceRecord.equipment4_name = values.equipment4_name;
-        serviceRecord.equipment4_serial = values.equipment4_serial || '';
-      }
-      if (values.equipment5_name) {
-        serviceRecord.equipment5_name = values.equipment5_name;
-        serviceRecord.equipment5_serial = values.equipment5_serial || '';
-      }
-      if (values.equipment6_name) {
-        serviceRecord.equipment6_name = values.equipment6_name;
-        serviceRecord.equipment6_serial = values.equipment6_serial || '';
-      }
+      console.log("Submitting service record:", values);
       
-      console.log("Full service record being sent:", JSON.stringify(serviceRecord, null, 2));
-
+      // Format the record according to your existing schema
+      const serviceRecord = {
+        company_id: customerId,
+        service_date: values.test_date,
+        retest_date: values.retest_date,
+        engineer_name: values.engineer_name,
+        notes: values.notes || '',
+        status: 'valid',
+        equipment1_name: values.equipment1_name || '',
+        equipment1_serial: values.equipment1_serial || '',
+        equipment2_name: values.equipment2_name || '',
+        equipment2_serial: values.equipment2_serial || '',
+        equipment3_name: values.equipment3_name || '',
+        equipment3_serial: values.equipment3_serial || '',
+        equipment4_name: values.equipment4_name || '',
+        equipment4_serial: values.equipment4_serial || '',
+        equipment5_name: values.equipment5_name || '',
+        equipment5_serial: values.equipment5_serial || '',
+        equipment6_name: values.equipment6_name || '',
+        equipment6_serial: values.equipment6_serial || '',
+      };
+      
       // Get auth token
       const token = getAuthToken();
-      if (!token) {
-        toast.error("Authentication error. Please log in again.");
-        return;
-      }
-
-      console.log("Sending POST request to /api/service-records");
+      
+      // Submit to your existing API endpoint
       const response = await fetch('/api/service-records', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token || ''}`
         },
         body: JSON.stringify(serviceRecord)
       });
-
+      
       if (!response.ok) {
-        // Try to parse the error response as JSON
-        let errorMessage;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || `Server responded with status ${response.status}`;
-          console.error("Server error response:", errorData);
-        } catch (e) {
-          // If it's not JSON, get the text
-          const errorText = await response.text();
-          errorMessage = `Server responded with status ${response.status}: ${errorText}`;
-          console.error("Server error response (text):", errorText);
-        }
-        
-        throw new Error(errorMessage);
+        throw new Error(`Server responded with status ${response.status}`);
       }
       
       const data = await response.json();
       console.log("Service record created successfully:", data);
-      console.log("Engineer data in created record:", {
-        engineer_name: data.record.engineer_name
-      });
       
       toast.success("Service record added successfully");
       
@@ -267,39 +161,28 @@ export function AddServiceForm({
     }
   };
 
+  const getAuthToken = () => {
+    try {
+      const storedUser = localStorage.getItem('equiptrak_user');
+      if (storedUser) {
+        try {
+          const userData = JSON.parse(storedUser);
+          return userData.token || null;
+        } catch (e) {
+          console.error("Error parsing user data:", e);
+          return null;
+        }
+      }
+      return null;
+    } catch (e) {
+      console.error("Error getting auth token:", e);
+      return null;
+    }
+  };
+
   return (
     <div className="p-6 bg-white">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <div className="grid grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <Label htmlFor="certificate-number">Certificate Number</Label>
-            <Input
-              id="certificate-number"
-              {...register("certificate_number")}
-              disabled={isGeneratingCertNumber}
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="engineer">Engineer</Label>
-            <Select 
-              onValueChange={(value) => setValue("engineer_name", value)}
-              defaultValue={watch("engineer_name")}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select engineer" />
-              </SelectTrigger>
-              <SelectContent>
-                {ENGINEERS.map((engineer) => (
-                  <SelectItem key={engineer} value={engineer}>
-                    {engineer}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        
         <div className="grid grid-cols-2 gap-6">
           <div className="space-y-2">
             <Label htmlFor="test-date">Issue Date</Label>
@@ -319,6 +202,25 @@ export function AddServiceForm({
               disabled
             />
           </div>
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="engineer">Engineer</Label>
+          <Select 
+            onValueChange={(value) => setValue("engineer_name", value)}
+            defaultValue={watch("engineer_name")}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select engineer" />
+            </SelectTrigger>
+            <SelectContent>
+              {ENGINEERS.map((engineer) => (
+                <SelectItem key={engineer} value={engineer}>
+                  {engineer}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         
         <div className="space-y-4">

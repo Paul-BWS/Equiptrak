@@ -67,177 +67,55 @@ export function CompanySimple() {
         }
         
         // Fetch company equipment
-        if (companyId === "0cd307a7-c938-49da-b005-17746587ca8a") {
-          // Directly use mock data for Acme
-          console.log('Using mock data for Acme');
-          const mockEquipment = [
-            {
-              id: "03a95e6b-8fb2-4619-b7e7-87ba2e39aa2c",
-              name: "MIG Welder",
-              serial_number: "675976597659978",
-              last_test_date: "2025-02-21 00:00:00+00",
-              next_test_date: "2026-02-20 00:00:00+00",
-              status: "valid"
-            },
-            {
-              id: "06ca3734-4208-44fd-ad2d-04b58a1d4f12",
-              name: "MIG Welder",
-              serial_number: "675976597659978",
-              last_test_date: "2025-02-21 00:00:00+00",
-              next_test_date: "2026-02-20 00:00:00+00",
-              status: "valid"
-            },
-            {
-              id: "24e7e90a-f6f3-4528-8200-487f47575d81",
-              name: "MIG Welder",
-              serial_number: "675976597659978",
-              last_test_date: "2025-02-21 00:00:00+00",
-              next_test_date: "2026-02-20 00:00:00+00",
-              status: "valid"
-            },
-            {
-              id: "2eb2ebad-d0ad-4793-aff9-f1faaefc0bf4",
-              name: "MIG Welder",
-              serial_number: "76987698769",
-              last_test_date: "2025-02-21 00:00:00+00",
-              next_test_date: "2026-02-20 00:00:00+00",
-              status: "valid"
-            },
-            {
-              id: "30b784f6-08ca-4089-996a-f487829dff3e",
-              name: "MIG welder",
-              serial_number: "798760987609",
-              last_test_date: "2025-02-21 00:00:00+00",
-              next_test_date: "2026-02-20 00:00:00+00",
-              status: "valid"
-            },
-            {
-              id: "360cb594-3774-41d9-a83c-0b373d2d7e6",
-              name: "MIG welder",
-              serial_number: "76987698769",
-              last_test_date: "2025-02-21 00:00:00+00",
-              next_test_date: "2026-02-20 00:00:00+00",
-              status: "valid"
-            },
-            {
-              id: "4bd786ca-4191-4b3c-a5fb-d097f98ed915",
-              name: "MIG welder",
-              serial_number: "1234567",
-              last_test_date: "2025-01-26 00:00:00+00",
-              next_test_date: "2026-01-25 00:00:00+00",
-              status: "valid"
-            },
-            {
-              id: "469ed82f-e806-4287-9e2a-3f8f09f1b5d29",
-              name: "MIG welder 400V",
-              serial_number: "78659765976",
-              last_test_date: "2025-01-26 00:00:00+00",
-              next_test_date: "2026-01-25 00:00:00+00",
-              status: "valid"
-            },
-            {
-              id: "63ca119c-be8a-426b-9f25-9d4fdfcc9c3",
-              name: "Dent Puller",
-              serial_number: "98798769876",
-              last_test_date: "2025-01-26 00:00:00+00",
-              next_test_date: "2026-01-25 00:00:00+00",
-              status: "valid"
-            },
-            {
-              id: "6d91758d-06fd-4012-acd9-5f5334a34dbc",
-              name: "Induction heater",
-              serial_number: "876987658765876",
-              last_test_date: "2025-01-26 00:00:00+00",
-              next_test_date: "2026-01-25 00:00:00+00",
-              status: "valid"
-            },
-            {
-              id: "4484e02e-203d-4cce-838d-63c5ee0ada7",
-              name: "Fiac 123",
-              serial_number: "76987698769",
-              last_test_date: "2025-01-31 00:00:00+00",
-              next_test_date: "2026-01-30 00:00:00+00",
-              status: "valid"
-            },
-            {
-              id: "45fe5e4c-c206-4da1-815f-4f7fb0a293bb",
-              name: "FIAC345",
-              serial_number: "76598758979",
-              last_test_date: "2025-02-21 00:00:00+00",
-              next_test_date: "2026-02-20 00:00:00+00",
-              status: "valid"
-            },
-            {
-              id: "a18c654d-fcbc-4522-9794-75bc2ea0075f",
-              name: "telwin",
-              serial_number: "76587648748",
-              last_test_date: "2025-01-27 00:00:00+00",
-              next_test_date: "2026-01-26 00:00:00+00",
-              status: "valid"
+        try {
+          if (companyId === "0cd307a7-c938-49da-b005-17746587ca8a") {
+            // Instead of using mock data for Acme, fetch from service_records
+            console.log('Fetching service records for Acme');
+            const { data: serviceRecords, error: serviceError } = await supabase
+              .from('service_records')
+              .select('*')
+              .eq('company_id', companyId);
+              
+            if (serviceError) {
+              console.error('Error fetching service records:', serviceError);
+              setEquipment([]);
+            } else if (serviceRecords && serviceRecords.length > 0) {
+              console.log('Service records fetched successfully:', serviceRecords);
+              
+              // Convert service records to equipment format
+              const equipmentItems: any[] = [];
+              
+              // Process all equipment fields from service_records 
+              serviceRecords.forEach((record: any) => {
+                // Process equipment1 through equipment8
+                for (let i = 1; i <= 8; i++) {
+                  const nameField = `equipment${i}_name` as keyof typeof record;
+                  const serialField = `equipment${i}_serial` as keyof typeof record;
+                  
+                  if (record[nameField] && record[serialField]) {
+                    equipmentItems.push({
+                      id: `${record.id}-${i}`, // Create unique ID
+                      name: record[nameField],
+                      serial_number: record[serialField],
+                      last_test_date: record.test_date,
+                      next_test_date: record.retest_date,
+                      status: getEquipmentStatus({
+                        next_test_date: record.retest_date
+                      })
+                    });
+                  }
+                }
+              });
+              
+              console.log('Converted equipment items:', equipmentItems);
+              setEquipment(equipmentItems);
+            } else {
+              console.log('No service records found for Acme');
+              setEquipment([]);
             }
-          ];
-          
-          // Add some overdue items
-          mockEquipment.push({
-            id: "overdue1",
-            name: "MIG Welder",
-            serial_number: "OV12345",
-            last_test_date: "2023-01-01 00:00:00+00",
-            next_test_date: "2024-01-01 00:00:00+00",
-            status: "overdue"
-          });
-          
-          mockEquipment.push({
-            id: "overdue2",
-            name: "Spot Welder",
-            serial_number: "OV67890",
-            last_test_date: "2023-02-01 00:00:00+00",
-            next_test_date: "2024-02-01 00:00:00+00",
-            status: "overdue"
-          });
-          
-          // Add upcoming items (due within 30 days)
-          const today = new Date();
-          const upcoming1 = new Date();
-          upcoming1.setDate(today.getDate() + 15);
-          
-          mockEquipment.push({
-            id: "upcoming1",
-            name: "Plasma Cutter",
-            serial_number: "UP12345",
-            last_test_date: "2024-01-01 00:00:00+00",
-            next_test_date: upcoming1.toISOString(),
-            status: "upcoming"
-          });
-          
-          const upcoming2 = new Date();
-          upcoming2.setDate(today.getDate() + 25);
-          
-          mockEquipment.push({
-            id: "upcoming2",
-            name: "TIG Welder",
-            serial_number: "UP67890",
-            last_test_date: "2024-02-01 00:00:00+00",
-            next_test_date: upcoming2.toISOString(),
-            status: "upcoming"
-          });
-          
-          setEquipment(mockEquipment);
-        } else {
-          // For other companies, try to fetch from the database
-          const { data: equipmentData, error: equipmentError } = await supabase
-            .from('equipment')
-            .select(`
-              *,
-              equipment_types(*)
-            `)
-            .eq('company_id', companyId);
-            
-          if (equipmentError) {
-            console.error('Error fetching equipment with company_id:', equipmentError);
-            
-            // Try with company_id as fallback
-            const { data: companyEquipment, error: companyEquipmentError } = await supabase
+          } else {
+            // For other companies, try to fetch from the database
+            const { data: equipmentData, error: equipmentError } = await supabase
               .from('equipment')
               .select(`
                 *,
@@ -245,16 +123,100 @@ export function CompanySimple() {
               `)
               .eq('company_id', companyId);
               
-            if (companyEquipmentError) {
-              console.error('Error fetching equipment with company_id:', companyEquipmentError);
-            } else if (companyEquipment && companyEquipment.length > 0) {
-              console.log('Equipment fetched with company_id successfully:', companyEquipment);
-              setEquipment(companyEquipment || []);
+            if (equipmentError) {
+              console.error('Error fetching equipment with company_id:', equipmentError);
+              
+              // Try fetching from service_records as fallback for all companies
+              const { data: serviceRecords, error: serviceError } = await supabase
+                .from('service_records')
+                .select('*')
+                .eq('company_id', companyId);
+                
+              if (serviceError) {
+                console.error('Error fetching service records:', serviceError);
+                setEquipment([]);
+              } else if (serviceRecords && serviceRecords.length > 0) {
+                console.log('Service records fetched successfully:', serviceRecords);
+                
+                // Convert service records to equipment format (same logic as above)
+                const equipmentItems: any[] = [];
+                
+                // Process all equipment fields from service_records 
+                serviceRecords.forEach((record: any) => {
+                  // Process equipment1 through equipment8
+                  for (let i = 1; i <= 8; i++) {
+                    const nameField = `equipment${i}_name` as keyof typeof record;
+                    const serialField = `equipment${i}_serial` as keyof typeof record;
+                    
+                    if (record[nameField] && record[serialField]) {
+                      equipmentItems.push({
+                        id: `${record.id}-${i}`, // Create unique ID
+                        name: record[nameField],
+                        serial_number: record[serialField],
+                        last_test_date: record.test_date,
+                        next_test_date: record.retest_date,
+                        status: getEquipmentStatus({
+                          next_test_date: record.retest_date
+                        })
+                      });
+                    }
+                  }
+                });
+                
+                console.log('Converted equipment items from service records:', equipmentItems);
+                setEquipment(equipmentItems);
+              } else {
+                console.log('No equipment or service records found');
+                setEquipment([]);
+              }
+            } else if (equipmentData && equipmentData.length > 0) {
+              console.log('Equipment fetched with company_id successfully:', equipmentData);
+              setEquipment(equipmentData);
+            } else {
+              // Try service records as fallback if no equipment found
+              const { data: serviceRecords, error: serviceError } = await supabase
+                .from('service_records')
+                .select('*')
+                .eq('company_id', companyId);
+                
+              if (serviceError) {
+                console.error('Error fetching service records:', serviceError);
+                setEquipment([]);
+              } else if (serviceRecords && serviceRecords.length > 0) {
+                // Same conversion logic as above
+                const equipmentItems: any[] = [];
+                
+                serviceRecords.forEach((record: any) => {
+                  for (let i = 1; i <= 8; i++) {
+                    const nameField = `equipment${i}_name` as keyof typeof record;
+                    const serialField = `equipment${i}_serial` as keyof typeof record;
+                    
+                    if (record[nameField] && record[serialField]) {
+                      equipmentItems.push({
+                        id: `${record.id}-${i}`,
+                        name: record[nameField],
+                        serial_number: record[serialField],
+                        last_test_date: record.test_date,
+                        next_test_date: record.retest_date,
+                        status: getEquipmentStatus({
+                          next_test_date: record.retest_date
+                        })
+                      });
+                    }
+                  }
+                });
+                
+                console.log('Converted equipment items from service records:', equipmentItems);
+                setEquipment(equipmentItems);
+              } else {
+                console.log('No equipment found');
+                setEquipment([]);
+              }
             }
-          } else {
-            console.log('Equipment fetched with company_id successfully:', equipmentData);
-            setEquipment(equipmentData || []);
           }
+        } catch (error) {
+          console.error('Error processing equipment data:', error);
+          setEquipment([]);
         }
       } catch (error) {
         console.error('Error fetching company data:', error);

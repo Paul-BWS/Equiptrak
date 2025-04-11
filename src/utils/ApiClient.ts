@@ -9,8 +9,10 @@ import { toast } from 'react-hot-toast';
 
 // API Configuration
 const API_CONFIG = {
-  // Base URL for API requests - empty string means relative to current origin
-  BASE_URL: '',
+  // Base URL for API requests
+  BASE_URL: process.env.NODE_ENV === 'production'
+    ? 'https://your-production-domain.com'
+    : 'http://localhost:3001',
   // Default timeout in milliseconds
   TIMEOUT: 30000,
   // Whether to log API requests and responses
@@ -84,10 +86,12 @@ class ApiClient {
       }
     }
 
-    // Prepare fetch options
+    // Prepare fetch options with credentials
     const config: RequestInit = {
       ...fetchOptions,
       headers,
+      credentials: 'include',
+      mode: 'cors'
     };
 
     if (API_CONFIG.DEBUG) {
@@ -95,9 +99,7 @@ class ApiClient {
       if (config.body) {
         console.log('Request Body:', 
           typeof config.body === 'string' 
-            ? config.body.length > 1000 
-              ? config.body.substring(0, 1000) + '...' 
-              : config.body 
+            ? JSON.parse(config.body)
             : config.body
         );
       }
@@ -210,9 +212,13 @@ class ApiClient {
     data: any,
     options: ApiClientOptions = {}
   ): Promise<ApiResponse<T>> {
+    const headers = new Headers();
+    headers.append('Content-Type', 'application/json');
+    
     return this.request<T>(endpoint, {
       method: 'POST',
       body: JSON.stringify(data),
+      headers,
       ...options,
     });
   }

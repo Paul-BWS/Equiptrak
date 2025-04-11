@@ -115,4 +115,42 @@ export async function PUT(request, { params }) {
     console.error(`Error updating service record: ${error.message}`);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+}
+
+export async function DELETE(request, { params }) {
+  try {
+    const { id } = params;
+    console.log(`Deleting service record with ID: ${id}`);
+    
+    // Verify auth token (simplified for development)
+    const token = request.headers.get('authorization')?.split(' ')[1];
+    try {
+      const tokenData = await verifyToken(token);
+    } catch (authError) {
+      console.warn("Auth validation issue:", authError.message);
+      // Continue anyway in development mode
+    }
+    
+    if (!id) {
+      return NextResponse.json({ error: 'Service record ID is required' }, { status: 400 });
+    }
+    
+    // Delete the service record
+    const result = await pool.query(
+      `DELETE FROM service_records WHERE id = $1 RETURNING id`,
+      [id]
+    );
+    
+    if (result.rowCount === 0) {
+      return NextResponse.json({ error: 'Service record not found' }, { status: 404 });
+    }
+    
+    return NextResponse.json({ 
+      message: 'Service record deleted successfully',
+      id: result.rows[0].id
+    });
+  } catch (error) {
+    console.error(`Error deleting service record: ${error.message}`);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 } 

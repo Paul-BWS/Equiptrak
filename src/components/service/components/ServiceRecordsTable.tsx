@@ -174,6 +174,17 @@ export const ServiceRecordsTable = forwardRef<ServiceRecordsTableRef, ServiceRec
   }
 
   if (error) {
+    // Check if it's a 404 error (no records)
+    if (error instanceof Error && error.message.includes('404')) {
+      return (
+        <div className="p-4 border rounded-lg bg-gray-50 text-gray-800">
+          <h3 className="font-semibold mb-2">No Service Records Found</h3>
+          <p>No service records for this company yet. Click the "Equipment Types" button to create one.</p>
+        </div>
+      );
+    }
+
+    // Handle other errors
     return (
       <div className="p-4 border rounded-lg bg-red-50 text-red-800">
         <h3 className="font-semibold mb-2">Error loading service records</h3>
@@ -262,8 +273,6 @@ export const ServiceRecordsTable = forwardRef<ServiceRecordsTableRef, ServiceRec
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50">
-              <th className="p-2 text-left">Equipment</th>
-              <th className="p-2 text-left">Serial Number</th>
               <th className="p-2 text-left">Certificate No.</th>
               <th className="p-2 text-left">Service Date</th>
               <th className="p-2 text-left">Retest Date</th>
@@ -278,17 +287,6 @@ export const ServiceRecordsTable = forwardRef<ServiceRecordsTableRef, ServiceRec
                 className="border-b hover:bg-muted/50 cursor-pointer"
                 onClick={() => setSelectedServiceId(row.id)}
               >
-                <td className="p-2">
-                  <div className="flex flex-col">
-                    <span>{row.equipment_name}</span>
-                    {row.equipmentCount > 1 && (
-                      <span className="text-xs text-muted-foreground">
-                        +{row.equipmentCount - 1} more items
-                      </span>
-                    )}
-                  </div>
-                </td>
-                <td className="p-2">{row.serial_number}</td>
                 <td className="p-2 font-medium">{row.certificate_number || "-"}</td>
                 <td className="p-2">
                   {row.service_date ? format(new Date(row.service_date), 'dd/MM/yyyy') : 'N/A'}

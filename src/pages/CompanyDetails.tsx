@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,17 +7,18 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building, User, Mail, Phone, Smartphone, Edit, Trash2, Plus, X, Save, ArrowLeft, Loader2, Globe, Wrench, ClipboardList, Users, MessageSquare, MessageCircle, NotepadText, Pencil, MapPin, CheckCircle, Clock, AlertTriangle } from "lucide-react";
+import { Building, User, Mail, Phone, Smartphone, Edit, Trash2, Plus, X, Save, ArrowLeft, Loader2, Globe, Wrench, ClipboardList, Users, MessageSquare, MessageCircle, NotepadText, Pencil, MapPin, CheckCircle, Clock, AlertTriangle, Image, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ContactInfoCard } from "@/components/contacts/ContactInfoCard";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Notes } from '@/components/shared/Notes';
-import { MapsProvider } from '@/components/maps/MapsContext';
+import { Notes, NotesRef } from '@/components/shared/Notes';
+import { MapsProvider } from '@/contexts/MapsContext';
 import { CompanyMap } from '@/components/maps/CompanyMap';
 import { ServiceRecordsTable } from "@/components/service/components/ServiceRecordsTable";
+import LogoUploader from '@/components/LogoUploader';
 
 interface Company {
   id: string;
@@ -35,6 +36,7 @@ interface Company {
   contact_phone?: string;
   created_at?: string;
   updated_at?: string;
+  logo_url?: string;
 }
 
 interface Contact {
@@ -48,6 +50,7 @@ interface Contact {
   is_primary: boolean;
   has_system_access: boolean;
   role?: 'user' | 'admin';
+  password?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -62,14 +65,11 @@ interface Equipment {
 
 // Component for Notes Section
 const NotesSection = ({ companyId, companyName }: { companyId: string, companyName: string }) => {
-  const [notesRef, setNotesRef] = useState<HTMLDivElement | null>(null);
+  const notesRef = useRef<NotesRef>(null);
 
   const handleAddNoteClick = () => {
-    if (notesRef) {
-      const addNoteButton = notesRef.querySelector('button');
-      if (addNoteButton) {
-        addNoteButton.click();
-      }
+    if (notesRef.current) {
+      notesRef.current.toggleAddNote();
     }
   };
 
@@ -84,70 +84,19 @@ const NotesSection = ({ companyId, companyName }: { companyId: string, companyNa
         </div>
         <Button
           onClick={handleAddNoteClick}
-          className="bg-[#a6e15a] hover:bg-opacity-90 text-white dark:bg-[#a6e15a] dark:text-white light:bg-white light:text-black light:border light:border-gray-300"
+          className="bg-[#22c55e] hover:bg-opacity-90 text-white"
         >
           <Plus className="mr-2 h-4 w-4" />
           Add Note
         </Button>
       </div>
       
-      <div ref={setNotesRef}>
-        <Notes 
-          companyId={companyId} 
-          isAdmin={false}
-          hideHeader={true}
-        />
-      </div>
-    </div>
-  );
-};
-
-// Component for Equipment Status Section
-const EquipmentStatusSection = ({ 
-  companyId, 
-  counts
-}: { 
-  companyId: string, 
-  counts: { valid: number, upcoming: number, expired: number } 
-}) => {
-  return (
-    <div className="flex-1 bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-      <div className="flex flex-row items-center mb-6">
-        <h2 className="text-xl font-semibold flex items-center">
-          <ClipboardList className="mr-2 h-6 w-6 text-purple-500" />
-          Equipment Status
-        </h2>
-      </div>
-      
-      <div className="flex justify-center md:justify-around items-center gap-4 md:gap-8 py-4">
-        <div className="flex flex-col items-center">
-          <div className="h-16 w-16 rounded-full bg-green-500 flex items-center justify-center mb-2">
-            <CheckCircle className="h-8 w-8 text-white" />
-          </div>
-          <span className="text-sm font-medium text-gray-700">Valid</span>
-          <span className="text-2xl font-bold">{counts.valid}</span>
-        </div>
-        
-        <div className="flex flex-col items-center">
-          <div className="h-16 w-16 rounded-full bg-yellow-500 flex items-center justify-center mb-2">
-            <Clock className="h-8 w-8 text-white" />
-          </div>
-          <span className="text-sm font-medium text-gray-700">Upcoming</span>
-          <span className="text-2xl font-bold">{counts.upcoming}</span>
-        </div>
-        
-        <div className="flex flex-col items-center">
-          <div className="h-16 w-16 rounded-full bg-red-500 flex items-center justify-center mb-2">
-            <AlertTriangle className="h-8 w-8 text-white" />
-          </div>
-          <span className="text-sm font-medium text-gray-700">Invalid</span>
-          <span className="text-2xl font-bold">{counts.expired}</span>
-        </div>
-      </div>
-
-      <div className="text-center text-sm text-gray-500 mt-4">
-        Data from company equipment service records
-      </div>
+      <Notes 
+        ref={notesRef}
+        companyId={companyId} 
+        isAdmin={false}
+        hideHeader={true}
+      />
     </div>
   );
 };
@@ -199,45 +148,59 @@ export default function CompanyDetails() {
   const [isUpdatingContact, setIsUpdatingContact] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
-  useEffect(() => {
-    const fetchCompanyData = async () => {
-      if (!id || !user?.token) return;
+  // Move fetchCompanyData outside useEffect
+  const fetchCompanyData = async () => {
+    if (!id || !user?.token) return;
+    
+    // Security check - verify user is authorized to access this company
+    if (user.role !== 'admin' && user.company_id !== id) {
+      console.error(`Unauthorized access: User ${user.email} (${user.role}) with company_id ${user.company_id} attempted to access company ${id}`);
+      toast({
+        variant: "destructive",
+        title: "Access Denied",
+        description: "You don't have permission to view this company"
+      });
+      navigate('/dashboard');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      console.log(`Fetching company data for ID: ${id}`);
       
-      // Security check - verify user is authorized to access this company
-      if (user.role !== 'admin' && user.company_id !== id) {
-        console.error(`Unauthorized access: User ${user.email} (${user.role}) with company_id ${user.company_id} attempted to access company ${id}`);
-        toast({
-          variant: "destructive",
-          title: "Access Denied",
-          description: "You don't have permission to view this company"
-        });
-        navigate('/dashboard');
-        return;
+      const response = await fetch(`/api/companies/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${user.token}`,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("API error:", errorText);
+        throw new Error(`Failed to fetch company data: ${response.status} ${errorText}`);
       }
       
+      const companyData = await response.json();
+      setCompany(companyData);
+      setEditFormData(companyData);
+      
+      // Initialize empty arrays for contacts and equipment since endpoints don't exist yet
+      setContacts([]);
+      setEquipment([]);
+      setEquipmentCounts({
+        valid: 0,
+        upcoming: 0,
+        expired: 0
+      });
+      
+      setError(null);
+      
+      // Fetch company contacts
       try {
-        setLoading(true);
-        console.log(`Fetching company data for ID: ${id}`);
-        
-        const response = await fetch(`/api/companies/${id}`, {
-          headers: {
-            'Authorization': `Bearer ${user.token}`,
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include'
-        });
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("API error:", errorText);
-          throw new Error(`Failed to fetch company data: ${response.status} ${errorText}`);
-        }
-        
-        const companyData = await response.json();
-        setCompany(companyData);
-        setEditFormData(companyData);
-        
-        // Fetch contacts
+        console.log(`Fetching contacts for company ID: ${id}`);
         const contactsResponse = await fetch(`/api/companies/${id}/contacts`, {
           headers: {
             'Authorization': `Bearer ${user.token}`,
@@ -245,51 +208,29 @@ export default function CompanyDetails() {
           },
           credentials: 'include'
         });
+        
         if (contactsResponse.ok) {
           const contactsData = await contactsResponse.json();
+          console.log(`Retrieved ${contactsData.length} contacts for company`);
           setContacts(contactsData);
+        } else {
+          console.error("Error fetching contacts:", await contactsResponse.text());
         }
-        
-        // Fetch equipment
-        const equipmentResponse = await fetch(`/api/companies/${id}/equipment`, {
-          headers: {
-            'Authorization': `Bearer ${user.token}`,
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include'
-        });
-        
-        if (equipmentResponse.ok) {
-          const equipmentData = await equipmentResponse.json();
-          setEquipment(equipmentData);
-          
-          // Calculate equipment counts
-          const counts = {
-            valid: 0,
-            upcoming: 0,
-            expired: 0
-          };
-          
-          equipmentData.forEach((item: Equipment) => {
-            if (item.status === 'valid') counts.valid++;
-            else if (item.status === 'upcoming') counts.upcoming++;
-            else if (item.status === 'expired') counts.expired++;
-          });
-          
-          setEquipmentCounts(counts);
-        }
-        
-        setError(null);
-      } catch (err) {
-        console.error("Error fetching company data:", err);
-        setError("Failed to load company data. Please try again later.");
-      } finally {
-        setLoading(false);
+      } catch (contactErr) {
+        console.error("Error fetching company contacts:", contactErr);
+        // Don't set the main error state, as we still have the company data
       }
-    };
+    } catch (err) {
+      console.error("Error fetching company data:", err);
+      setError("Failed to load company data. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchCompanyData();
-  }, [id, user?.token, user?.role, user?.company_id, user?.email, navigate, toast]);
+  }, [id, user?.token]);
 
   const handleBackClick = () => {
     navigate(-1);
@@ -366,6 +307,20 @@ export default function CompanyDetails() {
       if (newContact.has_system_access && !newContact.email) {
         throw new Error('Email is required for contacts with system access');
       }
+      
+      // If system access is enabled, role is required
+      if (newContact.has_system_access && !newContact.role) {
+        throw new Error('Role is required for contacts with system access');
+      }
+      
+      // Create request payload with guaranteed role when system access is enabled
+      const contactPayload = {
+        ...newContact,
+        company_id: id,
+        role: newContact.has_system_access ? (newContact.role || 'user') : undefined
+      };
+      
+      console.log('Sending contact creation request with data:', contactPayload);
 
       // Create the contact with all necessary information in a single call
       const response = await fetch(`/api/contacts`, {
@@ -374,10 +329,7 @@ export default function CompanyDetails() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${user.token}`,
         },
-        body: JSON.stringify({
-          ...newContact,
-          company_id: id,
-        }),
+        body: JSON.stringify(contactPayload),
         credentials: 'include'
       });
 
@@ -506,40 +458,72 @@ export default function CompanyDetails() {
     
     setIsUpdatingContact(true);
     try {
+      // Print what we're sending to help debug
+      const updateData = {
+        first_name: editingContact.first_name,
+        last_name: editingContact.last_name,
+        email: editingContact.email,
+        telephone: editingContact.telephone,
+        mobile: editingContact.mobile,
+        job_title: editingContact.job_title,
+        is_primary: editingContact.is_primary,
+        has_system_access: editingContact.has_system_access,
+        role: editingContact.role,
+        password: editingContact.password,
+        company_id: company.id
+      };
+      
+      console.log('Updating contact with data:', updateData);
+      
       const response = await fetch(`/api/contacts/${editingContact.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${user.token}`,
         },
-        body: JSON.stringify({
-          first_name: editingContact.first_name,
-          last_name: editingContact.last_name,
-          email: editingContact.email,
-          telephone: editingContact.telephone,
-          mobile: editingContact.mobile,
-          job_title: editingContact.job_title,
-          is_primary: editingContact.is_primary,
-          has_system_access: editingContact.has_system_access,
-          role: editingContact.role,
-          company_id: company.id
-        }),
+        body: JSON.stringify(updateData),
         credentials: 'include'
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update contact');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update contact');
       }
 
       const updatedContact = await response.json();
-      setContacts(prevContacts => prevContacts.map(contact =>
-        contact.id === updatedContact.id ? updatedContact : contact
-      ));
+      
+      // Update the contacts list with the new data
+      setContacts(prev => prev.map(c => c.id === editingContact.id ? updatedContact : c));
+      
+      // If a password was generated, show it to the user
+      if (updatedContact.generated_password) {
+        toast({
+          title: 'Contact Updated',
+          description: (
+            <div className="space-y-2">
+              <p>Contact updated successfully with system access.</p>
+              <div className="p-2 bg-gray-100 rounded border">
+                <p className="font-medium">Generated Password:</p>
+                <code className="block bg-white p-1 rounded mt-1">
+                  {updatedContact.generated_password}
+                </code>
+              </div>
+              <p className="text-sm text-gray-500">
+                Please save this password as it won't be shown again.
+              </p>
+            </div>
+          ),
+          duration: 20000 // Show for 20 seconds
+        });
+      } else {
+        toast({
+          title: 'Success',
+          description: 'Contact updated successfully'
+        });
+      }
+      
       setIsEditContactDialogOpen(false);
-      toast({
-        title: 'Success',
-        description: 'Contact updated successfully'
-      });
+      setEditingContact(null);
     } catch (error) {
       console.error('Error updating contact:', error);
       toast({
@@ -553,51 +537,50 @@ export default function CompanyDetails() {
   };
 
   const handleDeleteCompany = async () => {
-    if (!id || !user?.token) return;
+    if (!id || !user?.token) {
+      toast({
+        title: 'Error',
+        description: 'You must be logged in to delete a company',
+        variant: 'destructive'
+      });
+      return;
+    }
     
     try {
       setIsDeleting(true);
+      
+      // Make the DELETE request
       const response = await fetch(`/api/companies/${id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${user.token}`,
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
+          'Authorization': user.token.startsWith('Bearer ') ? user.token : `Bearer ${user.token}`
+        }
       });
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("API error:", errorText);
-        throw new Error(`Failed to delete company: ${response.status} ${errorText}`);
-      }
+      const data = await response.json();
       
-      setIsDeleteDialogOpen(false);
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete company');
+      }
       
       toast({
         title: 'Success',
-        description: 'Company has been deleted successfully',
+        description: 'Company deleted successfully',
         variant: 'default'
       });
       
-      // Force a small delay to ensure toast is visible before navigation
-      setTimeout(() => {
-        // Navigate back to the companies list - use the correct path
-        if (user.role === 'admin') {
-          navigate('/admin', { replace: true });
-        } else {
-          navigate('/dashboard', { replace: true });
-        }
-      }, 500);
+      navigate(user.role === 'admin' ? '/admin' : '/dashboard');
+      
     } catch (err) {
-      console.error("Error deleting company:", err);
+      console.error('Error:', err);
       toast({
         title: 'Error',
-        description: "Failed to delete company. Please try again later.",
+        description: err instanceof Error ? err.message : 'Failed to delete company',
         variant: 'destructive'
       });
-      setIsDeleteDialogOpen(false);
+    } finally {
       setIsDeleting(false);
+      setIsDeleteDialogOpen(false);
     }
   };
 
@@ -700,10 +683,26 @@ export default function CompanyDetails() {
               <div className="flex flex-col md:flex-row gap-6">
                 <Card className="flex-1 shadow-sm border-gray-200">
                   <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center text-xl font-semibold">
-                      <Building className="mr-2 h-6 w-6 text-blue-500" />
-                      {company.company_name}
-                    </CardTitle>
+                    <div className="flex items-center gap-3">
+                      <LogoUploader
+                        companyId={company.id}
+                        logoUrl={company.logo_url}
+                        onUploadComplete={(newLogoUrl) => {
+                          // Update local state immediately for better UX
+                          setCompany({
+                            ...company,
+                            logo_url: newLogoUrl
+                          });
+                          // Refresh all company data
+                          fetchCompanyData();
+                        }}
+                        inline
+                        size="sm"
+                      />
+                      <CardTitle className="flex items-center text-xl font-semibold">
+                        {company.company_name}
+                      </CardTitle>
+                    </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-y-4 gap-x-6">
@@ -820,9 +819,6 @@ export default function CompanyDetails() {
 
               {/* Notes Section (moved from tab) */}
               <NotesSection companyId={company.id} companyName={company.company_name} />
-
-              {/* Equipment Status Section */}
-              <EquipmentStatusSection companyId={company.id} counts={equipmentCounts} />
             </TabsContent>
             
             <TabsContent value="contacts" className="space-y-4">
@@ -834,7 +830,7 @@ export default function CompanyDetails() {
                       {company.company_name}
                     </h2>
                   </div>
-                  <Button size="sm" onClick={() => setIsAddContactDialogOpen(true)} className="bg-[#a6e15a] hover:bg-opacity-90 text-white">
+                  <Button size="sm" onClick={() => setIsAddContactDialogOpen(true)} className="bg-[#22c55e] hover:bg-opacity-90 text-white">
                     <Plus className="mr-2 h-4 w-4" />
                     Add Contact
                   </Button>
@@ -867,7 +863,7 @@ export default function CompanyDetails() {
                       {company.company_name}
                     </h2>
                   </div>
-                  <Button size="sm" className="bg-[#a6e15a] hover:bg-opacity-90 text-white">
+                  <Button size="sm" className="bg-[#22c55e] hover:bg-opacity-90 text-white">
                     <Plus className="mr-2 h-4 w-4" />
                     Add Job
                   </Button>
@@ -891,7 +887,7 @@ export default function CompanyDetails() {
                   </div>
                   <Button 
                     size="sm" 
-                    className="bg-[#a6e15a] hover:bg-opacity-90 text-white"
+                    className="bg-[#22c55e] hover:bg-opacity-90 text-white"
                     onClick={() => navigate(`/equipment-types?companyId=${id}`)}
                   >
                     <Plus className="mr-2 h-4 w-4" />
@@ -914,7 +910,7 @@ export default function CompanyDetails() {
                       {company.company_name}
                     </h2>
                   </div>
-                  <Button size="sm" className="bg-[#a6e15a] hover:bg-opacity-90 text-white">
+                  <Button size="sm" className="bg-[#22c55e] hover:bg-opacity-90 text-white">
                     <Plus className="mr-2 h-4 w-4" />
                     Add Personnel
                   </Button>
@@ -949,7 +945,7 @@ export default function CompanyDetails() {
                   
                   <div className="flex gap-2">
                     <Input placeholder="Type your message..." className="flex-1" />
-                    <Button className="bg-[#a6e15a] hover:bg-opacity-90 text-white">
+                    <Button className="bg-[#22c55e] hover:bg-opacity-90 text-white">
                       Send
                     </Button>
                   </div>
@@ -1192,6 +1188,8 @@ export default function CompanyDetails() {
                       setNewContact(prev => ({ 
                         ...prev, 
                         has_system_access: hasAccess,
+                        // Keep or set default role when enabling system access
+                        role: hasAccess ? (prev.role || 'user') : 'user',
                         // Clear password if disabling system access
                         password: hasAccess ? prev.password : undefined
                       }));
@@ -1203,13 +1201,15 @@ export default function CompanyDetails() {
                 {newContact.has_system_access && (
                   <div className="space-y-4 border rounded-lg p-4 bg-gray-50">
                     <div className="space-y-2">
-                      <Label htmlFor="role">Role</Label>
+                      <Label htmlFor="role">Role *</Label>
                       <Select 
-                        value={newContact.role}
+                        value={newContact.role || 'user'}
                         onValueChange={(value) => setNewContact(prev => ({ ...prev, role: value as 'user' | 'admin' }))}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select a role" />
+                          <SelectValue placeholder="Select a role">
+                            {newContact.role === 'user' ? 'User' : newContact.role === 'admin' ? 'Admin' : 'Select a role'}
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="user">User</SelectItem>
@@ -1247,7 +1247,7 @@ export default function CompanyDetails() {
                 </Button>
                 <Button 
                   type="submit"
-                  className="bg-a6e15a text-black hover:bg-opacity-90"
+                  className="bg-22c55e text-black hover:bg-opacity-90"
                   disabled={isAddingContact}
                 >
                   {isAddingContact ? 'Adding...' : 'Add Contact'}
@@ -1343,30 +1343,57 @@ export default function CompanyDetails() {
                     <Checkbox
                       id="edit_has_system_access"
                       checked={editingContact.has_system_access}
-                      onCheckedChange={(checked) => 
-                        setEditingContact(prev => prev ? ({ ...prev, has_system_access: checked === true }) : null)
-                      }
+                      onCheckedChange={(checked) => {
+                        const hasAccess = checked === true;
+                        setEditingContact(prev => prev ? ({ 
+                          ...prev, 
+                          has_system_access: hasAccess,
+                          // Explicitly set role to 'user' if enabling system access and no role is set
+                          role: hasAccess ? (prev.role || 'user') : undefined
+                        }) : null);
+                      }}
                     />
                     <Label htmlFor="edit_has_system_access">Enable System Access</Label>
                   </div>
                   
                   {editingContact.has_system_access && (
-                    <div className="space-y-2">
-                      <Label htmlFor="edit_role">User Role</Label>
-                      <Select
-                        value={editingContact.role || 'user'}
-                        onValueChange={(value) => 
-                          setEditingContact(prev => prev ? ({ ...prev, role: value as 'user' | 'admin' }) : null)
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a role" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="user">User</SelectItem>
-                          <SelectItem value="admin">Admin</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    <div className="space-y-4 border rounded-lg p-4 bg-gray-50">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit_role">User Role *</Label>
+                        <Select
+                          value={editingContact.role || 'user'}
+                          onValueChange={(value) => 
+                            setEditingContact(prev => prev ? ({ ...prev, role: value as 'user' | 'admin' }) : null)
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a role">
+                              {editingContact.role === 'user' ? 'User' : editingContact.role === 'admin' ? 'Admin' : 'User'}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="user">User</SelectItem>
+                            <SelectItem value="admin">Admin</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="edit_password">Password (Optional)</Label>
+                        <div className="flex space-x-2">
+                          <Input
+                            id="edit_password"
+                            type="text"
+                            value={editingContact.password || ''}
+                            onChange={(e) => setEditingContact(prev => prev ? ({ ...prev, password: e.target.value }) : null)}
+                            placeholder="Leave empty to auto-generate"
+                          />
+                        </div>
+                        <p className="text-sm text-gray-500">
+                          If left empty, a secure password will be generated automatically.
+                          Only needed when enabling system access for existing contacts.
+                        </p>
+                      </div>
                     </div>
                   )}
                 </div>
