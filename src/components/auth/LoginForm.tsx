@@ -1,44 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { PasswordResetForm } from "./PasswordResetForm";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-
-// Debug function to check derek's contact record
-const checkDerekContact = async () => {
-  // Check derek's contact record
-  const { data: derekContact, error: derekError } = await supabase
-    .from('contacts')
-    .select('*')
-    .eq('email', 'derek@acme.com');
-  
-  console.log('Derek contact check:', derekContact, derekError);
-  
-  // If we found a contact, check the company details
-  if (derekContact && derekContact.length > 0) {
-    const companyId = derekContact[0].company_id;
-    
-    const { data: companyData, error: companyError } = await supabase
-      .from('companies')
-      .select('*')
-      .eq('id', companyId)
-      .single();
-      
-    console.log('Company associated with derek:', companyData, companyError);
-    
-    // Also check the Acme company
-    const { data: acmeCompany, error: acmeError } = await supabase
-      .from('companies')
-      .select('*')
-      .eq('id', '0cd307a7-c938-49da-b005-17746587ca8a')
-      .single();
-      
-    console.log('Acme company data:', acmeCompany, acmeError);
-  }
-};
+import axios from "axios";
 
 export const LoginForm = () => {
   const [email, setEmail] = useState("");
@@ -48,11 +15,6 @@ export const LoginForm = () => {
   const navigate = useNavigate();
   const { signIn } = useAuth();
 
-  // Run the check on component mount
-  useEffect(() => {
-    checkDerekContact();
-  }, []);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -60,34 +22,28 @@ export const LoginForm = () => {
     try {
       console.log('Starting login process for:', email);
       
-      // Sign in with Supabase
-      const { data, error } = await supabase.auth.signInWithPassword({
+      // Sign in with our API
+      const response = await axios.post('/api/auth/login', {
         email,
         password,
       });
 
-      if (error) {
-        throw error;
-      }
+      const { token, user } = response.data;
 
-      if (!data.session) {
-        throw new Error('No session created');
+      if (!token || !user) {
+        throw new Error('Invalid response from server');
       }
 
       console.log('Login successful, checking user role...');
 
-      // Get user profile to check role
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', data.session.user.id)
-        .single();
+      // Call signIn from AuthContext with the token and user data
+      signIn(token, {
+        id: user.id,
+        email: user.email,
+        role: user.role
+      });
 
-      console.log('User profile:', profile);
-      const isAdmin = profile?.role === 'admin' || email === 'paul@basicwelding.co.uk';
-      console.log('Is admin?', isAdmin);
-
-      if (isAdmin) {
+      if (user.role === 'admin') {
         console.log('Redirecting to admin dashboard');
         navigate('/admin');
         toast.success('Welcome back, Admin!');
@@ -98,8 +54,7 @@ export const LoginForm = () => {
       }
     } catch (error: any) {
       console.error('Login error:', error);
-      toast.error(error.message || 'Failed to log in');
-      await supabase.auth.signOut();
+      toast.error(error.response?.data?.message || error.message || 'Failed to log in');
     } finally {
       setIsLoading(false);
     }

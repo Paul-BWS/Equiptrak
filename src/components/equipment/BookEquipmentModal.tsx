@@ -5,9 +5,9 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
+import db from "@/lib/db";
 
 interface BookEquipmentModalProps {
   equipmentId: string;
@@ -35,16 +35,10 @@ export function BookEquipmentModal({ equipmentId, open, onOpenChange }: BookEqui
     setIsSubmitting(true);
 
     try {
-      const { error } = await supabase
-        .from('equipment')
-        .update({
-          booking_status: 'booked',
-          booking_date: bookingDate,
-          booking_notes: bookingNotes || null
-        })
-        .eq('id', equipmentId);
-
-      if (error) throw error;
+      await db.query(
+        'UPDATE equipment SET booking_status = $1, booking_date = $2, booking_notes = $3 WHERE id = $4',
+        ['booked', bookingDate, bookingNotes || null, equipmentId]
+      );
 
       toast({
         title: "Success",

@@ -18,6 +18,30 @@ This project is built with .
 
 EquipTrack is a comprehensive equipment tracking and servicing application designed for businesses that need to manage and maintain industrial equipment.
 
+## Current Configuration
+
+### Important Setup Details
+- Backend runs on port 3001 (Express server)
+- Frontend runs on port 5173 (Vite development server)
+- Uses self-hosted PostgreSQL database (no Supabase)
+- Database host: 185.25.144.64
+- JWT authentication with token expiration
+- Main server file: server/index.js
+
+### Server Commands
+```bash
+# Kill all Node processes
+pkill -f node
+# or
+killall node
+
+# Start backend server (from project root)
+cd server && PORT=3001 node index.js
+
+# Start frontend server (from project root)
+npm run dev
+```
+
 ## Features
 
 - Equipment tracking and management
@@ -26,13 +50,15 @@ EquipTrack is a comprehensive equipment tracking and servicing application desig
 - Administrator and user interfaces
 - JWT-based authentication
 - Responsive design for desktop and mobile
+- Product management and pricing
+- Work order management
 
 ## Technologies
 
-- React (with Vite)
+- React 18+ (with Vite)
 - TypeScript
 - Express.js backend API
-- Self-hosted PostgreSQL database (no external service providers)
+- Self-hosted PostgreSQL database
 - TailwindCSS & shadcn/ui
 - JWT authentication
 
@@ -42,82 +68,60 @@ To set up the development environment:
 
 1. Clone the repository
 2. Install dependencies:
-```
+```bash
 npm install
 ```
-3. Start the development servers:
+3. Ensure PostgreSQL server is running
+4. Set up environment variables in server/.env:
+```env
+PORT=3001
+JWT_SECRET=your_jwt_secret
+POSTGRES_USER=your_db_user
+POSTGRES_PASSWORD=your_db_password
+POSTGRES_HOST=185.25.144.64
+POSTGRES_PORT=5432
+POSTGRES_DB=your_db_name
 ```
-npm run dev:server
-```
+5. Start the servers:
+   - Backend: `cd server && PORT=3001 node index.js`
+   - Frontend: `npm run dev`
 
-This will start the backend server from the `/server` directory on port 3001 and the frontend (Vite) on port 3000.
+## Database Tables
+Key tables in the system:
+- users (authentication and user management)
+- companies (client company information)
+- products (equipment and parts catalog)
+- equipment (installed equipment tracking)
+- service_records (maintenance history)
+- work_orders (service scheduling)
 
 ## Troubleshooting
 
-### API Connection Issues
-
-If you're experiencing issues with the frontend connecting to the API server, we've provided a diagnostic tool to help:
-
-```
-node scripts/fix-proxy.js
-```
-
-This script will:
-- Check if both servers are running
-- Test API connectivity
-- Verify the Vite proxy configuration
-- Provide recommendations to fix any issues
-
 ### Common Issues and Solutions
 
-#### Blank Screen in the Browser
-If you're seeing a blank screen when accessing the app:
+#### Blank Screen in Browser
+1. Check browser console for errors
+2. Verify both servers are running
+3. Check authentication token in localStorage
+4. Ensure database connection is active
 
-1. Check the browser console for errors
-2. Make sure both servers are running:
-   ```
-   npm run dev:server
-   ```
-3. Try accessing the test page to diagnose API connectivity:
-   ```
-   http://localhost:3000/test
-   ```
+#### Server Won't Start
+1. Check if port 3001 is already in use
+2. Verify PostgreSQL connection
+3. Confirm all environment variables are set
+4. Check server logs for specific errors
 
 #### Authentication Issues
-If you're getting logged out frequently or seeing authentication errors:
+1. Clear browser localStorage
+2. Verify JWT_SECRET in .env
+3. Check token expiration
+4. Confirm database connection
 
-1. Tokens expire after 7 days by default in development (30 days in production)
-2. Check your browser storage to ensure cookies and localStorage are enabled
-3. Try logging in again with the test credentials:
-   - Admin: admin@equiptrak.com / admin@2024
-   - User: user@equiptrak.com / user@2024
+## Additional Notes
+- Frontend uses Vite for development
+- API endpoints are authenticated using JWT tokens
+- Database backups are stored in /backups with date stamps
+- Server logs are available in /server/logs
+- Environment configurations are separate for development and production
 
-## Server Management
-
-The main server file is `server/index.js`, which handles all API endpoints including:
-- Authentication and user management
-- Company and equipment management
-- Service records and certificates
-- Work orders and maintenance tracking
-
-Server Commands:
-- Start both servers: `npm run dev:server` (Backend on 3001, Frontend on 3000)
-- Start backend only: `npm run server`
-- Start frontend only: `npm run dev`
-- Stop all servers: `npm run dev:stop`
-
-Server Configuration:
-- Default port: 3001 (configurable via PORT environment variable)
-- Database connection: PostgreSQL (configured via environment variables)
-- Authentication: JWT-based with token expiration
-- CORS enabled for localhost:3000 and localhost:5173
-
-Important Notes:
-- Make sure PostgreSQL is running before starting the server
-- Check .env file exists in the server directory with correct database credentials
-- Server logs will show successful database connection on startup
-- Test endpoint available at http://localhost:3001/api/test
-
-## Additional Resources
-
-For more detailed information about deployment, configuration, and advanced usage, please refer to the `DEPLOYMENT.md` file in this repository.
+For deployment information, refer to DEPLOYMENT.md in this repository.

@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import axios from "axios";
 
 interface PasswordResetFormProps {
   onBack: () => void;
@@ -17,15 +17,17 @@ export const PasswordResetForm = ({ onBack }: PasswordResetFormProps) => {
     setIsLoading(true);
     
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `https://equiptrack.basicwelding.co.uk/reset-password`,
-      });
-      if (error) throw error;
-      toast.success("Check your email for password reset instructions!");
-      onBack();
+      const response = await axios.post('/api/auth/reset-password', { email });
+      
+      if (response.status === 200) {
+        toast.success("Check your email for password reset instructions!");
+        onBack();
+      } else {
+        throw new Error('Failed to send reset instructions');
+      }
     } catch (error: any) {
       console.error("Password reset error:", error);
-      toast.error("Failed to send reset instructions. Please try again.");
+      toast.error(error.response?.data?.message || "Failed to send reset instructions. Please try again.");
     } finally {
       setIsLoading(false);
     }

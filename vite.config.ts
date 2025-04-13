@@ -70,7 +70,7 @@ export default defineConfig(({ mode }) => {
       }
     },
     optimizeDeps: {
-      entries: ['src/**/*.{ts,tsx}'],
+      include: ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query'],
       esbuildOptions: {
         // Node.js global to browser globalThis
         define: {

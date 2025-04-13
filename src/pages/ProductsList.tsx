@@ -73,7 +73,7 @@ export default function ProductsList() {
       setLoading(true);
       const response = await fetch(`/api/products?limit=${pagination.limit}&offset=${pagination.offset}&search=${encodeURIComponent(searchTerm)}`, {
         headers: {
-          'Authorization': `Bearer ${user?.token || localStorage.getItem('token')}`
+          'Authorization': `Bearer ${user?.token}`
         }
       });
 
@@ -107,7 +107,7 @@ export default function ProductsList() {
       // Fetch with the updated pagination
       const response = await fetch(`/api/products?limit=${newPagination.limit}&offset=${newPagination.offset}&search=${encodeURIComponent(searchTerm)}`, {
         headers: {
-          'Authorization': `Bearer ${user?.token || localStorage.getItem('token')}`
+          'Authorization': `Bearer ${user?.token}`
         }
       });
 
@@ -147,7 +147,7 @@ export default function ProductsList() {
       const syncResponse = await fetch('/api/products/sync', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${user?.token || localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${user?.token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -162,7 +162,7 @@ export default function ProductsList() {
       const costPriceResponse = await fetch('/api/products/sync-cost-prices', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${user?.token || localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${user?.token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -344,7 +344,7 @@ export default function ProductsList() {
                 <Card 
                   key={product.id} 
                   className="w-full cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => navigate(`/products/${product.shopify_product_id}`)}
+                  onClick={() => navigate(`/products/${product.id}`)}
                 >
                   <div className="flex flex-col sm:flex-row">
                     <div className="w-full sm:w-[150px] h-[150px] overflow-hidden bg-muted">

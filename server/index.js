@@ -5,6 +5,7 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { Pool } = require('pg');
+const path = require('path');
 
 console.log('Environment variables loaded:');
 console.log('PORT:', process.env.PORT || 3001);
@@ -45,6 +46,9 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json());
+
+// Make pool available to routes
+app.locals.pool = pool;
 
 // Test endpoint
 app.get('/api/test', (req, res) => {
@@ -377,18 +381,169 @@ app.delete('/api/service-records/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Disable all image uploads completely
-app.post('/api/images/*', (req, res) => {
-  res.status(503).json({ 
-    error: 'Image uploads are temporarily disabled' 
-  });
+// Get products with pagination and search
+app.get('/api/products', authenticateToken, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || '';
+    const offset = (page - 1) * limit;
+
+    let queryParams = [];
+    let searchCondition = '';
+    
+    if (search) {
+      queryParams.push(`%${search}%`);
+      searchCondition = 'WHERE title ILIKE $1';
+    }
+
+    // Get total count for pagination
+    const countQuery = `
+      SELECT COUNT(*) 
+      FROM products 
+      ${searchCondition}
+    `;
+    const countResult = await pool.query(countQuery, search ? queryParams : []);
+    const totalItems = parseInt(countResult.rows[0].count);
+
+    // Get paginated products
+    const productsQuery = `
+      SELECT * 
+      FROM products 
+      ${searchCondition}
+      ORDER BY created_at DESC 
+      LIMIT $${queryParams.length + 1} 
+      OFFSET $${queryParams.length + 2}
+    `;
+    
+    queryParams.push(limit, offset);
+    const productsResult = await pool.query(productsQuery, queryParams);
+
+    res.json({
+      items: productsResult.rows,
+      total: totalItems,
+      page,
+      totalPages: Math.ceil(totalItems / limit)
+    });
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
-// Return a 404 for any requests to the uploads directory
-app.use('/uploads/*', (req, res) => {
-  console.log('Image request blocked:', req.path);
-  // Return an empty response with status 204 instead of 404 to avoid browser console errors
-  res.status(204).end();
+// Get a single product by ID
+app.get('/api/products/:id', authenticateToken, async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const result = await pool.query(
+      'SELECT * FROM products WHERE id = $1',
+      [productId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error fetching product:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/products', authenticateToken, async (req, res) => {
+  try {
+    const {
+      name,
+      sku,
+      price,
+      description,
+      inventory_quantity,
+      category,
+      supplier,
+      cost_price,
+      trade_price,
+      shopify_product_id
+    } = req.body;
+    
+    const result = await pool.query(
+      `INSERT INTO products (
+        name, sku, price, description, inventory_quantity,
+        category, supplier, cost_price, trade_price, shopify_product_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      RETURNING *`,
+      [name, sku, price, description, inventory_quantity,
+       category, supplier, cost_price, trade_price, shopify_product_id]
+    );
+    
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating product:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.patch('/api/products/:id/price', authenticateToken, async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const { price } = req.body;
+    
+    const result = await pool.query(
+      'UPDATE products SET price = $1, updated_at = CURRENT_TIMESTAMP WHERE shopify_product_id = $2 RETURNING *',
+      [price, productId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating product price:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.patch('/api/products/:id/cost_price', authenticateToken, async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const { cost_price } = req.body;
+    
+    const result = await pool.query(
+      'UPDATE products SET cost_price = $1, updated_at = CURRENT_TIMESTAMP WHERE shopify_product_id = $2 RETURNING *',
+      [cost_price, productId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating product cost price:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.patch('/api/products/:id/list_price', authenticateToken, async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const { list_price } = req.body;
+    
+    const result = await pool.query(
+      'UPDATE products SET list_price = $1, updated_at = CURRENT_TIMESTAMP WHERE shopify_product_id = $2 RETURNING *',
+      [list_price, productId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating product list price:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Catch-all route for unmatched routes
