@@ -32,9 +32,35 @@ pool.query('SELECT NOW()', (err, res) => {
 
 const app = express();
 
+// Define allowed origins
+const allowedOrigins = [
+  'http://localhost:5173', 
+  'http://localhost:3000', 
+  'http://localhost:3001',
+  'https://equiptrak-vite.vercel.app',
+  'https://equiptrak-vite-3ixr3se72-paul-bws-projects.vercel.app'
+];
+
+// Add any additional origins from environment variable
+if (process.env.CORS_ORIGINS) {
+  const envOrigins = process.env.CORS_ORIGINS.split(',');
+  allowedOrigins.push(...envOrigins);
+}
+
+console.log('Allowed CORS origins:', allowedOrigins);
+
 // Configure CORS
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:3001'],
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = `The CORS policy for this site does not allow access from the specified origin: ${origin}`;
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
