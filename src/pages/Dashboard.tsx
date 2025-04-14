@@ -166,10 +166,10 @@ export default function Dashboard() {
         </div>
       ) : company ? (
         <div className="space-y-6">
-          {/* Company Logo Banner */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center">
-              <div className="flex items-center gap-3">
+          {/* Elevate the Company Card to be full width */}
+          <Card className="shadow-md hover:shadow-lg transition-shadow">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-4">
                 {company && (
                   <LogoUploader
                     companyId={company.id}
@@ -181,71 +181,52 @@ export default function Dashboard() {
                       });
                     }}
                     inline
-                    size="sm"
+                    size="md"
                   />
                 )}
                 <div>
-                  <h1 className="text-2xl font-bold">{company.company_name}</h1>
-                  <p className="text-muted-foreground">{getFormattedAddress(company)}</p>
+                  <CardTitle className="text-xl">
+                    {company.company_name}
+                  </CardTitle>
+                  <CardDescription>
+                    {getFormattedAddress(company)}
+                  </CardDescription>
                 </div>
               </div>
-            </div>
-          </div>
+            </CardHeader>
+          </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Company Card */}
-            <Card className="shadow-md hover:shadow-lg transition-shadow">
+          {/* Create a 2-column grid for Notes and Equipment Status */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Notes Section (Left Column) */}
+            <Card>
               <CardHeader className="pb-2">
-                <div className="flex items-center gap-3">
-                  {company && (
-                    <LogoUploader
-                      companyId={company.id}
-                      logoUrl={company.logo_url}
-                      onUploadComplete={(logoUrl) => {
-                        setCompany({
-                          ...company,
-                          logo_url: logoUrl
-                        });
-                      }}
-                      inline
-                      size="sm"
-                    />
-                  )}
-                  <div>
-                    <CardTitle className="flex items-center">
-                      {company.company_name}
-                    </CardTitle>
-                    <CardDescription>
-                      {getFormattedAddress(company)}
-                    </CardDescription>
-                  </div>
+                <div className="flex justify-between items-center">
+                  <CardTitle className="flex items-center">
+                    <MessageCircle className="mr-2 h-5 w-5 text-primary" />
+                    Notes
+                  </CardTitle>
+                  <Button
+                    onClick={() => notesRef.current?.toggleAddNote()}
+                    className="bg-a6e15a text-black hover:bg-opacity-90"
+                    size="sm"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Note
+                  </Button>
                 </div>
               </CardHeader>
-              <CardContent className="pb-2">
-                <div className="space-y-2">
-                  {company.telephone && (
-                    <p className="text-sm">📞 {company.telephone}</p>
-                  )}
-                  {company.website && (
-                    <p className="text-sm">🌐 {company.website}</p>
-                  )}
-                  <p className="text-sm text-muted-foreground">
-                    Added: {new Date(company.created_at || Date.now()).toLocaleDateString()}
-                  </p>
-                </div>
+              <CardContent>
+                <Notes
+                  ref={notesRef}
+                  companyId={company.id}
+                  isAdmin={false}
+                  hideHeader={true}
+                />
               </CardContent>
-              <CardFooter>
-                <Button 
-                  variant="default" 
-                  className="w-full bg-a6e15a text-black hover:bg-opacity-90"
-                  onClick={() => handleCompanyClick(company.id)}
-                >
-                  View Details
-                </Button>
-              </CardFooter>
             </Card>
-            
-            {/* Equipment Status Card */}
+
+            {/* Equipment Status Card (Right Column) */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center">
@@ -254,7 +235,8 @@ export default function Dashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex justify-between items-center px-4">
+                <div className="flex justify-around items-center text-center">
+                  {/* Valid */}
                   <div className="flex flex-col items-center">
                     <div className="rounded-full bg-green-500 w-16 h-16 flex items-center justify-center mb-2">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -262,9 +244,10 @@ export default function Dashboard() {
                       </svg>
                     </div>
                     <span className="text-sm font-medium">Valid</span>
-                    <span className="text-2xl font-bold">0</span>
+                    <span className="text-2xl font-bold">0</span> {/* Replace with actual count later */}
                   </div>
-                  
+
+                  {/* Upcoming */}
                   <div className="flex flex-col items-center">
                     <div className="rounded-full bg-amber-500 w-16 h-16 flex items-center justify-center mb-2">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -272,9 +255,10 @@ export default function Dashboard() {
                       </svg>
                     </div>
                     <span className="text-sm font-medium">Upcoming</span>
-                    <span className="text-2xl font-bold">0</span>
+                    <span className="text-2xl font-bold">0</span> {/* Replace with actual count later */}
                   </div>
-                  
+
+                  {/* Invalid */}
                   <div className="flex flex-col items-center">
                     <div className="rounded-full bg-red-500 w-16 h-16 flex items-center justify-center mb-2">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -282,7 +266,7 @@ export default function Dashboard() {
                       </svg>
                     </div>
                     <span className="text-sm font-medium">Invalid</span>
-                    <span className="text-2xl font-bold">0</span>
+                    <span className="text-2xl font-bold">0</span> {/* Replace with actual count later */}
                   </div>
                 </div>
                 <p className="text-sm text-center text-muted-foreground mt-4">
@@ -290,37 +274,9 @@ export default function Dashboard() {
                 </p>
               </CardContent>
             </Card>
-          </div>
-          
-          {/* Notes Section */}
-          <Card>
-            <CardHeader className="pb-2">
-              <div className="flex justify-between items-center">
-                <CardTitle className="flex items-center">
-                  <MessageCircle className="mr-2 h-5 w-5 text-primary" />
-                  Notes
-                </CardTitle>
-                <Button 
-                  onClick={() => notesRef.current?.toggleAddNote()}
-                  className="bg-a6e15a text-black hover:bg-opacity-90"
-                  size="sm"
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Note
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Notes 
-                ref={notesRef}
-                companyId={company.id} 
-                isAdmin={false}
-                hideHeader={true}
-              />
-            </CardContent>
-          </Card>
-          
-          {/* Recent Activity */}
+          </div> {/* End of 2-column grid */}
+
+          {/* Recent Activity (Below the grid, full width) */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center">

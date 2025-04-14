@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Plus, Pencil, Trash2, User, Mail, Phone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -8,16 +7,18 @@ import { EditContactModal } from "./EditContactModal";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Contact {
   id: string;
   company_id: string;
-  name: string;
-  position?: string;
+  first_name: string;
+  last_name: string;
+  email?: string;
   telephone?: string;
   mobile?: string;
-  email?: string;
-  is_user: boolean;
+  job_title?: string;
+  is_primary: boolean;
 }
 
 interface ContactsListProps {
@@ -31,19 +32,26 @@ export function ContactsList({ companyId }: ContactsListProps) {
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [deleteContactId, setDeleteContactId] = useState<string | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const fetchContacts = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("contacts")
-        .select("*")
-        .eq("company_id", companyId)
-        .order("name");
+      const response = await fetch(`/api/companies/${companyId}/contacts`, {
+        headers: {
+          'Authorization': `Bearer ${user?.token}`,
+          'Content-Type': 'application/json'
+        }
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error('Failed to fetch contacts');
+      }
+
+      const data = await response.json();
       setContacts(data || []);
     } catch (error: any) {
+      console.error('Error fetching contacts:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to load contacts",
@@ -55,27 +63,34 @@ export function ContactsList({ companyId }: ContactsListProps) {
   };
 
   useEffect(() => {
-    fetchContacts();
-  }, [companyId]);
+    if (companyId && user?.token) {
+      fetchContacts();
+    }
+  }, [companyId, user?.token]);
 
   const handleDelete = async () => {
-    if (!deleteContactId) return;
+    if (!deleteContactId || !user?.token) return;
 
     try {
-      const { error } = await supabase
-        .from("contacts")
-        .delete()
-        .eq("id", deleteContactId);
+      const response = await fetch(`/api/contacts/${deleteContactId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${user.token}`,
+          'Content-Type': 'application/json'
+        }
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error('Failed to delete contact');
+      }
 
+      setContacts(prev => prev.filter(c => c.id !== deleteContactId));
       toast({
         title: "Success",
         description: "Contact deleted successfully",
       });
-
-      fetchContacts();
     } catch (error: any) {
+      console.error('Error deleting contact:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete contact",
@@ -91,27 +106,31 @@ export function ContactsList({ companyId }: ContactsListProps) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold">Contacts</h2>
-        <Button 
-          onClick={() => setIsAddModalOpen(true)}
-          className="bg-[#a6e15a] hover:bg-[#95cc4f] text-white"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Contact
-        </Button>
+    <div>
+      <div className="mb-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-medium">Contacts</h2>
+          <Button 
+            onClick={() => setIsAddModalOpen(true)}
+            className="bg-a6e15a text-black hover:bg-opacity-90"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Contact
+          </Button>
+        </div>
       </div>
 
       {contacts.length === 0 ? (
-        <div className="text-center py-8 bg-gray-50 rounded-lg border">
-          <p className="text-gray-500">No contacts found for this company</p>
-          <Button 
+        <div className="text-center py-8 bg-gray-50 rounded-md border">
+          <p className="text-muted-foreground">No contacts found</p>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setIsAddModalOpen(true)}
-            variant="link"
-            className="mt-2"
+            className="mt-4"
           >
-            Add your first contact
+            <Plus className="h-4 w-4 mr-2" />
+            Add Contact
           </Button>
         </div>
       ) : (
@@ -123,9 +142,11 @@ export function ContactsList({ companyId }: ContactsListProps) {
                   <div className="flex justify-between items-center">
                     <div className="flex-1">
                       <div className="flex items-center gap-4 flex-wrap">
-                        <h3 className="font-medium text-lg">{contact.name}</h3>
-                        {contact.position && (
-                          <p className="text-sm text-gray-500">{contact.position}</p>
+                        <h3 className="font-medium text-lg">
+                          {contact.first_name} {contact.last_name}
+                        </h3>
+                        {contact.job_title && (
+                          <p className="text-sm text-gray-500">{contact.job_title}</p>
                         )}
                         
                         {/* Contact details in single line */}
@@ -157,8 +178,8 @@ export function ContactsList({ companyId }: ContactsListProps) {
                         </div>
                       </div>
                     </div>
-                    {contact.is_user && (
-                      <Badge className="bg-blue-100 text-blue-800">User</Badge>
+                    {contact.is_primary && (
+                      <Badge className="bg-blue-100 text-blue-800">Primary Contact</Badge>
                     )}
                   </div>
                 </div>
@@ -206,20 +227,20 @@ export function ContactsList({ companyId }: ContactsListProps) {
         />
       )}
 
-      {/* Delete Confirmation */}
-      <AlertDialog open={!!deleteContactId} onOpenChange={(open) => {
-        if (!open) setDeleteContactId(null);
-      }}>
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteContactId} onOpenChange={() => setDeleteContactId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete this contact. This action cannot be undone.
+              This action cannot be undone. This will permanently delete the contact.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogCancel onClick={() => setDeleteContactId(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

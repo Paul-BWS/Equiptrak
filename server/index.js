@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { Pool } = require('pg');
 const path = require('path');
+const { fetchShopifyProducts, updateShopifyProductPrice, updateShopifyProductCostPrice } = require('./src/services/shopify');
 
 console.log('Environment variables loaded:');
 console.log('PORT:', process.env.PORT || 3001);
@@ -33,10 +34,10 @@ const app = express();
 
 // Configure CORS
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:3001'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
 // Add request logging middleware
@@ -99,13 +100,13 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     const user = result.rows[0];
-    console.log('Found user:', { id: user.id, email: user.email, role: user.role });
+    console.log('Found user:', { id: user.id, email: user.email, role: user.role, company_id: user.company_id });
 
     // Skip password verification completely
     console.log('Bypassing password check');
     
     const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role },
+      { userId: user.id, email: user.email, role: user.role, company_id: user.company_id },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -115,7 +116,8 @@ app.post('/api/auth/login', async (req, res) => {
       user: {
         id: user.id,
         email: user.email,
-        role: user.role
+        role: user.role,
+        company_id: user.company_id
       },
       token
     });
@@ -189,10 +191,158 @@ app.get('/api/companies/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Get contacts for a specific company - returns empty array to avoid crashes
-app.get('/api/companies/:id/contacts', authenticateToken, (req, res) => {
-  console.log(`Fetching contacts for company ID: ${req.params.id}`);
-  res.json([]);
+// Get all contacts for a company
+app.get('/api/companies/:id/contacts', authenticateToken, async (req, res) => {
+  try {
+    const companyId = req.params.id;
+    console.log(`[Contacts Route] Received request for companyId: ${companyId}`);
+    console.log(`[Contacts Route] Authenticated user: ${JSON.stringify(req.user)}`);
+
+    const result = await pool.query(
+      `SELECT * FROM contacts
+       WHERE company_id = $1
+       ORDER BY first_name, last_name`,
+      [companyId]
+    );
+
+    console.log(`[Contacts Route] DB query returned ${result.rows.length} rows.`);
+    console.log(`[Contacts Route] DB query result: ${JSON.stringify(result.rows)}`);
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('[Contacts Route] Error fetching contacts:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get a single contact
+app.get('/api/contacts/:id', authenticateToken, async (req, res) => {
+  try {
+    const contactId = req.params.id;
+    const result = await pool.query(
+      'SELECT * FROM contacts WHERE id = $1',
+      [contactId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Contact not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error fetching contact:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Create a new contact
+app.post('/api/contacts', authenticateToken, async (req, res) => {
+  try {
+    const {
+      company_id,
+      first_name,
+      last_name,
+      email,
+      telephone,
+      mobile,
+      job_title,
+      is_primary
+    } = req.body;
+
+    // Validate required fields
+    if (!company_id || !first_name || !last_name) {
+      return res.status(400).json({ 
+        error: 'Company ID, first name, and last name are required' 
+      });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO contacts (
+        company_id,
+        first_name,
+        last_name,
+        email,
+        telephone,
+        mobile,
+        job_title,
+        is_primary
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *`,
+      [company_id, first_name, last_name, email, telephone, mobile, job_title, is_primary]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating contact:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update a contact
+app.put('/api/contacts/:id', authenticateToken, async (req, res) => {
+  try {
+    const contactId = req.params.id;
+    const {
+      first_name,
+      last_name,
+      email,
+      telephone,
+      mobile,
+      job_title,
+      is_primary
+    } = req.body;
+
+    // Validate required fields
+    if (!first_name || !last_name) {
+      return res.status(400).json({ 
+        error: 'First name and last name are required' 
+      });
+    }
+
+    const result = await pool.query(
+      `UPDATE contacts 
+       SET first_name = $1,
+           last_name = $2,
+           email = $3,
+           telephone = $4,
+           mobile = $5,
+           job_title = $6,
+           is_primary = $7,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $8
+       RETURNING *`,
+      [first_name, last_name, email, telephone, mobile, job_title, is_primary, contactId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Contact not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating contact:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete a contact
+app.delete('/api/contacts/:id', authenticateToken, async (req, res) => {
+  try {
+    const contactId = req.params.id;
+    const result = await pool.query(
+      'DELETE FROM contacts WHERE id = $1 RETURNING *',
+      [contactId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Contact not found' });
+    }
+
+    res.json({ message: 'Contact deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting contact:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Get notes for a specific company - returns empty array to avoid crashes
@@ -543,6 +693,118 @@ app.patch('/api/products/:id/list_price', authenticateToken, async (req, res) =>
   } catch (error) {
     console.error('Error updating product list price:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Sync products from Shopify to local database
+app.post('/api/products/sync', authenticateToken, async (req, res) => {
+  try {
+    // Fetch all products from Shopify
+    const shopifyProducts = await fetchShopifyProducts();
+    
+    // Start a transaction
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      
+      for (const product of shopifyProducts) {
+        const variant = product.variants[0]; // Get first variant
+        
+        // Update or insert product
+        await client.query(
+          `INSERT INTO products (
+            shopify_product_id,
+            shopify_variant_id,
+            name,
+            handle,
+            description,
+            price,
+            compare_at_price,
+            sku,
+            taxable,
+            inventory_quantity,
+            image_url,
+            last_synced_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP)
+          ON CONFLICT (shopify_product_id) DO UPDATE SET
+            name = EXCLUDED.name,
+            handle = EXCLUDED.handle,
+            description = EXCLUDED.description,
+            price = EXCLUDED.price,
+            compare_at_price = EXCLUDED.compare_at_price,
+            sku = EXCLUDED.sku,
+            taxable = EXCLUDED.taxable,
+            inventory_quantity = EXCLUDED.inventory_quantity,
+            image_url = EXCLUDED.image_url,
+            last_synced_at = CURRENT_TIMESTAMP`,
+          [
+            product.id,
+            variant.id,
+            product.title,
+            product.handle,
+            product.body_html,
+            variant.price,
+            variant.compare_at_price,
+            variant.sku,
+            product.taxable,
+            variant.inventory_quantity,
+            product.image?.src || null
+          ]
+        );
+      }
+      
+      await client.query('COMMIT');
+      
+      res.json({ 
+        success: true, 
+        message: `Successfully synced ${shopifyProducts.length} products from Shopify` 
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Error syncing products from Shopify:', error);
+    res.status(500).json({ error: 'Failed to sync products from Shopify' });
+  }
+});
+
+// Sync cost prices back to Shopify
+app.post('/api/products/sync-cost-prices', authenticateToken, async (req, res) => {
+  try {
+    // Get all products with cost prices
+    const result = await pool.query(
+      'SELECT shopify_product_id, cost_price FROM products WHERE cost_price IS NOT NULL'
+    );
+    
+    const updates = [];
+    for (const product of result.rows) {
+      try {
+        await updateShopifyProductCostPrice(product.shopify_product_id, product.cost_price);
+        updates.push({
+          shopify_product_id: product.shopify_product_id,
+          status: 'success'
+        });
+      } catch (error) {
+        console.error(`Error updating cost price for product ${product.shopify_product_id}:`, error);
+        updates.push({
+          shopify_product_id: product.shopify_product_id,
+          status: 'error',
+          error: error.message
+        });
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: `Attempted to sync ${result.rows.length} cost prices to Shopify`,
+      updates
+    });
+  } catch (error) {
+    console.error('Error syncing cost prices to Shopify:', error);
+    res.status(500).json({ error: 'Failed to sync cost prices to Shopify' });
   }
 });
 

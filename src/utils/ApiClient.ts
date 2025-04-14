@@ -12,7 +12,7 @@ const API_CONFIG = {
   // Base URL for API requests
   BASE_URL: process.env.NODE_ENV === 'production'
     ? 'https://your-production-domain.com'
-    : 'http://localhost:3001',
+    : '',  // Changed to use relative URLs
   // Default timeout in milliseconds
   TIMEOUT: 30000,
   // Whether to log API requests and responses
@@ -228,7 +228,7 @@ class ApiClient {
    */
   static async testConnection(): Promise<boolean> {
     try {
-      const response = await this.get('/api/health');
+      const response = await this.get('/api/test');
       return response.ok || response.status === 404;
     } catch (error) {
       console.error('API connection test failed:', error);

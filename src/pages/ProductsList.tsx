@@ -82,12 +82,12 @@ export default function ProductsList() {
       }
 
       const result = await response.json();
-      setProducts(result.data || []);
-      setPagination(result.pagination || {
-        total: 0,
-        limit: 50,
-        offset: 0,
-        hasMore: false
+      setProducts(result.items || []);
+      setPagination({
+        total: result.total || 0,
+        limit: pagination.limit,
+        offset: pagination.offset,
+        hasMore: (pagination.offset + pagination.limit) < result.total
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
@@ -116,12 +116,12 @@ export default function ProductsList() {
       }
 
       const result = await response.json();
-      setProducts(result.data || []);
-      setPagination(result.pagination || {
-        total: 0,
-        limit: 50,
-        offset: 0,
-        hasMore: false
+      setProducts(result.items || []);
+      setPagination({
+        total: result.total || 0,
+        limit: pagination.limit,
+        offset: pagination.offset,
+        hasMore: (pagination.offset + pagination.limit) < result.total
       });
       
       toast({
