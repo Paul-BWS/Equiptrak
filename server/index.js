@@ -1,12 +1,19 @@
+// Use dotenv-safe at the very top
+require('dotenv-safe').config({
+  allowEmptyValues: true, // Allow empty strings if needed
+  path: require('path').resolve(__dirname, '.env'),
+  example: require('path').resolve(__dirname, '.env.example')
+});
+
 // Simple server without any image handling
-require('dotenv').config({ path: __dirname + '/.env' });
+const path = require('path');
+// require('dotenv').config({ path: path.resolve(__dirname, '.env') }); // REMOVED - Handled by dotenv-safe
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { Pool } = require('pg');
-const path = require('path');
-const { fetchShopifyProducts, updateShopifyProductPrice, updateShopifyProductCostPrice } = require('./src/services/shopify');
+const { fetchShopifyProducts, updateShopifyProductPrice, updateShopifyProductCostPrice, updateShopifyVariantCost } = require('./src/services/shopify');
 
 console.log('Environment variables loaded:');
 console.log('PORT:', process.env.PORT || 3001);
@@ -37,6 +44,7 @@ const allowedOrigins = [
   'http://localhost:5173', 
   'http://localhost:3000', 
   'http://localhost:3001',
+  'http://localhost:3002',
   'https://equiptrak-vite.vercel.app',
   'https://equiptrak-vite-3ixr3se72-paul-bws-projects.vercel.app'
 ];
@@ -660,44 +668,154 @@ app.post('/api/products', authenticateToken, async (req, res) => {
 });
 
 app.patch('/api/products/:id/price', authenticateToken, async (req, res) => {
+  const productId = req.params.id;
+  const { price, variantId } = req.body; // Expect price and optional variantId in the body
+
+  console.log(`[PRICE_UPDATE] START - Product ID: ${productId}, Variant ID: ${variantId || 'default'}, New Price: ${price}`);
+
+  if (price === undefined || isNaN(parseFloat(price))) {
+    console.error('[PRICE_UPDATE] ERROR - Invalid or missing price received:', price);
+    return res.status(400).json({ error: 'Invalid or missing price' });
+  }
+
+  let client; // Define client outside try block for potential use in finally
   try {
-    const productId = req.params.id;
-    const { price } = req.body;
-    
-    const result = await pool.query(
-      'UPDATE products SET price = $1, updated_at = CURRENT_TIMESTAMP WHERE shopify_product_id = $2 RETURNING *',
-      [price, productId]
-    );
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Product not found' });
+    console.log('[PRICE_UPDATE] Connecting to database pool...');
+    // It's better practice to get a client from the pool for transactions or complex operations,
+    // but for a single query, pool.query is fine. Using it here for consistency.
+    // client = await pool.connect(); // Example if you needed a transaction
+
+    console.log('[PRICE_UPDATE] Querying local DB for Shopify IDs...');
+    const dbResult = await pool.query('SELECT shopify_product_id, shopify_variant_id FROM products WHERE id = $1', [productId]);
+    console.log('[PRICE_UPDATE] Local DB query completed.');
+
+    if (dbResult.rows.length === 0) {
+      console.warn(`[PRICE_UPDATE] Product ID ${productId} not found in local database.`);
+      return res.status(404).json({ error: 'Product not found in local database' });
+    }
+
+    const productData = dbResult.rows[0];
+    const shopifyProductId = productData.shopify_product_id;
+    const shopifyVariantId = variantId || productData.shopify_variant_id; 
+    console.log(`[PRICE_UPDATE] Found local data - Shopify Product ID: ${shopifyProductId}, Shopify Variant ID: ${shopifyVariantId}`);
+
+
+    if (!shopifyProductId) {
+        console.warn(`[PRICE_UPDATE] Product ID ${productId} does not have a linked Shopify Product ID.`);
+        return res.status(400).json({ error: 'Product does not have a linked Shopify Product ID' });
     }
     
-    res.json(result.rows[0]);
+    console.log(`[PRICE_UPDATE] Calling Shopify API - Product ID: ${shopifyProductId}, Variant ID: ${shopifyVariantId || '(using first variant)'}, Price: ${price}`);
+    // Call the Shopify service function
+    const shopifyUpdateResult = await updateShopifyProductPrice(shopifyProductId, price, shopifyVariantId);
+    console.log('[PRICE_UPDATE] Shopify API call successful:', shopifyUpdateResult);
+
+
+    console.log(`[PRICE_UPDATE] Updating local database price for Product ID: ${productId}`);
+    // Optionally: Update the price in the local database as well
+    await pool.query(
+      'UPDATE products SET price = $1, updated_at = NOW() WHERE id = $2',
+      [price, productId]
+    );
+    console.log(`[PRICE_UPDATE] Local database price updated for Product ID: ${productId}`);
+
+    console.log('[PRICE_UPDATE] Sending success response.');
+    res.json({ success: true, message: 'Price updated successfully in Shopify and local DB', shopifyData: shopifyUpdateResult });
+
   } catch (error) {
-    console.error('Error updating product price:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    // Log the detailed error, including potential response data from Shopify/Axios
+    console.error(`[PRICE_UPDATE] CRITICAL ERROR - Product ID ${productId}:`, error); 
+    if (error.response) {
+      // Axios error structure
+      console.error('[PRICE_UPDATE] Axios Error Data:', error.response.data);
+      console.error('[PRICE_UPDATE] Axios Error Status:', error.response.status);
+      console.error('[PRICE_UPDATE] Axios Error Headers:', error.response.headers);
+    } else if (error.request) {
+      // The request was made but no response was received
+      console.error('[PRICE_UPDATE] Axios No Response:', error.request);
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      console.error('[PRICE_UPDATE] Error Message:', error.message);
+    }
+    
+    const errorMessage = error.response?.data?.errors || error.message || 'Internal server error updating price';
+    console.error('[PRICE_UPDATE] Sending error response:', errorMessage);
+    res.status(500).json({ error: 'Failed to update price', details: errorMessage });
+  } finally {
+      console.log(`[PRICE_UPDATE] END - Product ID: ${productId}`);
+      // if (client) {
+      //   client.release(); // Release client if it was used
+      //   console.log('[PRICE_UPDATE] Database client released.');
+      // }
   }
 });
 
 app.patch('/api/products/:id/cost_price', authenticateToken, async (req, res) => {
+  const productId = req.params.id;
+  const { cost_price } = req.body;
+
+  console.log(`[COST_PRICE_UPDATE] START - Product ID: ${productId}, New Cost Price: ${cost_price}`);
+
+  if (cost_price === undefined || isNaN(parseFloat(cost_price))) {
+    console.error('[COST_PRICE_UPDATE] ERROR - Invalid or missing cost_price received:', cost_price);
+    return res.status(400).json({ error: 'Invalid or missing cost_price' });
+  }
+
   try {
-    const productId = req.params.id;
-    const { cost_price } = req.body;
-    
-    const result = await pool.query(
-      'UPDATE products SET cost_price = $1, updated_at = CURRENT_TIMESTAMP WHERE shopify_product_id = $2 RETURNING *',
+    console.log('[COST_PRICE_UPDATE] Querying local DB for Shopify Variant ID...');
+    // Fetch shopify_variant_id from the database
+    const dbResult = await pool.query('SELECT shopify_variant_id FROM products WHERE id = $1', [productId]);
+    console.log('[COST_PRICE_UPDATE] Local DB query completed.');
+
+    if (dbResult.rows.length === 0) {
+      console.warn(`[COST_PRICE_UPDATE] Product ID ${productId} not found in local database.`);
+      return res.status(404).json({ error: 'Product not found in local database' });
+    }
+
+    const shopifyVariantId = dbResult.rows[0].shopify_variant_id;
+    console.log(`[COST_PRICE_UPDATE] Found Shopify Variant ID: ${shopifyVariantId}`);
+
+    if (!shopifyVariantId) {
+      console.warn(`[COST_PRICE_UPDATE] Product ID ${productId} does not have a linked Shopify Variant ID.`);
+      return res.status(400).json({ error: 'Product does not have a linked Shopify Variant ID required for cost update.' });
+    }
+
+    console.log(`[COST_PRICE_UPDATE] Calling Shopify API to update variant cost - Variant ID: ${shopifyVariantId}, Cost Price: ${cost_price}`);
+    // Call the NEW Shopify service function with the VARIANT ID
+    const shopifyUpdateResult = await updateShopifyVariantCost(shopifyVariantId, cost_price);
+    console.log('[COST_PRICE_UPDATE] Shopify API call successful:', shopifyUpdateResult);
+
+    console.log(`[COST_PRICE_UPDATE] Updating local database cost_price for Product ID: ${productId}`);
+    const updateResult = await pool.query(
+      'UPDATE products SET cost_price = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
       [cost_price, productId]
     );
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Product not found' });
+    console.log(`[COST_PRICE_UPDATE] Local database cost_price updated for Product ID: ${productId}`);
+
+    if (updateResult.rows.length === 0) {
+        // This shouldn't happen if the first query found the product, but added as safety
+        console.error('[COST_PRICE_UPDATE] ERROR - Failed to update product in local DB after Shopify update.');
+        return res.status(404).json({ error: 'Product not found during local update' });
     }
-    
-    res.json(result.rows[0]);
+
+    console.log('[COST_PRICE_UPDATE] Sending success response.');
+    // Send back the updated product data from the local DB
+    res.json(updateResult.rows[0]); 
+
   } catch (error) {
-    console.error('Error updating product cost price:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error(`[COST_PRICE_UPDATE] CRITICAL ERROR - Product ID ${productId}:`, error);
+    if (error.response) {
+      console.error('[COST_PRICE_UPDATE] Axios Error Data:', error.response.data);
+      console.error('[COST_PRICE_UPDATE] Axios Error Status:', error.response.status);
+      console.error('[COST_PRICE_UPDATE] Axios Error Headers:', error.response.headers);
+    } else {
+      console.error('[COST_PRICE_UPDATE] Error Message:', error.message);
+    }
+    const errorMessage = error.response?.data?.errors || error.message || 'Internal server error updating cost price';
+    console.error('[COST_PRICE_UPDATE] Sending error response:', errorMessage);
+    res.status(500).json({ error: 'Failed to update cost price', details: errorMessage });
+  } finally {
+      console.log(`[COST_PRICE_UPDATE] END - Product ID: ${productId}`);
   }
 });
 

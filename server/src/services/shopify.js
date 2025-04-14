@@ -1,5 +1,4 @@
 const axios = require('axios');
-require('dotenv').config({ path: '../../.env' });
 
 const SHOPIFY_STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN;
 const SHOPIFY_ADMIN_ACCESS_TOKEN = process.env.SHOPIFY_ADMIN_ACCESS_TOKEN;
@@ -56,25 +55,44 @@ async function updateShopifyProductPrice(productId, price, variantId = null) {
 }
 
 // Update cost price as a metafield
-async function updateShopifyProductCostPrice(productId, costPrice) {
+async function updateShopifyVariantCost(variantId, costPrice) {
+  console.log(`[SHOPIFY_COST_UPDATE] Attempting to update cost for Variant ID: ${variantId} to ${costPrice}`);
+  if (!variantId) {
+    console.error('[SHOPIFY_COST_UPDATE] Error: Variant ID is required to update cost.');
+    throw new Error('Variant ID is required to update cost per item.');
+  }
+
   try {
-    const response = await shopifyApi.post(`/products/${productId}/metafields.json`, {
-      metafield: {
-        namespace: 'equiptrak',
-        key: 'cost_price',
-        value: costPrice.toString(),
-        type: 'number_decimal'
+    // 1. Get the variant data to find its inventory_item_id
+    console.log(`[SHOPIFY_COST_UPDATE] Fetching variant data for Variant ID: ${variantId}`);
+    const variantResponse = await shopifyApi.get(`/variants/${variantId}.json`);
+    const inventoryItemId = variantResponse.data.variant?.inventory_item_id;
+    console.log(`[SHOPIFY_COST_UPDATE] Found Inventory Item ID: ${inventoryItemId}`);
+
+    if (!inventoryItemId) {
+      console.error(`[SHOPIFY_COST_UPDATE] Error: Could not find inventory_item_id for Variant ID: ${variantId}`);
+      throw new Error(`Could not find inventory item ID for variant ${variantId}`);
+    }
+
+    // 2. Update the cost on the inventory item
+    console.log(`[SHOPIFY_COST_UPDATE] Updating cost for Inventory Item ID: ${inventoryItemId}`);
+    const inventoryUpdateResponse = await shopifyApi.put(`/inventory_items/${inventoryItemId}.json`, {
+      inventory_item: {
+        id: inventoryItemId,
+        cost: costPrice.toString() // Update the 'cost' field
       }
     });
-    return response.data.metafield;
+    console.log('[SHOPIFY_COST_UPDATE] Inventory item cost update successful.');
+    return inventoryUpdateResponse.data.inventory_item;
+
   } catch (error) {
-    console.error('Error updating product cost price in Shopify:', error);
-    throw error;
+    console.error(`[SHOPIFY_COST_UPDATE] Error updating Shopify variant cost for Variant ID ${variantId}:`, error.response ? JSON.stringify(error.response.data, null, 2) : error.message);
+    throw error; // Re-throw the error to be caught by the calling route
   }
 }
 
 module.exports = {
   fetchShopifyProducts,
   updateShopifyProductPrice,
-  updateShopifyProductCostPrice
+  updateShopifyVariantCost
 }; 
