@@ -9,7 +9,7 @@ import { useNavigate } from "react-router-dom";
 import ApiClient from "@/utils/ApiClient";
 
 // Define a version number for tracking deployments
-const APP_VERSION = "1.0.4";
+const APP_VERSION = "1.0.5";
 // Set to true to show detailed error information
 const DEBUG_MODE = true;
 
@@ -249,62 +249,6 @@ export function Login() {
                   </details>
                 )}
               </div>
-            </div>
-          )}
-          
-          {/* Debug button - only visible when debug mode is on */}
-          {DEBUG_MODE && (
-            <div className="mt-4">
-              <Button 
-                type="button" 
-                variant="outline"
-                className="w-full"
-                onClick={async () => {
-                  try {
-                    setIsLoading(true);
-                    setError('');
-                    setDebugInfo('Testing connection...');
-                    
-                    // Test basic endpoint
-                    const testResponse = await fetch(`${API_BASE_URL}/api/test`, {
-                      method: 'GET',
-                      mode: 'cors',
-                      credentials: 'include'
-                    });
-                    
-                    const testData = await testResponse.text();
-                    setDebugInfo(prev => prev + '\nBasic test: ' + (testResponse.ok ? 'OK' : 'Failed') + 
-                      '\nStatus: ' + testResponse.status +
-                      '\nResponse: ' + testData);
-                    
-                    // Test echo endpoint
-                    const echoResponse = await fetch(`${API_BASE_URL}/api/debug/echo`, {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json'
-                      },
-                      body: JSON.stringify({ 
-                        test: 'data',
-                        time: new Date().toISOString()
-                      }),
-                      mode: 'cors',
-                      credentials: 'include'
-                    });
-                    
-                    const echoData = await echoResponse.json();
-                    setDebugInfo(prev => prev + '\n\nEcho test: ' + (echoResponse.ok ? 'OK' : 'Failed') +
-                      '\nResponse: ' + JSON.stringify(echoData, null, 2));
-                    
-                  } catch (error) {
-                    setError('Connection test failed');
-                    setDebugInfo('Error: ' + (error instanceof Error ? error.message : String(error)));
-                  } finally {
-                    setIsLoading(false);
-                  }
-                }}
-              >
-                Test Server Connection
-              </Button>
             </div>
           )}
           
