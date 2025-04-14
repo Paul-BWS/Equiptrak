@@ -19,11 +19,24 @@
       "dest": "src/server/api.js"
     },
     {
+      "src": "/(.*\\.(js|css|svg|png|jpg|jpeg|gif|webp|ico))",
+      "headers": { 
+        "cache-control": "public, max-age=0, must-revalidate"
+      },
+      "dest": "/dist/$1"
+    },
+    {
       "src": "/(.*)",
+      "headers": { 
+        "cache-control": "public, max-age=0, must-revalidate"
+      },
       "dest": "/dist/$1"
     },
     {
       "src": "/",
+      "headers": { 
+        "cache-control": "public, max-age=0, must-revalidate"
+      },
       "dest": "/dist/index.html"
     }
   ],
