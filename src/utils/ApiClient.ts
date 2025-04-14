@@ -11,8 +11,8 @@ import { toast } from 'react-hot-toast';
 const API_CONFIG = {
   // Base URL for API requests
   BASE_URL: process.env.NODE_ENV === 'production'
-    ? 'https://your-production-domain.com'
-    : '',  // Changed to use relative URLs
+    ? '' // Use relative URLs in production
+    : '',  // Use relative URLs in development too
   // Default timeout in milliseconds
   TIMEOUT: 30000,
   // Whether to log API requests and responses

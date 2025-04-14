@@ -1,6 +1,11 @@
 // Check if we're running in a browser environment
 const isBrowser = typeof window !== 'undefined';
 
+// API base URL - use relative URL in production
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? '' // Use relative URL in production
+  : 'http://localhost:3001';
+
 // Helper function to make API calls
 async function apiCall<T>(endpoint: string, method: string = 'GET', body?: any): Promise<T[]> {
   console.log(`Making API call to: ${endpoint}, method: ${method}`);
@@ -9,7 +14,7 @@ async function apiCall<T>(endpoint: string, method: string = 'GET', body?: any):
   const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   
   try {
-    const response = await fetch(`http://localhost:3001/api${normalizedEndpoint}`, {
+    const response = await fetch(`${API_BASE_URL}/api${normalizedEndpoint}`, {
       method,
       headers: {
         'Content-Type': 'application/json',
