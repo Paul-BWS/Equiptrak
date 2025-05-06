@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
@@ -32,7 +32,8 @@ import {
   XCircle,
   Image as ImageIcon,
   Truck,
-  RefreshCw
+  RefreshCw,
+  CloudCog
 } from 'lucide-react';
 
 // Interface for the product data structure
@@ -67,6 +68,7 @@ interface ShopifyProduct {
     thirty: number;
   };
   list_price: number;
+  shopify_variant_id?: string;
 }
 
 // Function to safely format price
@@ -91,59 +93,70 @@ export default function ProductDetailsPage() {
   const [isSavingCost, setIsSavingCost] = useState(false);
   const [isSavingList, setIsSavingList] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSyncingSingle, setIsSyncingSingle] = useState(false);
   const { toast } = useToast();
 
-  // Fetch product details when component mounts
-  useEffect(() => {
-    const fetchProductDetails = async () => {
-      if (!productId) return;
-      
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/products/${productId}`, {
-          headers: {
-            'Authorization': `Bearer ${user?.token || localStorage.getItem('token')}`
-          }
-        });
+  // Memoize fetch function to avoid re-creating it on every render
+  const fetchProductDetails = useCallback(async () => {
+    if (!productId) return;
+    console.log(`Fetching product details from DB for ID: ${productId}`);
+    // Mark as loading ONLY if not already syncing/refreshing something else
+    // to avoid multiple spinners
+    if (!isSyncingSingle && !isRefreshing) {
+        setLoading(true); 
+    }
+    setError(null);
+    
+    try {
+      const response = await fetch(`/api/products/${productId}`, {
+        headers: {
+          'Authorization': `Bearer ${user?.token || localStorage.getItem('token')}`
+        }
+      });
 
-        if (!response.ok) {
-          throw new Error(`Error fetching product: ${response.status}`);
-        }
-
-        const data = await response.json();
-        
-        // Calculate trade price discounts if not already available
-        if (data.trade_price && !data.trade_price_discount) {
-          data.trade_price_discount = {
-            ten: data.trade_price * 0.9,
-            twenty: data.trade_price * 0.8,
-            thirty: data.trade_price * 0.7
-          };
-        }
-        
-        // Create dimensions object if individual dimensions are provided
-        if (!data.dimensions && (data.length || data.width || data.height)) {
-          data.dimensions = {
-            length: data.length || 0,
-            width: data.width || 0,
-            height: data.height || 0
-          };
-        }
-        
-        setProduct(data);
-        setPrice(data.price || 0);
-        setCostPrice(data.cost_price || 0);
-        setListPrice(data.list_price || 0);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An unknown error occurred');
-        console.error('Error fetching product details:', err);
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        throw new Error(`Error fetching product: ${response.status}`);
       }
-    };
 
+      const data = await response.json();
+      
+      // Calculate trade price discounts if not already available
+      if (data.trade_price && !data.trade_price_discount) {
+        data.trade_price_discount = {
+          ten: data.trade_price * 0.9,
+          twenty: data.trade_price * 0.8,
+          thirty: data.trade_price * 0.7
+        };
+      }
+      
+      // Create dimensions object if individual dimensions are provided
+      if (!data.dimensions && (data.length || data.width || data.height)) {
+        data.dimensions = {
+          length: data.length || 0,
+          width: data.width || 0,
+          height: data.height || 0
+        };
+      }
+      
+      setProduct(data);
+      setPrice(data.price || 0);
+      setCostPrice(data.cost_price || 0);
+      setListPrice(data.list_price || 0);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      console.error('Error fetching product details:', err);
+    } finally {
+      // Only set loading false if nothing else is running
+      if (!isSyncingSingle && !isRefreshing) {
+          setLoading(false);
+      }
+    }
+  }, [productId, user, isSyncingSingle, isRefreshing]);
+
+  // Fetch product details when component mounts or fetch function changes
+  useEffect(() => {
     fetchProductDetails();
-  }, [productId, user]);
+  }, [fetchProductDetails]);
 
   // Handle price updates
   const handlePriceUpdate = async () => {
@@ -265,69 +278,71 @@ export default function ProductDetailsPage() {
     }
   };
 
-  // Refresh product data from API
-  const refreshProductData = async () => {
-    if (!productId) return;
-    
+  // --- NEW: Handle Single Product Sync from Shopify ---
+  const handleSingleSync = async () => {
+    if (!product || !product.shopify_variant_id) {
+      toast({ variant: "destructive", title: "Cannot Sync", description: "Product is not linked to Shopify." });
+      return;
+    }
+    console.log(`Syncing single product from Shopify for local ID: ${productId}, Shopify Variant ID: ${product.shopify_variant_id}`);
+    setIsSyncingSingle(true);
+    setError(null);
     try {
-      setIsRefreshing(true);
-      const response = await fetch(`/api/products/${productId}`, {
+      const response = await fetch(`/api/products/${productId}/sync-single`, {
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': `Bearer ${user?.token || localStorage.getItem('token')}`
-        }
+        },
+        // No body needed, ID is in URL
       });
 
       if (!response.ok) {
-        throw new Error(`Error refreshing product data: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.details || `Error syncing product: ${response.status}`);
       }
 
-      const data = await response.json();
+      const updatedProductData = await response.json();
+      console.log("Single sync successful, received updated data:", updatedProductData);
       
-      // Log the data to check if description is included
-      console.log('Refreshed product data:', data);
-      console.log('Description received:', data.description);
-      
-      // Calculate trade price discounts if not already available
-      if (data.trade_price && !data.trade_price_discount) {
-        data.trade_price_discount = {
-          ten: data.trade_price * 0.9,
-          twenty: data.trade_price * 0.8,
-          thirty: data.trade_price * 0.7
-        };
-      }
-      
-      // Create dimensions object if individual dimensions are provided
-      if (!data.dimensions && (data.length || data.width || data.height)) {
-        data.dimensions = {
-          length: data.length || 0,
-          width: data.width || 0,
-          height: data.height || 0
-        };
-      }
-      
-      setProduct(data);
-      setPrice(data.price || 0);
-      setCostPrice(data.cost_price || 0);
-      setListPrice(data.list_price || 0);
-      
+      // Update state with the fresh data from the sync response
+      setProduct(updatedProductData);
+      setPrice(updatedProductData.price || 0);
+      setCostPrice(updatedProductData.cost_price || 0);
+      setListPrice(updatedProductData.list_price || 0);
+
       toast({
-        title: "Product refreshed",
-        description: "Latest product data has been loaded"
+        title: "Product Synced",
+        description: `${updatedProductData.name} updated from Shopify.`,
       });
+
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to refresh product data');
+      console.error('Error syncing single product:', err);
+      setError(err instanceof Error ? err.message : 'Failed to sync product');
       toast({
         variant: "destructive",
-        title: "Failed to refresh product",
+        title: "Sync Failed",
         description: err instanceof Error ? err.message : 'An unknown error occurred',
       });
     } finally {
-      setIsRefreshing(false);
+      setIsSyncingSingle(false);
     }
   };
 
+  // --- Refresh from DB Function (Keep or Modify) ---
+  const refreshFromDb = async () => {
+    console.log("Refreshing product data from DB for ID:", productId);
+    setIsRefreshing(true);
+    await fetchProductDetails(); // Just re-run the local fetch
+    setIsRefreshing(false);
+    toast({
+      title: "Product data refreshed",
+      description: "Product information reloaded from the database.",
+    });
+  };
+
   // Show loading state
-  if (loading) {
+  if (loading && !product) {
     return (
       <div className="container mx-auto p-6">
         <Button
@@ -351,7 +366,7 @@ export default function ProductDetailsPage() {
   }
 
   // Show error state
-  if (error) {
+  if (error && !product) {
     return (
       <div className="container mx-auto p-6">
         <Button
@@ -418,17 +433,35 @@ export default function ProductDetailsPage() {
               <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
           </div>
-          <div className="flex items-center">
+          <div className="flex items-center space-x-2"> 
             <Button 
               size="sm" 
               variant="outline"
-              disabled={isRefreshing}
-              onClick={refreshProductData}
-              className="mr-2"
+              disabled={isRefreshing || isSyncingSingle}
+              onClick={refreshFromDb}
+              className=""
             >
               <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              {isRefreshing ? 'Refreshing...' : 'Refresh Product'}
+              Refresh from DB
             </Button>
+            
+            {product.shopify_variant_id && (
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                onClick={handleSingleSync} 
+                disabled={isSyncingSingle || isRefreshing}
+                aria-label="Sync from Shopify"
+              >
+                {isSyncingSingle ? (
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> 
+                ) : (
+                    <CloudCog className="mr-2 h-4 w-4" />
+                )}
+                Sync from Shopify
+              </Button>
+            )}
+            
             {product.shopify_product_id && (
               <Button 
                 size="sm" 

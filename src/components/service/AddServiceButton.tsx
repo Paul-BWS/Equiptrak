@@ -337,7 +337,7 @@ export function AddServiceButton({ customerId, className, children }: AddService
               </Button>
               <Button 
                 type="submit" 
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                className="bg-[#21c15b] hover:bg-[#1ca54e] text-white"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? "Adding..." : "Add Record"}

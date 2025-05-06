@@ -17,7 +17,8 @@ import {
   Building,
   Database,
   ClipboardList,
-  Package
+  Package,
+  BellRing
 } from "lucide-react";
 
 export function Sidebar() {
@@ -40,7 +41,7 @@ export function Sidebar() {
   const canGoBack = window.history.length > 1;
   
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-[#7b96d4] text-white">
+    <div className="flex flex-col h-full bg-[#7b96d4] text-white dark:bg-[#1E2227]">
       <div className="p-4 border-b border-white/20 flex justify-between items-center">
         <h2 className="text-xl font-bold text-white">EquipTrack</h2>
         {isMobile && (
@@ -144,6 +145,20 @@ export function Sidebar() {
                   <Package className="mr-2 h-5 w-5" />
                   Products
                 </Button>
+                
+                <Button
+                  variant="ghost"
+                  className={`w-full justify-start text-white hover:bg-white/10 ${
+                    isActive("/admin-reminders") ? "bg-white/20" : ""
+                  }`}
+                  onClick={() => {
+                    navigate("/admin-reminders");
+                    if (isMobile) setIsOpen(false);
+                  }}
+                >
+                  <BellRing className="mr-2 h-5 w-5" />
+                  Reminders
+                </Button>
               </>
             ) : (
               // Regular user navigation
@@ -210,21 +225,26 @@ export function Sidebar() {
   
   if (isMobile) {
     return (
-      <Sheet open={isOpen} onOpenChange={setIsOpen}>
-        <SheetTrigger asChild>
-          <Button variant="ghost" size="icon" className="md:hidden">
-            <Menu className="h-5 w-5" />
-          </Button>
-        </SheetTrigger>
-        <SheetContent side="left" className="p-0 w-72">
-          {sidebarContent}
-        </SheetContent>
-      </Sheet>
+      <div className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b bg-white dark:bg-[#1E2227] px-4 md:hidden">
+        <Sheet open={isOpen} onOpenChange={setIsOpen}>
+          <div className="flex items-center">
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="md:hidden">
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <h1 className="ml-2 text-xl font-semibold">EquipTrack</h1>
+          </div>
+          <SheetContent side="left" className="p-0 w-[280px]">
+            {sidebarContent}
+          </SheetContent>
+        </Sheet>
+      </div>
     );
   }
   
   return (
-    <div className="hidden md:block w-72 border-r">
+    <div className="hidden md:block md:w-64 lg:w-56 xl:w-64 border-r shrink-0">
       {sidebarContent}
     </div>
   );

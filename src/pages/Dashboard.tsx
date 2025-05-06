@@ -38,6 +38,10 @@ interface Activity {
   type: string;
   description: string;
   date: string;
+  retest_date?: string;
+  engineer?: string;
+  certificate?: string;
+  status: 'valid' | 'upcoming' | 'invalid' | 'pending';
 }
 
 // Define the NotesRef interface to match the one in the Notes component
@@ -89,10 +93,28 @@ export default function Dashboard() {
         const companyData = await companyResponse.json();
         setCompany(companyData);
         
-        // Note: Equipment and activities endpoints appear to be unavailable
-        // Using empty arrays for now so UI still works
-        setEquipment([]);
-        setActivities([]);
+        // Fetch recent activities
+        try {
+          const activitiesResponse = await fetch(`/api/companies/${user.company_id}/recent-activity`, {
+            headers: {
+              'Authorization': `Bearer ${user?.token}`,
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include'
+          });
+          
+          if (activitiesResponse.ok) {
+            const activitiesData = await activitiesResponse.json();
+            setActivities(activitiesData);
+            console.log(`Fetched ${activitiesData.length} recent activities`);
+          } else {
+            console.error("Failed to fetch activities:", activitiesResponse.status);
+            setActivities([]);
+          }
+        } catch (activityError) {
+          console.error("Error fetching activities:", activityError);
+          setActivities([]);
+        }
         
         setError(null);
       } catch (err) {
@@ -290,14 +312,54 @@ export default function Dashboard() {
               ) : (
                 <div className="space-y-2">
                   {activities.slice(0, 5).map((activity) => (
-                    <div key={activity.id} className="flex justify-between border-b pb-2">
-                      <div>
-                        <p className="text-sm font-medium">{activity.type}</p>
-                        <p className="text-xs text-muted-foreground">{activity.description}</p>
+                    <div key={activity.id} className="flex items-center py-1 border-b">
+                      <div className="flex-shrink-0 w-20">
+                        <p className="text-xs font-medium">{activity.type}</p>
                       </div>
-                      <p className="text-xs text-muted-foreground">
+                      
+                      <div className="flex-shrink-0 w-16">
+                        {activity.status && (
+                          <span className={`inline-flex px-1 py-0.5 rounded-full text-xs ${
+                            activity.status === 'valid' 
+                              ? 'bg-green-100 text-green-800' 
+                              : activity.status === 'upcoming' 
+                              ? 'bg-amber-100 text-amber-800'
+                              : activity.status === 'invalid'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {activity.status.charAt(0).toUpperCase() + activity.status.slice(1)}
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="flex-grow mx-2">
+                        <span className="text-xs text-muted-foreground truncate block">
+                          {activity.description}
+                        </span>
+                      </div>
+                      
+                      <div className="flex-shrink-0 text-xs text-gray-500 w-20 text-center">
                         {new Date(activity.date).toLocaleDateString()}
-                      </p>
+                      </div>
+                      
+                      {activity.retest_date && (
+                        <div className="flex-shrink-0 text-xs text-gray-400 w-20 text-center">
+                          {new Date(activity.retest_date).toLocaleDateString()}
+                        </div>
+                      )}
+                      
+                      {activity.certificate && (
+                        <div className="flex-shrink-0 text-xs text-gray-600 w-16 text-center hidden sm:block">
+                          {activity.certificate}
+                        </div>
+                      )}
+                      
+                      {activity.engineer && (
+                        <div className="flex-shrink-0 text-xs text-gray-500 w-20 text-center hidden sm:block">
+                          {activity.engineer}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

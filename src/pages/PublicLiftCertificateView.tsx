@@ -173,7 +173,7 @@ export default function PublicLiftCertificateView() {
       <div className="flex justify-end items-center mb-6 print:hidden">
         <Button 
           onClick={handlePrint} 
-          className="bg-[#a6e15a] hover:bg-[#95cc4f] text-white"
+          className="bg-[#21c15b] hover:bg-[#1ba34b] text-white"
         >
           <Printer className="h-4 w-4 mr-2" />
           Print Certificate

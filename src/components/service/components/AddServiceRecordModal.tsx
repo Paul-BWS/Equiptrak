@@ -172,7 +172,7 @@ export function AddServiceRecordModal({ isOpen, onClose, customerId }: AddServic
             </Button>
             <Button 
               type="submit" 
-              className="bg-[#a6e15a] hover:bg-opacity-90 text-white dark:bg-[#a6e15a] dark:text-white light:bg-white light:text-black light:border light:border-gray-300"
+              className="bg-[#21c15b] hover:bg-[#1ca54e] text-white"
               disabled={isSubmitting}
             >
               {isSubmitting ? (

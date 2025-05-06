@@ -17,7 +17,8 @@ import {
   Printer,
   Filter,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Pencil
 } from "lucide-react";
 import { 
   Dialog, 
@@ -147,52 +148,37 @@ export default function LiftServiceList() {
     navigate(`/lift-certificate/${id}`);
   };
   
-  // Handle QR code generation
-  const handlePrintQRCode = async (id: string) => {
-    try {
-      // First check if we need to generate a token
-      const response = await axios.get(`/api/lift-service-records/${id}`, {
-        headers: getAuthHeaders()
-      });
-      
-      if (!response.data.public_access_token) {
-        // Generate public access token
-        await axios.post(`/api/lift-service-records/${id}/public-token`, null, {
-          headers: getAuthHeaders()
-        });
-        toast.success('QR Code generated successfully');
-      }
-      
-      // Navigate to QR code page
-      navigate(`/lift-certificate/${id}/qr`);
-    } catch (err) {
-      console.error('Error generating QR code:', err);
-      const errorMessage = err.response?.data?.message || err.message || 'Please try again.';
-      toast.error('Failed to generate QR code: ' + errorMessage);
-    }
+  // Handle printing QR code
+  const handlePrintQRCode = (id) => {
+    window.open(`/qr-print/lift-service/${id}`, '_blank');
   };
   
+  // Handle back navigation
   const handleBack = () => {
-    // If came from a company, go back to company
     if (companyIdParam) {
-      navigate(`/company/${companyIdParam}`);
+      navigate(`/equipment-types?companyId=${companyIdParam}`);
     } else {
-      // Otherwise go to equipment types
       navigate('/equipment-types');
     }
   };
   
-  // Get status badge color based on status
+  // Get status badge
   const getStatusBadge = (status) => {
-    switch(status) {
-      case 'valid':
-        return <Badge className="bg-green-500">Valid</Badge>;
+    if (!status) return <Badge variant="outline">Pending</Badge>;
+    
+    switch (status.toLowerCase()) {
+      case 'pass':
+      case 'passed':
+        return <Badge className="bg-green-100 text-green-800 hover:bg-green-200">Pass</Badge>;
+      case 'fail':
+      case 'failed':
+        return <Badge className="bg-red-100 text-red-800 hover:bg-red-200">Fail</Badge>;
+      case 'remedial':
+        return <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-200">Remedial</Badge>;
       case 'expired':
-        return <Badge className="bg-red-500">Expired</Badge>;
-      case 'due':
-        return <Badge className="bg-amber-500">Due Soon</Badge>;
+        return <Badge className="bg-red-100 text-red-800 hover:bg-red-200">Expired</Badge>;
       default:
-        return <Badge className="bg-gray-500">Unknown</Badge>;
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
   
@@ -304,7 +290,7 @@ export default function LiftServiceList() {
                   ? "No records match your current search criteria. Try adjusting your filters."
                   : "Get started by adding your first lift service record."}
               </p>
-              <Button onClick={handleAddNew} className="bg-[#a6e15a] hover:bg-[#95cc4f] text-white">
+              <Button onClick={handleAddNew} className="bg-[#21c15b] hover:bg-[#1ca54e] text-white">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Lift Service Record
               </Button>
@@ -353,10 +339,22 @@ export default function LiftServiceList() {
                       {getStatusBadge(record.status)}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end space-x-2">
+                      <div className="flex items-center justify-end gap-2">
                         <Button 
                           variant="ghost" 
-                          size="sm" 
+                          size="sm"
+                          className="h-8 w-8 p-0 text-blue-600 hover:bg-blue-100 hover:text-blue-800"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/lift-service/edit/${record.id}`);
+                          }}
+                          title="Edit Record"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
                           className="h-8 w-8 p-0"
                           onClick={(e) => {
                             e.stopPropagation();

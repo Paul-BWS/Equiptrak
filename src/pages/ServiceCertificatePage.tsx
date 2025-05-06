@@ -1,14 +1,79 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from "@/components/ui/button";
 import { Printer, ArrowLeft, QrCode } from "lucide-react";
-import { format } from "date-fns";
+import { format, parseISO, isValid } from "date-fns";
+
+// Add improved print styles for better formatting
+const printStyles = `
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  
+  .certificate-content, .certificate-content * {
+    visibility: visible;
+    overflow: visible !important;
+  }
+  
+  .certificate-content {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    width: 210mm;
+    height: auto;
+    margin: 0 auto;
+    padding: 20mm 15mm 10mm;
+    font-size: 95%;
+    overflow: visible;
+    page-break-after: avoid;
+    page-break-inside: avoid;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+  
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+  
+  .print\\:hidden {
+    display: none !important;
+  }
+  
+  img {
+    display: block !important;
+    visibility: visible !important;
+  }
+  
+  .signature-image {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  
+  .certificate-table th, .certificate-table td {
+    padding: 3px 6px;
+    border: 1px solid #e5e7eb;
+  }
+  
+  .certificate-table th {
+    background-color: #f9fafb;
+    font-weight: 500;
+  }
+}
+`;
 
 export default function ServiceCertificatePage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const companyIdParam = searchParams.get('companyId');
 
   // Helper function to get auth token
   const getAuthToken = () => {
@@ -105,57 +170,8 @@ export default function ServiceCertificatePage() {
     style.type = 'text/css';
     style.id = 'print-style-temp';
     
-    // This CSS hides everything except the certificate content
-    style.innerHTML = `
-      @media print {
-        @page {
-          size: A4 portrait;
-          margin: 0;
-        }
-        
-        body * {
-          visibility: hidden;
-        }
-        
-        .certificate-print-content, .certificate-print-content * {
-          visibility: visible;
-        }
-        
-        .certificate-print-content {
-          position: absolute;
-          left: 0;
-          top: 0;
-          width: 210mm;
-          height: 297mm;
-          padding: 10mm;
-          margin: 0;
-          box-sizing: border-box;
-          font-size: 10pt;
-          background-color: white !important;
-        }
-        
-        /* Force colors to print */
-        .certificate-print-content * {
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
-        
-        /* Ensure all content fits */
-        .certificate-print-content .mb-10 {
-          margin-bottom: 1.5rem !important;
-        }
-        
-        .certificate-print-content table {
-          font-size: 9pt !important;
-        }
-        
-        .certificate-print-content th,
-        .certificate-print-content td {
-          padding-top: 0.5rem !important;
-          padding-bottom: 0.5rem !important;
-        }
-      }
-    `;
+    // Use the improved print styles
+    style.innerHTML = printStyles;
     
     document.head.appendChild(style);
     
@@ -167,17 +183,71 @@ export default function ServiceCertificatePage() {
   };
 
   const handleBack = () => {
-    // Navigate back to the customer's service list using the company_id
-    if (serviceRecord?.company_id) {
+    // First priority: use company ID from URL
+    if (companyIdParam) {
+      navigate(`/service?companyId=${companyIdParam}`);
+    }
+    // Second priority: use company ID from the service record
+    else if (serviceRecord?.company_id) {
       navigate(`/service?companyId=${serviceRecord.company_id}`);
-    } else {
-      // Fallback to the main service list if no company_id is available
+    } 
+    // Fallback: go to the general service page
+    else {
       navigate('/service');
     }
   };
 
-  const handlePrintQR = () => {
-    navigate(`/certificate/${id}/qr`);
+  const handleQRCode = () => {
+    navigate(`/service-certificate/${id}/qr`);
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    
+    try {
+      const date = typeof dateString === 'string' ? parseISO(dateString) : new Date(dateString);
+      return isValid(date) ? format(date, 'd MMM yyyy') : 'N/A';
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'N/A';
+    }
+  };
+
+  // Process equipment items for display in certificate
+  const processEquipmentItems = () => {
+    if (!serviceRecord) return [];
+    
+    const items = [];
+    
+    // Process equipment items dynamically
+    for (let i = 1; i <= 8; i++) {
+      // Check both naming formats - DB format (equipment_name_${i}) and frontend format (equipment${i}_name)
+      const dbNameField = `equipment_name_${i}`;
+      const dbSerialField = `equipment_serial_${i}`;
+      const frontendNameField = `equipment${i}_name`;
+      const frontendSerialField = `equipment${i}_serial`;
+      
+      // Use the DB field names first, then try frontend field names as fallback
+      const name = serviceRecord[dbNameField] || serviceRecord[frontendNameField];
+      const serial = serviceRecord[dbSerialField] || serviceRecord[frontendSerialField];
+      
+      if (name) {
+        items.push({
+          type: name,
+          serial: serial || 'N/A'
+        });
+      }
+    }
+    
+    // Legacy fallback (keep as is)
+    if (items.length === 0 && serviceRecord.equipment_type) {
+      items.push({
+        type: serviceRecord.equipment_type,
+        serial: serviceRecord.serial_number || 'N/A'
+      });
+    }
+    
+    return items;
   };
 
   if (error) {
@@ -251,7 +321,7 @@ export default function ServiceCertificatePage() {
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back
               </Button>
-              <h1 className="text-2xl font-bold">Certificate Not Found</h1>
+              <h1 className="text-2xl font-bold">Service Certificate</h1>
             </div>
           </div>
         </div>
@@ -268,34 +338,11 @@ export default function ServiceCertificatePage() {
     );
   }
 
-  // Process equipment data
-  const equipmentItems = [];
-  
-  // Check for numbered equipment fields
-  for (let i = 1; i <= 6; i++) {
-    const nameField = `equipment${i}_name`;
-    const serialField = `equipment${i}_serial`;
-    
-    if (serviceRecord[nameField]) {
-      equipmentItems.push({
-        type: serviceRecord[nameField],
-        serial: serviceRecord[serialField] || 'N/A'
-      });
-    }
-  }
-  
-  // If no items found, try legacy fields
-  if (equipmentItems.length === 0 && serviceRecord.equipment_type) {
-    equipmentItems.push({
-      type: serviceRecord.equipment_type,
-      serial: serviceRecord.serial_number || 'N/A'
-    });
-  }
-
   // Get company details from serviceRecord
   const companyDetails = serviceRecord.company || {};
   const engineerName = serviceRecord.engineer_name || 'N/A';
   const certificateNumber = serviceRecord.certificate_number || `BWS-${id?.substring(0, 5)}`;
+  const equipmentItems = processEquipmentItems();
 
   console.log('Rendering certificate with data:', {
     companyName: companyDetails.company_name || companyDetails.name,
@@ -307,133 +354,145 @@ export default function ServiceCertificatePage() {
   });
 
   return (
-    <div className="min-h-screen bg-[#f8f9fc]">
-      {/* White Header Section */}
-      <div className="border-b bg-white shadow-sm print:hidden">
-        <div className="container mx-auto py-4 px-6 flex items-center justify-between">
-          <div className="flex items-center">
-            <Button 
+    <div className="bg-gray-100 min-h-screen">
+      {/* Full-width header */}
+      <div className="w-full bg-white shadow-sm print:hidden mb-6">
+        <div className="max-w-[95%] mx-auto py-3 flex justify-between items-center">
+          <div>
+            <Button
               variant="outline"
               onClick={handleBack}
-              className="mr-4"
+              className="flex items-center"
             >
-              <ArrowLeft className="mr-2 h-4 w-4" />
+              <ArrowLeft className="h-4 w-4 mr-2" />
               Back
             </Button>
-            <h1 className="text-2xl font-bold">Service Certificate</h1>
           </div>
           
-          <div className="flex gap-2">
+          <div className="font-semibold text-lg">
+            Service Certificate
+          </div>
+          
+          <div className="flex items-center space-x-3">
             <Button 
               variant="outline"
-              onClick={handlePrintQR}
-              className="flex items-center gap-2"
+              onClick={handleQRCode}
+              className="flex items-center"
             >
-              <QrCode className="h-4 w-4" />
-              Print QR
+              <QrCode className="h-4 w-4 mr-2" />
+              QR Code
             </Button>
             <Button 
               onClick={handlePrint}
-              className="bg-[#a6e15a] hover:bg-[#95cc4f] text-white flex items-center gap-2"
+              className="flex items-center"
             >
-              <Printer className="h-4 w-4" />
-              Print Certificate
+              <Printer className="h-4 w-4 mr-2" />
+              Print
             </Button>
           </div>
         </div>
       </div>
       
-      {/* Certificate Content - Clean Layout */}
-      <div className="container mx-auto py-6 px-4 max-w-4xl">
-        <div className="bg-white shadow-sm print:shadow-none p-6 certificate-print-content">
+      {/* Certificate Content - Centered, proper A4 size */}
+      <div className="container mx-auto px-4 pb-16 max-w-[210mm]">
+        <div className="certificate-content bg-white shadow-md rounded-md p-8 overflow-visible">
           {/* Certificate Header with Logo and Title */}
-          <div className="flex items-center justify-between mb-5 border-b pb-3">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center justify-center">
+          <div className="flex items-start mb-4 pb-2 border-b">
+            <div className="flex items-center space-x-4">
+              <div className="w-14 h-14 flex items-center justify-center bg-gray-800 p-2 rounded">
                 <img 
-                  src="/images/logo.png" 
+                  src="/images/bws-logo.png" 
                   alt="BWS Logo" 
-                  className="h-14 w-auto object-contain"
+                  className="max-w-full max-h-full"
                   onError={(e) => {
                     console.log('Logo image failed to load, using fallback');
+                    e.currentTarget.src = "/images/logo.png";
                   }}
                 />
               </div>
-              <h1 className="text-2xl font-bold">Calibration Certificate</h1>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-gray-500">Certificate Number</p>
-              <p className="text-xl font-bold">{certificateNumber}</p>
+              <div>
+                <h1 className="text-xl font-bold">Service and Inspection Report</h1>
+              </div>
             </div>
           </div>
-          
-          {/* Customer and Test Info in Two Columns */}
-          <div className="grid grid-cols-2 gap-6 mb-6">
+
+          {/* Certificate Number and Status */}
+          <div className="flex justify-between items-center pb-4 mb-4 border-b">
             <div>
-              <h2 className="font-bold text-lg mb-1">Customer</h2>
-              <p className="font-medium">{companyDetails.company_name || companyDetails.name || "N/A"}</p>
-              <p>{companyDetails.address || "N/A"}</p>
-              <p>{companyDetails.city || "N/A"}</p>
-              <p>{companyDetails.postcode || "N/A"}</p>
+              <span className="font-medium">Certificate Number:</span>
+              <span className="ml-2">{certificateNumber}</span>
             </div>
-            
-            <div>
-              <h2 className="font-bold text-lg mb-1">Test Information</h2>
-              <div className="grid grid-cols-[100px_1fr]">
-                <p className="font-medium">Test Date:</p>
-                <p>{serviceRecord.service_date ? format(new Date(serviceRecord.service_date), "dd/MM/yyyy") : "N/A"}</p>
-                
-                <p className="font-medium">Retest Date:</p>
-                <p>{serviceRecord.retest_date ? format(new Date(serviceRecord.retest_date), "dd/MM/yyyy") : "N/A"}</p>
-                
-                <p className="font-medium">Engineer:</p>
-                <p>{engineerName}</p>
+            <div className="flex items-center">
+              <span className="font-medium mr-2">Status:</span>
+              <div className="bg-green-100 text-green-800 px-3 py-1 rounded-sm font-medium">
+                PASS
               </div>
             </div>
           </div>
           
-          {/* Equipment Section */}
-          <div className="mb-6">
-            <h2 className="font-bold text-lg mb-2">Equipment</h2>
-            
-            <div className="border border-gray-200 rounded">
-              <table className="min-w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="px-3 py-2 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">
-                      Equipment Type
-                    </th>
-                    <th scope="col" className="px-3 py-2 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">
-                      Serial Number
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {equipmentItems.length > 0 ? (
-                    equipmentItems.map((item, index) => (
-                      <tr key={index}>
-                        <td className="px-3 py-2 text-sm text-gray-900">
-                          {item.type}
-                        </td>
-                        <td className="px-3 py-2 text-sm text-gray-500">
-                          {item.serial}
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={2} className="px-3 py-2 text-center text-sm text-gray-500">
-                        No equipment data available
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+          {/* Customer Info */}
+          <div className="mb-6 pb-4 border-b">
+            <h2 className="text-lg font-bold mb-2">Customer</h2>
+            <p className="font-medium">{companyDetails.company_name || "N/A"}</p>
+            <p className="text-gray-800">
+              {[
+                companyDetails.address,
+                companyDetails.city,
+                companyDetails.postcode,
+              ]
+                .filter(Boolean)
+                .join(", ")}
+            </p>
+          </div>
+          
+          {/* Test Information - 3 columns */}
+          <div className="grid grid-cols-3 gap-6 mb-6 pb-4 border-b">
+            <div>
+              <h3 className="font-medium mb-1">Test Date</h3>
+              <p>{formatDate(serviceRecord.test_date || serviceRecord.service_date)}</p>
+            </div>
+            <div>
+              <h3 className="font-medium mb-1">Retest Date</h3>
+              <p>{formatDate(serviceRecord.retest_date)}</p>
+            </div>
+            <div>
+              <h3 className="font-medium mb-1">Engineer</h3>
+              <p>{engineerName}</p>
             </div>
           </div>
           
+          {/* Equipment List */}
+          <div className="mb-6">
+            <h2 className="text-lg font-bold mb-3">Equipment Details</h2>
+            <table className="w-full certificate-table border-collapse">
+              <thead>
+                <tr>
+                  <th className="p-2 text-center font-medium border">Equipment Type</th>
+                  <th className="p-2 text-center font-medium border">Serial Number</th>
+                </tr>
+              </thead>
+              <tbody>
+                {/* Display available equipment items */}
+                {equipmentItems.map((item, index) => (
+                  <tr key={index}>
+                    <td className="p-2 text-center border">{item.type}</td>
+                    <td className="p-2 text-center border">{item.serial}</td>
+                  </tr>
+                ))}
+                
+                {/* Add empty rows to always have 6 rows total */}
+                {Array.from({ length: Math.max(0, 6 - equipmentItems.length) }).map((_, index) => (
+                  <tr key={`empty-${index}`}>
+                    <td className="p-2 text-center border">-</td>
+                    <td className="p-2 text-center border">-</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          
           {/* Function Tested Section */}
-          <div className="mb-8">
+          <div className="mb-6">
             <h2 className="font-bold text-lg mb-2">Function Tested</h2>
             <div className="p-3 border border-gray-200 rounded bg-gray-50 text-sm">
               <p className="mb-2">Electrical safety/Insulation. Voltage parameters and welding voltage insulation to earth.</p>
@@ -442,27 +501,38 @@ export default function ServiceCertificatePage() {
             </div>
           </div>
           
-          {/* Footer with Signature and Company Info */}
-          <div className="mt-auto pt-4 border-t flex justify-between items-end">
+          {/* Notes / Observations */}
+          {serviceRecord.notes && (
+            <div className="mb-6">
+              <h3 className="font-bold text-lg mb-2">Notes / Observations</h3>
+              <div className="p-3 border border-gray-200 rounded min-h-[60px]">
+                <p className="whitespace-pre-line">{serviceRecord.notes}</p>
+              </div>
+            </div>
+          )}
+          
+          {/* Signature and Company Info at the bottom */}
+          <div className="mt-auto pt-4 border-t flex justify-between items-start">
             <div>
-              <div className="mb-1">
+              <p className="text-sm font-medium mb-1">Signature</p>
+              <div className="w-32 h-14 flex items-center justify-center p-1">
                 <img 
                   src="/images/signature.png" 
                   alt="Engineer Signature" 
-                  className="h-14 w-auto object-contain"
+                  className="max-h-12 max-w-full signature-image"
                   onError={(e) => {
                     console.log('Signature image failed to load, using fallback');
                   }}
                 />
               </div>
-              <p className="font-medium">{engineerName}</p>
             </div>
             
             <div className="text-right text-sm">
-              <p className="font-semibold">BWS Ltd</p>
-              <p>232 Briscoe Lane, Manchester</p>
+              <p className="font-medium">Basic Welding Service LTD</p>
+              <p>232 Briscoe lane</p>
+              <p>Manchester</p>
               <p>M40 2XG</p>
-              <p>Tel: 0161 223 1843</p>
+              <p>0161 223 1843</p>
             </div>
           </div>
         </div>

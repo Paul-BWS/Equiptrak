@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Search, ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ServiceRecordsTable, ServiceRecordsTableRef } from "@/components/service/components/ServiceRecordsTable";
-import { AddServiceModal } from "@/components/service/modals/AddServiceModal";
 import { useTheme } from "@/components/theme-provider";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -128,10 +127,13 @@ export function Service() {
                   {isCleaningUp ? 'Cleaning...' : 'Remove Test Data'}
                 </Button>
                 
-                <AddServiceModal 
-                  customerId={companyId} 
-                  onSuccess={handleServiceAdded} 
-                />
+                <Button 
+                  className="bg-[#22c55e] hover:bg-opacity-90 text-white gap-2"
+                  onClick={() => navigate(`/service/new?companyId=${companyId}`)}
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Service Record
+                </Button>
               </>
             )}
           </div>

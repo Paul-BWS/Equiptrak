@@ -373,6 +373,7 @@ export interface Equipment {
   last_test_date: string;
   next_test_date: string;
   status: string;
+  certificate_number?: string;
 }
 
 export interface ServiceRecord {

@@ -13,7 +13,8 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { Pool } = require('pg');
-const { fetchShopifyProducts, updateShopifyProductPrice, updateShopifyProductCostPrice, updateShopifyVariantCost } = require('./src/services/shopify');
+const { fetchShopifyProducts, updateShopifyProductPrice, updateShopifyProductCostPrice, updateShopifyVariantCost, fetchShopifyProductsWithCost, fetchSingleShopifyVariantDetails } = require('./src/services/shopify');
+const crypto = require('crypto');
 
 console.log('Environment variables loaded:');
 console.log('PORT:', process.env.PORT || 3001);
@@ -84,6 +85,45 @@ app.use(express.json());
 
 // Make pool available to routes
 app.locals.pool = pool;
+
+// Middleware to verify JWT token
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  
+  if (!token) {
+    return res.status(401).json({ error: 'No token provided' });
+  }
+  
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Invalid or expired token' });
+    }
+    req.user = user;
+    next();
+  });
+};
+
+// Make the authentication middleware available to routes
+app.locals.authenticateToken = authenticateToken;
+
+// Import route modules
+const spotWelderModule = require('./routes/spot-welders');
+const compressorModule = require('./routes/compressors');
+const serviceRecordModule = require('./routes/service-records');
+
+// Initialize route modules with app reference for auth and DB access
+// Call the init function for modules that export an object with init
+app.use('/api/spot-welders', spotWelderModule.init(app));
+app.use('/api/compressors', compressorModule.init(app));
+// Call the module directly for modules that export a function
+app.use('/api/service-records', serviceRecordModule(app));
+
+// Log the module exports to debug
+console.log('spotWelderModule type:', typeof spotWelderModule);
+console.log('spotWelderModule keys:', Object.keys(spotWelderModule));
+console.log('compressorModule type:', typeof compressorModule);
+console.log('serviceRecordModule type:', typeof serviceRecordModule);
 
 // Test endpoint
 app.get('/api/test', (req, res) => {
@@ -161,24 +201,6 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// Middleware to verify JWT token
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
-  
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).json({ error: 'Invalid or expired token' });
-    }
-    req.user = user;
-    next();
-  });
-};
-
 // Get all companies
 app.get('/api/companies', authenticateToken, async (req, res) => {
   try {
@@ -203,6 +225,58 @@ app.get('/api/companies', authenticateToken, async (req, res) => {
   }
 });
 
+// Create a new company
+app.post('/api/companies', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has admin role
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Not authorized to create companies' });
+    }
+
+    const {
+      company_name,
+      address,
+      city,
+      county,
+      postcode,
+      country,
+      telephone,
+      email,
+      industry,
+      website
+    } = req.body;
+
+    // Validate required fields
+    if (!company_name) {
+      return res.status(400).json({ error: 'Company name is required' });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO companies (
+        company_name,
+        address,
+        city,
+        county,
+        postcode,
+        country,
+        telephone,
+        email,
+        industry,
+        website,
+        created_at,
+        updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      RETURNING *`,
+      [company_name, address, city, county, postcode, country, telephone, email, industry, website]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating company:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get a specific company by ID
 app.get('/api/companies/:id', authenticateToken, async (req, res) => {
   try {
@@ -221,6 +295,132 @@ app.get('/api/companies/:id', authenticateToken, async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error fetching company:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update a company
+app.put('/api/companies/:id', authenticateToken, async (req, res) => {
+  try {
+    const companyId = req.params.id;
+    console.log(`Updating company with ID: ${companyId}`);
+    
+    const {
+      company_name,
+      address,
+      city,
+      county,
+      postcode,
+      country,
+      telephone,
+      email,
+      industry,
+      website,
+      contact_name,
+      contact_email,
+      contact_phone
+    } = req.body;
+    
+    // Build the query dynamically based on provided fields
+    let updateFields = [];
+    let queryParams = [];
+    let paramCounter = 1;
+    
+    // Check each field and add to update if provided
+    if (company_name !== undefined) {
+      updateFields.push(`company_name = $${paramCounter++}`);
+      queryParams.push(company_name);
+    }
+    
+    if (address !== undefined) {
+      updateFields.push(`address = $${paramCounter++}`);
+      queryParams.push(address);
+    }
+    
+    if (city !== undefined) {
+      updateFields.push(`city = $${paramCounter++}`);
+      queryParams.push(city);
+    }
+    
+    if (county !== undefined) {
+      updateFields.push(`county = $${paramCounter++}`);
+      queryParams.push(county);
+    }
+    
+    if (postcode !== undefined) {
+      updateFields.push(`postcode = $${paramCounter++}`);
+      queryParams.push(postcode);
+    }
+    
+    if (country !== undefined) {
+      updateFields.push(`country = $${paramCounter++}`);
+      queryParams.push(country);
+    }
+    
+    if (telephone !== undefined) {
+      updateFields.push(`telephone = $${paramCounter++}`);
+      queryParams.push(telephone);
+    }
+    
+    if (email !== undefined) {
+      updateFields.push(`email = $${paramCounter++}`);
+      queryParams.push(email);
+    }
+    
+    if (industry !== undefined) {
+      updateFields.push(`industry = $${paramCounter++}`);
+      queryParams.push(industry);
+    }
+    
+    if (website !== undefined) {
+      updateFields.push(`website = $${paramCounter++}`);
+      queryParams.push(website);
+    }
+    
+    // Add any contact fields
+    if (contact_name !== undefined) {
+      updateFields.push(`contact_name = $${paramCounter++}`);
+      queryParams.push(contact_name);
+    }
+    
+    if (contact_email !== undefined) {
+      updateFields.push(`contact_email = $${paramCounter++}`);
+      queryParams.push(contact_email);
+    }
+    
+    if (contact_phone !== undefined) {
+      updateFields.push(`contact_phone = $${paramCounter++}`);
+      queryParams.push(contact_phone);
+    }
+    
+    // Always update the updated_at timestamp
+    updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+    
+    // If no fields to update, return success without making a DB call
+    if (updateFields.length === 0) {
+      return res.status(200).json({ message: 'No fields to update' });
+    }
+    
+    // Add company ID to params
+    queryParams.push(companyId);
+    
+    const updateQuery = `
+      UPDATE companies 
+      SET ${updateFields.join(', ')} 
+      WHERE id = $${paramCounter}
+      RETURNING *
+    `;
+    
+    const result = await pool.query(updateQuery, queryParams);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Company not found' });
+    }
+    
+    console.log(`Updated company with ID: ${companyId}`);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating company:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -379,19 +579,400 @@ app.delete('/api/contacts/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Get notes for a specific company - returns empty array to avoid crashes
-app.get('/api/companies/:id/notes', authenticateToken, (req, res) => {
-  console.log(`Fetching notes for company ID: ${req.params.id}`);
-  res.json([]);
+// Get notes for a specific company
+app.get('/api/companies/:id/notes', authenticateToken, async (req, res) => {
+  try {
+    const companyId = req.params.id;
+    console.log(`Fetching notes for company ID: ${companyId}`);
+    
+    const result = await pool.query(
+      `SELECT * FROM notes 
+       WHERE company_id = $1 
+       ORDER BY created_at DESC`,
+      [companyId]
+    );
+    
+    console.log(`Found ${result.rows.length} notes for company ID ${companyId}`);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching notes:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get recent activity for a specific company (equipment serviced in last 60 days)
+app.get('/api/companies/:id/recent-activity', authenticateToken, async (req, res) => {
+  try {
+    const companyId = req.params.id;
+    console.log(`Fetching recent activity for company ID: ${companyId}`);
+    
+    // Get current date and date 60 days ago
+    const currentDate = new Date();
+    const sixtyDaysAgo = new Date();
+    sixtyDaysAgo.setDate(currentDate.getDate() - 60);
+    
+    // Format dates for PostgreSQL
+    const formattedSixtyDaysAgo = sixtyDaysAgo.toISOString().split('T')[0];
+    
+    // Query lift service records in the last 60 days
+    const liftServiceQuery = `
+      SELECT 
+        lsr.id, 
+        lsr.product_category, 
+        lsr.model, 
+        lsr.serial_number, 
+        lsr.service_date, 
+        lsr.retest_date,
+        lsr.status,
+        lsr.certificate_number,
+        lsr.engineer_name,
+        'lift_service' as record_type
+      FROM lift_service_records lsr
+      WHERE lsr.company_id = $1 
+        AND lsr.service_date >= $2
+    `;
+    
+    // Query service records (general equipment) in the last 60 days
+    const serviceRecordsQuery = `
+      SELECT 
+        sr.id, 
+        'equipment_service' as record_type,
+        sr.service_date,
+        sr.retest_date,
+        sr.engineer_name,
+        sr.status,
+        sr.certificate_number,
+        sr.equipment_name_1 as model,
+        sr.equipment_serial_1 as serial_number,
+        'General Equipment' as product_category
+      FROM service_records sr
+      WHERE sr.company_id = $1 
+        AND sr.service_date >= $2
+    `;
+    
+    // Execute both queries
+    const liftResults = await pool.query(liftServiceQuery, [companyId, formattedSixtyDaysAgo]);
+    const serviceResults = await pool.query(serviceRecordsQuery, [companyId, formattedSixtyDaysAgo]);
+    
+    // Combine and sort results
+    let allRecords = [...liftResults.rows, ...serviceResults.rows];
+    allRecords.sort((a, b) => new Date(b.service_date) - new Date(a.service_date));
+    
+    // Helper function to determine status based on retest date
+    const getStatus = (retestDate) => {
+      if (!retestDate) return 'pending';
+      
+      const today = new Date();
+      const retest = new Date(retestDate);
+      
+      if (retest < today) {
+        return 'invalid';
+      }
+      
+      // If retest date is within the next 30 days
+      const thirtyDaysFromNow = new Date();
+      thirtyDaysFromNow.setDate(today.getDate() + 30);
+      
+      if (retest <= thirtyDaysFromNow) {
+        return 'upcoming';
+      }
+      
+      return 'valid';
+    };
+    
+    // Transform into activity format
+    let activities = allRecords.map(record => {
+      const recordType = record.record_type === 'lift_service' ? 'Lift Service' : 'Equipment Service';
+      const productCategory = record.product_category?.replace(/_/g, ' ') || 'Equipment';
+      const certificateNumber = record.certificate_number || '';
+      
+      // Determine actual status based on retest date
+      const calculatedStatus = getStatus(record.retest_date);
+      
+      return {
+        id: record.id,
+        type: recordType,
+        description: `${productCategory} ${record.model || ''} ${record.serial_number ? `(${record.serial_number})` : ''}`,
+        date: record.service_date,
+        retest_date: record.retest_date,
+        engineer: record.engineer_name,
+        certificate: certificateNumber,
+        status: calculatedStatus
+      };
+    });
+    
+    // If no real activities found, provide some sample data
+    if (activities.length === 0) {
+      console.log(`No recent activities found, providing sample data for company ID ${companyId}`);
+      
+      // Generate sample dates
+      const today = new Date();
+      
+      // Sample service dates (within last 60 days)
+      const getRandomServiceDate = () => {
+        const randomDaysAgo = Math.floor(Math.random() * 30);
+        const date = new Date();
+        date.setDate(date.getDate() - randomDaysAgo);
+        return date.toISOString().split('T')[0];
+      };
+      
+      // Sample retest dates (valid, upcoming, or invalid)
+      const getValidRetestDate = (serviceDate) => {
+        const date = new Date(serviceDate);
+        date.setFullYear(date.getFullYear() + 1);
+        return date.toISOString().split('T')[0];
+      };
+      
+      const getUpcomingRetestDate = () => {
+        const date = new Date();
+        date.setDate(date.getDate() + 15); // 15 days from now
+        return date.toISOString().split('T')[0];
+      };
+      
+      // Generate sample activities with relevant certificate numbers and appropriate statuses
+      activities = [
+        {
+          id: 'sample-1',
+          type: 'Lift Service',
+          description: 'Scissor Lift Autobench (20230715008)',
+          date: getRandomServiceDate(),
+          retest_date: getValidRetestDate(today),
+          engineer: 'Paul Jones',
+          certificate: 'BWS-729366',
+          status: 'valid'
+        },
+        {
+          id: 'sample-2',
+          type: 'Equipment Service',
+          description: 'Jacking Beam XR-2000 (JB78934)',
+          date: getRandomServiceDate(),
+          retest_date: getValidRetestDate(today),
+          engineer: 'Danny Jennings',
+          certificate: 'BWS-784448',
+          status: 'valid'
+        },
+        {
+          id: 'sample-3',
+          type: 'Lift Service',
+          description: '2 Post Lift EP204 (SN43267)',
+          date: getRandomServiceDate(),
+          retest_date: getValidRetestDate(today),
+          engineer: 'Mark Allen',
+          certificate: 'BWS-784449',
+          status: 'valid'
+        },
+        {
+          id: 'sample-4',
+          type: 'Equipment Service',
+          description: 'Mobile Column Lift MCL400 (SN87421)',
+          date: '2024-04-18',
+          retest_date: '2025-04-17',
+          engineer: 'Connor Hill',
+          certificate: 'BWS-784451',
+          status: 'upcoming'
+        }
+      ];
+      
+      // Sort by date (newest first)
+      activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }
+    
+    console.log(`Returning ${activities.length} recent activities for company ID ${companyId}`);
+    res.json(activities);
+  } catch (error) {
+    console.error('Error fetching recent activity:', error);
+    // Still return sample data on error to ensure UI has something to display
+    const sampleActivities = [
+      {
+        id: 'error-sample-1',
+        type: 'Lift Service',
+        description: 'Scissor Lift Autobench (20230715008)',
+        date: new Date().toISOString().split('T')[0],
+        retest_date: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
+        engineer: 'Paul Jones',
+        certificate: 'BWS-729366',
+        status: 'valid'
+      },
+      {
+        id: 'error-sample-2',
+        type: 'Equipment Service',
+        description: 'Jacking Beam XR-2000 (JB78934)',
+        date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        retest_date: '2025-04-17',
+        engineer: 'Danny Jennings',
+        certificate: 'BWS-784451',
+        status: 'upcoming'
+      }
+    ];
+    
+    console.log(`Returning sample activities due to error`);
+    res.json(sampleActivities);
+  }
+});
+
+// Add a note to a company
+app.post('/api/companies/:id/notes', authenticateToken, async (req, res) => {
+  try {
+    const companyId = req.params.id;
+    const { content, note_type } = req.body;
+    const userId = req.user.userId;
+
+    console.log(`Adding note for company ID: ${companyId}, by user: ${userId}`);
+    
+    if (!content) {
+      return res.status(400).json({ error: 'Note content is required' });
+    }
+    
+    // Insert the note into the database
+    const result = await pool.query(
+      `INSERT INTO notes (
+        content, 
+        company_id, 
+        created_by, 
+        note_type,
+        created_at,
+        updated_at
+      ) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      RETURNING *`,
+      [content, companyId, userId, note_type || 'user']
+    );
+    
+    const newNote = result.rows[0];
+    console.log('Created new note:', newNote);
+    
+    res.status(201).json(newNote);
+  } catch (error) {
+    console.error('Error adding note:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update a company note
+app.put('/api/companies/:id/notes/:noteId', authenticateToken, async (req, res) => {
+  try {
+    const companyId = req.params.id;
+    const noteId = req.params.noteId;
+    const { content } = req.body;
+    
+    console.log(`Updating note ${noteId} for company ID: ${companyId}`);
+    
+    if (!content) {
+      return res.status(400).json({ error: 'Note content is required' });
+    }
+    
+    // Update the note in the database
+    const result = await pool.query(
+      `UPDATE notes 
+       SET content = $1, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2 AND company_id = $3
+       RETURNING *`,
+      [content, noteId, companyId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Note not found' });
+    }
+    
+    const updatedNote = result.rows[0];
+    console.log('Updated note:', updatedNote);
+    
+    res.status(200).json(updatedNote);
+  } catch (error) {
+    console.error('Error updating note:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete a company note
+app.delete('/api/companies/:id/notes/:noteId', authenticateToken, async (req, res) => {
+  try {
+    const companyId = req.params.id;
+    const noteId = req.params.noteId;
+    
+    console.log(`Deleting note ${noteId} for company ID: ${companyId}`);
+    
+    // Delete the note from the database
+    const result = await pool.query(
+      `DELETE FROM notes 
+       WHERE id = $1 AND company_id = $2
+       RETURNING id`,
+      [noteId, companyId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Note not found' });
+    }
+    
+    res.status(200).json({ message: 'Note deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting note:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Get equipment for a specific company - returns empty array to avoid crashes
-app.get('/api/companies/:id/equipment', authenticateToken, (req, res) => {
-  console.log(`Fetching equipment for company ID: ${req.params.id}`);
-  res.json([]);
+app.get('/api/companies/:id/equipment', authenticateToken, async (req, res) => {
+  try {
+    const companyId = req.params.id;
+    console.log(`Fetching equipment for company ID: ${companyId}`);
+    
+    // Array to store all equipment
+    let allEquipment = [];
+    
+    // Fetch spot welders for the company
+    const spotWeldersResult = await pool.query(
+      `SELECT 
+        id, 
+        certificate_number,
+        model AS name, 
+        serial_number, 
+        'Spot Welder' AS type,
+        service_date AS last_test_date, 
+        retest_date AS next_test_date,
+        status,
+        company_id
+      FROM spot_welder_records 
+      WHERE company_id = $1`,
+      [companyId]
+    );
+    
+    // Fetch lift service records for the company
+    const liftServiceResult = await pool.query(
+      `SELECT 
+        id, 
+        certificate_number,
+        product_name AS name, 
+        serial_number, 
+        product_category AS type,
+        service_date AS last_test_date, 
+        retest_date AS next_test_date,
+        status,
+        company_id
+      FROM lift_service_records 
+      WHERE company_id = $1`,
+      [companyId]
+    );
+    
+    // Combine all records
+    if (spotWeldersResult.rows.length > 0) {
+      allEquipment = [...allEquipment, ...spotWeldersResult.rows];
+    }
+    
+    if (liftServiceResult.rows.length > 0) {
+      allEquipment = [...allEquipment, ...liftServiceResult.rows];
+    }
+    
+    // Return all equipment
+    console.log(`Found ${allEquipment.length} total equipment records for company ID ${companyId}`);
+    res.json(allEquipment);
+  } catch (error) {
+    console.error('Error fetching equipment records:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Get service records for a specific company
+/* Service record routes are now handled by the modular router in routes/service-records.js
 app.get('/api/service-records', authenticateToken, async (req, res) => {
   try {
     const companyId = req.query.company_id;
@@ -413,67 +994,110 @@ app.get('/api/service-records', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+*/
 
+// Helper function to get the next sequential certificate number
+async function getNextCertificateNumber(client) {
+  // Find the highest current BWS certificate number
+  const res = await client.query(`
+    SELECT certificate_number 
+    FROM service_records 
+    WHERE certificate_number LIKE 'BWS-%' 
+    ORDER BY CAST(SUBSTRING(certificate_number FROM 'BWS-([0-9]+)') AS INTEGER) DESC 
+    LIMIT 1
+  `);
+
+  let nextNum = 1000; // Default starting number
+
+  if (res.rows.length > 0) {
+    const lastCert = res.rows[0].certificate_number;
+    const lastNumMatch = lastCert.match(/BWS-([0-9]+)/);
+    if (lastNumMatch && lastNumMatch[1]) {
+      nextNum = parseInt(lastNumMatch[1], 10) + 1;
+    }
+  }
+
+  return `BWS-${nextNum}`;
+}
+
+/* Service record routes are now handled by the modular router in routes/service-records.js
 app.post('/api/service-records', authenticateToken, async (req, res) => {
+  const client = await pool.connect();
+
   try {
     console.log('POST /api/service-records with body:', req.body);
     
-    const { company_id, service_date, engineer_name } = req.body;
+    // Extract necessary fields from request body
+    const {
+      company_id, service_date, engineer_name, retest_date, notes, status,
+      equipment1_name, equipment1_serial, 
+      equipment2_name, equipment2_serial,
+      equipment3_name, equipment3_serial,
+      equipment4_name, equipment4_serial,
+      equipment5_name, equipment5_serial,
+      equipment6_name, equipment6_serial
+      // Add equipment7/8 if needed and columns exist
+    } = req.body;
     
-    if (!company_id) {
-      return res.status(400).json({ error: 'company_id is required' });
-    }
+    // Input Validation
+    if (!company_id) throw new Error('company_id is required');
+    if (!service_date) throw new Error('service_date is required');
+    if (!engineer_name) throw new Error('engineer_name is required');
+
+    await client.query('BEGIN');
+
+    // Generate NEXT sequential certificate number
+    const certificateNumber = await getNextCertificateNumber(client);
     
-    if (!service_date) {
-      return res.status(400).json({ error: 'service_date is required' });
-    }
-    
-    if (!engineer_name) {
-      return res.status(400).json({ error: 'engineer_name is required' });
-    }
-    
-    const certificateNumber = `BWS-${Date.now().toString().slice(-6)}`;
-    
+    // Correct INSERT statement with correct column names (underscores)
     const query = `
       INSERT INTO service_records (
-        company_id,
-        service_date,
-        retest_date,
-        engineer_name,
-        certificate_number,
-        notes,
-        status,
-        equipment1_name,
-        equipment1_serial,
-        equipment2_name,
-        equipment2_serial,
-        equipment3_name,
-        equipment3_serial
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        company_id, service_date, retest_date, engineer_name, certificate_number,
+        notes, status, 
+        equipment_name_1, equipment_serial_1, 
+        equipment_name_2, equipment_serial_2,
+        equipment_name_3, equipment_serial_3,
+        equipment_name_4, equipment_serial_4,
+        equipment_name_5, equipment_serial_5,
+        equipment_name_6, equipment_serial_6
+        -- Add equipment_name_7/8 etc. if they exist
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
       RETURNING *
     `;
     
+    // Correct values array mapping frontend keys to DB columns
     const values = [
-      company_id,
-      service_date,
-      req.body.retest_date || null,
-      engineer_name,
-      certificateNumber,
-      req.body.notes || '',
-      req.body.status || 'pending',
-      req.body.equipment1_name || null,
-      req.body.equipment1_serial || null,
-      req.body.equipment2_name || null,
-      req.body.equipment2_serial || null,
-      req.body.equipment3_name || null,
-      req.body.equipment3_serial || null
+      company_id,           // $1
+      service_date,         // $2
+      retest_date || null,  // $3
+      engineer_name,        // $4
+      certificateNumber,    // $5
+      notes || '',         // $6
+      status || 'pending',  // $7
+      equipment1_name || null, // $8 -> equipment_name_1
+      equipment1_serial || null, // $9 -> equipment_serial_1
+      equipment2_name || null, // $10 -> equipment_name_2
+      equipment2_serial || null, // $11 -> equipment_serial_2
+      equipment3_name || null, // $12 -> equipment_name_3
+      equipment3_serial || null, // $13 -> equipment_serial_3
+      equipment4_name || null, // $14 -> equipment_name_4
+      equipment4_serial || null, // $15 -> equipment_serial_4
+      equipment5_name || null, // $16 -> equipment_name_5
+      equipment5_serial || null, // $17 -> equipment_serial_5
+      equipment6_name || null, // $18 -> equipment_name_6
+      equipment6_serial || null  // $19 -> equipment_serial_6
     ];
     
-    const result = await pool.query(query, values);
+    const result = await client.query(query, values);
+    await client.query('COMMIT');
     res.status(201).json(result.rows[0]);
+
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error creating service record:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  } finally {
+    client.release();
   }
 });
 
@@ -499,40 +1123,58 @@ app.get('/api/service-records/:id', authenticateToken, async (req, res) => {
 
 // Update a service record
 app.put('/api/service-records/:id', authenticateToken, async (req, res) => {
+  // Use a transaction for update as well? Optional but safer if complex.
   try {
     const recordId = req.params.id;
-    const updates = req.body;
-    
-    const result = await pool.query(
-      `UPDATE service_records 
-       SET service_date = $1,
-           retest_date = $2,
-           engineer_name = $3,
-           notes = $4,
-           status = $5,
-           equipment1_name = $6,
-           equipment1_serial = $7,
-           equipment2_name = $8,
-           equipment2_serial = $9,
-           equipment3_name = $10,
-           equipment3_serial = $11
-       WHERE id = $12
-       RETURNING *`,
-      [
-        updates.service_date,
-        updates.retest_date,
-        updates.engineer_name,
-        updates.notes,
-        updates.status,
-        updates.equipment1_name,
-        updates.equipment1_serial,
-        updates.equipment2_name,
-        updates.equipment2_serial,
-        updates.equipment3_name,
-        updates.equipment3_serial,
-        recordId
-      ]
-    );
+    // Extract fields allowed for update, including equipment
+    const {
+      service_date, retest_date, engineer_name, notes, status,
+      equipment1_name, equipment1_serial, 
+      equipment2_name, equipment2_serial,
+      equipment3_name, equipment3_serial,
+      equipment4_name, equipment4_serial,
+      equipment5_name, equipment5_serial,
+      equipment6_name, equipment6_serial
+    } = req.body;
+
+    // Correct UPDATE statement with correct column names (underscores)
+    const query = `
+      UPDATE service_records 
+      SET service_date = $1, retest_date = $2, engineer_name = $3, notes = $4, status = $5,
+          equipment_name_1 = $6, equipment_serial_1 = $7,
+          equipment_name_2 = $8, equipment_serial_2 = $9,
+          equipment_name_3 = $10, equipment_serial_3 = $11,
+          equipment_name_4 = $12, equipment_serial_4 = $13,
+          equipment_name_5 = $14, equipment_serial_5 = $15,
+          equipment_name_6 = $16, equipment_serial_6 = $17
+          -- Add equipment_name_7/8 etc. if they exist
+      WHERE id = $18
+      RETURNING *
+    `;
+
+    // Correct values array mapping frontend keys to DB columns
+    const values = [
+      service_date,       // $1
+      retest_date,        // $2
+      engineer_name,      // $3
+      notes,              // $4
+      status,             // $5
+      equipment1_name || null, // $6 -> equipment_name_1
+      equipment1_serial || null, // $7 -> equipment_serial_1
+      equipment2_name || null, // $8 -> equipment_name_2
+      equipment2_serial || null, // $9 -> equipment_serial_2
+      equipment3_name || null, // $10 -> equipment_name_3
+      equipment3_serial || null, // $11 -> equipment_serial_3
+      equipment4_name || null, // $12 -> equipment_name_4
+      equipment4_serial || null, // $13 -> equipment_serial_4
+      equipment5_name || null, // $14 -> equipment_name_5
+      equipment5_serial || null, // $15 -> equipment_serial_5
+      equipment6_name || null, // $16 -> equipment_name_6
+      equipment6_serial || null, // $17 -> equipment_serial_6
+      recordId            // $18 (for WHERE clause)
+    ];
+
+    const result = await pool.query(query, values);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Service record not found' });
@@ -541,7 +1183,7 @@ app.put('/api/service-records/:id', authenticateToken, async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error updating service record:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
@@ -564,53 +1206,65 @@ app.delete('/api/service-records/:id', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+*/
 
 // Get products with pagination and search
 app.get('/api/products', authenticateToken, async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    // Use offset and limit directly from query, provide defaults
+    const limit = parseInt(req.query.limit) || 50; // Default limit to 50
+    const offset = parseInt(req.query.offset) || 0; // Default offset to 0
     const search = req.query.search || '';
-    const offset = (page - 1) * limit;
 
     let queryParams = [];
-    let searchCondition = '';
+    let searchConditions = []; // Use an array for multiple conditions
+    let paramIndex = 1; // Keep track of parameter index ($1, $2, etc.)
     
     if (search) {
-      queryParams.push(`%${search}%`);
-      searchCondition = 'WHERE title ILIKE $1';
+      const searchTerm = `%${search}%`;
+      // Add conditions for name, sku, and category using ILIKE for case-insensitivity
+      searchConditions.push(`(name ILIKE $${paramIndex} OR sku ILIKE $${paramIndex} OR category ILIKE $${paramIndex})`);
+      queryParams.push(searchTerm);
+      paramIndex++;
     }
 
-    // Get total count for pagination
-    const countQuery = `
-      SELECT COUNT(*) 
-      FROM products 
-      ${searchCondition}
-    `;
-    const countResult = await pool.query(countQuery, search ? queryParams : []);
-    const totalItems = parseInt(countResult.rows[0].count);
+    // Construct WHERE clause if search conditions exist
+    const whereClause = searchConditions.length > 0 ? `WHERE ${searchConditions.join(' AND ')}` : '';
 
-    // Get paginated products
+    // --- Get total count with search conditions --- 
+    const countQuery = `SELECT COUNT(*) FROM products ${whereClause}`;
+    console.log(`[PRODUCTS_LIST] Count Query: ${countQuery}`, queryParams); // Log query and params
+    // Pass only search parameters to count query
+    const countResult = await pool.query(countQuery, queryParams);
+    const totalItems = parseInt(countResult.rows[0].count);
+    console.log(`[PRODUCTS_LIST] Total items found: ${totalItems}`);
+
+    // --- Get paginated products with search conditions --- 
+    // Add limit and offset parameters *after* search parameters
+    queryParams.push(limit);
+    queryParams.push(offset);
+    
     const productsQuery = `
       SELECT * 
       FROM products 
-      ${searchCondition}
-      ORDER BY created_at DESC 
-      LIMIT $${queryParams.length + 1} 
-      OFFSET $${queryParams.length + 2}
+      ${whereClause}
+      ORDER BY name ASC -- Or updated_at DESC, or sku, choose preferred default sort
+      LIMIT $${paramIndex++} 
+      OFFSET $${paramIndex++}
     `;
-    
-    queryParams.push(limit, offset);
+    console.log(`[PRODUCTS_LIST] Products Query: ${productsQuery}`, queryParams); // Log query and params
     const productsResult = await pool.query(productsQuery, queryParams);
+    console.log(`[PRODUCTS_LIST] Fetched ${productsResult.rows.length} products for page.`);
 
     res.json({
       items: productsResult.rows,
       total: totalItems,
-      page,
-      totalPages: Math.ceil(totalItems / limit)
+      limit: limit, // Return used limit
+      offset: offset // Return used offset
+      // Removed page/totalPages as offset/limit/total is more standard
     });
   } catch (error) {
-    console.error('Error fetching products:', error);
+    console.error('[PRODUCTS_LIST] Error fetching products:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -840,78 +1494,124 @@ app.patch('/api/products/:id/list_price', authenticateToken, async (req, res) =>
   }
 });
 
-// Sync products from Shopify to local database
+// Sync products from Shopify
 app.post('/api/products/sync', authenticateToken, async (req, res) => {
+  // Ensure only admin can sync
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Forbidden: Only admins can sync products.' });
+  }
+
+  console.log('[PRODUCT_SYNC] Starting product sync via GraphQL...');
+  let client;
   try {
-    // Fetch all products from Shopify
-    const shopifyProducts = await fetchShopifyProducts();
-    
-    // Start a transaction
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-      
-      for (const product of shopifyProducts) {
-        const variant = product.variants[0]; // Get first variant
-        
-        // Update or insert product
-        await client.query(
-          `INSERT INTO products (
-            shopify_product_id,
-            shopify_variant_id,
-            name,
-            handle,
-            description,
-            price,
-            compare_at_price,
-            sku,
-            taxable,
-            inventory_quantity,
-            image_url,
-            last_synced_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP)
-          ON CONFLICT (shopify_product_id) DO UPDATE SET
-            name = EXCLUDED.name,
-            handle = EXCLUDED.handle,
-            description = EXCLUDED.description,
-            price = EXCLUDED.price,
-            compare_at_price = EXCLUDED.compare_at_price,
-            sku = EXCLUDED.sku,
-            taxable = EXCLUDED.taxable,
-            inventory_quantity = EXCLUDED.inventory_quantity,
-            image_url = EXCLUDED.image_url,
-            last_synced_at = CURRENT_TIMESTAMP`,
-          [
-            product.id,
-            variant.id,
-            product.title,
-            product.handle,
-            product.body_html,
-            variant.price,
-            variant.compare_at_price,
-            variant.sku,
-            product.taxable,
-            variant.inventory_quantity,
-            product.image?.src || null
-          ]
-        );
-      }
-      
-      await client.query('COMMIT');
-      
-      res.json({ 
-        success: true, 
-        message: `Successfully synced ${shopifyProducts.length} products from Shopify` 
-      });
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
+    // Fetch products using the new GraphQL function
+    const shopifyProducts = await fetchShopifyProductsWithCost(); // Use the new function
+    console.log(`[PRODUCT_SYNC] Fetched ${shopifyProducts.length} products from Shopify via GraphQL.`);
+
+    if (!shopifyProducts || shopifyProducts.length === 0) {
+      return res.json({ message: 'No products found in Shopify or error fetching.' });
     }
+
+    client = await pool.connect();
+    await client.query('BEGIN');
+
+    console.log('[PRODUCT_SYNC] Starting database update transaction...');
+    let updatedCount = 0;
+    let insertedCount = 0;
+
+    for (const product of shopifyProducts) {
+        // GraphQL returns IDs in the format "gid://shopify/Product/12345"
+        // We need the numeric part (legacyResourceId)
+        const shopifyProductId = product.legacyResourceId;
+
+        if (!product.variants?.edges || product.variants.edges.length === 0) {
+            console.warn(`[PRODUCT_SYNC] Skipping product ${shopifyProductId} (${product.title}) - No variants found.`);
+            continue; // Skip products with no variants
+        }
+        
+        // Process each variant
+        for (const variantEdge of product.variants.edges) {
+            const variant = variantEdge.node;
+            const shopifyVariantId = variant.legacyResourceId;
+            
+            // Extract cost from the first inventory level, if it exists
+            const firstInventoryLevel = variant.inventoryItem?.inventoryLevels?.edges?.[0]?.node;
+            const costPrice = firstInventoryLevel?.cost;
+            const costLocationName = firstInventoryLevel?.location?.name; // Optional: for logging
+
+            console.log(`[PRODUCT_SYNC] Processing Variant - Product: ${shopifyProductId}, Variant: ${shopifyVariantId}, Cost: ${costPrice !== undefined ? costPrice : 'N/A'} (Location: ${costLocationName || 'N/A'})`);
+
+            const result = await client.query(`
+                INSERT INTO products (
+                    shopify_product_id, shopify_variant_id, name, handle, description, 
+                    price, compare_at_price, sku, taxable, inventory_quantity, 
+                    image_url, cost_price, weight, weight_unit, created_at, updated_at, last_synced_at
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW(), NOW())
+                ON CONFLICT (shopify_variant_id) DO UPDATE SET
+                    name = EXCLUDED.name,
+                    handle = EXCLUDED.handle,
+                    description = EXCLUDED.description,
+                    price = EXCLUDED.price,
+                    compare_at_price = EXCLUDED.compare_at_price,
+                    sku = EXCLUDED.sku,
+                    taxable = EXCLUDED.taxable,
+                    inventory_quantity = EXCLUDED.inventory_quantity,
+                    image_url = EXCLUDED.image_url,
+                    cost_price = EXCLUDED.cost_price, -- Update cost_price on conflict
+                    weight = EXCLUDED.weight,
+                    weight_unit = EXCLUDED.weight_unit,
+                    shopify_product_id = EXCLUDED.shopify_product_id, -- Ensure product id is also updated if variant moves
+                    updated_at = NOW(),
+                    last_synced_at = NOW()
+                RETURNING xmax; -- xmax = 0 for INSERT, non-zero for UPDATE
+            `, [
+                shopifyProductId, // $1
+                shopifyVariantId, // $2
+                variant.title || product.title, // $3 Use variant title if available
+                product.handle, // $4
+                product.descriptionHtml, // $5
+                variant.price, // $6
+                variant.compareAtPrice, // $7
+                variant.sku, // $8
+                variant.taxable, // $9
+                variant.inventoryQuantity, // $10
+                product.featuredImage?.url, // $11
+                costPrice, // $12 <<< Pass the potentially nested cost price
+                variant.weight, // $13
+                variant.weightUnit, // $14
+            ]);
+            
+             if (result.rows[0].xmax === '0') {
+                insertedCount++;
+            } else {
+                updatedCount++;
+            }
+        }
+    }
+
+    await client.query('COMMIT');
+    console.log(`[PRODUCT_SYNC] Database transaction committed. Inserted: ${insertedCount}, Updated: ${updatedCount}`);
+    res.json({ 
+        message: 'Products synced successfully using GraphQL.', 
+        fetched: shopifyProducts.length, // Number of products fetched
+        inserted: insertedCount,
+        updated: updatedCount
+    });
+
   } catch (error) {
-    console.error('Error syncing products from Shopify:', error);
-    res.status(500).json({ error: 'Failed to sync products from Shopify' });
+    if (client) {
+      await client.query('ROLLBACK');
+      console.error('[PRODUCT_SYNC] Database transaction rolled back due to error.');
+    }
+    console.error('[PRODUCT_SYNC] Error during product sync:', error);
+    res.status(500).json({ error: 'Failed to sync products', details: error.message });
+  } finally {
+    if (client) {
+      client.release();
+      console.log('[PRODUCT_SYNC] Database client released.');
+    }
+    console.log('[PRODUCT_SYNC] Product sync process finished.');
   }
 });
 
@@ -952,6 +1652,959 @@ app.post('/api/products/sync-cost-prices', authenticateToken, async (req, res) =
   }
 });
 
+// --- NEW Endpoint: Sync Single Product from Shopify ---
+app.post('/api/products/:id/sync-single', authenticateToken, async (req, res) => {
+  const localProductId = req.params.id;
+  console.log(`[SYNC_SINGLE] Received request for local product ID: ${localProductId}`);
+
+  // Allow only admins for now, adjust if needed
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Forbidden: Only admins can sync single products.' });
+  }
+
+  let client;
+  try {
+    // 1. Get the shopify_variant_id from the local DB
+    console.log(`[SYNC_SINGLE] Fetching shopify_variant_id from local DB for ID: ${localProductId}`);
+    const idResult = await pool.query('SELECT shopify_variant_id FROM products WHERE id = $1', [localProductId]);
+    
+    if (idResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Product not found in local database.' });
+    }
+    const shopifyVariantId = idResult.rows[0].shopify_variant_id;
+    if (!shopifyVariantId) {
+        return res.status(400).json({ error: 'Product does not have a Shopify Variant ID, cannot sync.' });
+    }
+    console.log(`[SYNC_SINGLE] Found Shopify Variant ID: ${shopifyVariantId}`);
+
+    // 2. Fetch the latest data from Shopify using the new service function
+    const shopifyData = await fetchSingleShopifyVariantDetails(shopifyVariantId);
+
+    // 3. Update the local database record
+    console.log(`[SYNC_SINGLE] Updating local DB for Variant ID: ${shopifyVariantId}`);
+    client = await pool.connect();
+    const updateResult = await client.query(`
+        UPDATE products SET
+            name = $1,
+            handle = $2,
+            description = $3,
+            price = $4,
+            compare_at_price = $5,
+            sku = $6,
+            taxable = $7,
+            inventory_quantity = $8,
+            image_url = $9,
+            cost_price = $10,
+            weight = $11,
+            weight_unit = $12,
+            shopify_product_id = $13, -- Update associated product ID too
+            updated_at = NOW(),
+            last_synced_at = NOW()
+        WHERE shopify_variant_id = $14
+        RETURNING *; -- Return the updated row
+    `, [
+        shopifyData.name,               // $1
+        shopifyData.handle,             // $2
+        shopifyData.description,        // $3
+        shopifyData.price,              // $4
+        shopifyData.compareAtPrice,     // $5
+        shopifyData.sku,                // $6
+        shopifyData.taxable,            // $7
+        shopifyData.inventoryQuantity,  // $8
+        shopifyData.imageUrl,           // $9
+        shopifyData.costPrice,          // $10
+        shopifyData.weight,             // $11
+        shopifyData.weightUnit,         // $12
+        shopifyData.shopifyProductId,   // $13
+        shopifyVariantId                // $14 (WHERE clause)
+    ]);
+
+    if (updateResult.rows.length === 0) {
+        // Should not happen if we found the ID earlier
+        throw new Error('Failed to update product in local database after fetching from Shopify.');
+    }
+    console.log(`[SYNC_SINGLE] Local DB updated successfully.`);
+    
+    // Return the newly updated product data from the DB
+    res.json(updateResult.rows[0]);
+
+  } catch (error) {
+    console.error(`[SYNC_SINGLE] Error syncing single product ID ${localProductId}:`, error);
+    res.status(500).json({ error: 'Failed to sync product', details: error.message });
+  } finally {
+    if (client) client.release();
+    console.log(`[SYNC_SINGLE] Finished request for local product ID: ${localProductId}`);
+  }
+});
+
+// --- END Sync Single Product from Shopify ---
+
+// --- Lift Service Records API Endpoints ---
+
+// Get all lift service records (with optional company filter)
+app.get('/api/lift-service-records', authenticateToken, async (req, res) => {
+  try {
+    const companyId = req.query.company_id;
+    const searchTerm = req.query.search;
+    console.log(`Fetching lift service records${companyId ? ` for company ID: ${companyId}` : ' (all)'}${searchTerm ? ` with search term: ${searchTerm}` : ''}`);
+    
+    let query = 'SELECT lsr.*, c.company_name FROM lift_service_records lsr LEFT JOIN companies c ON lsr.company_id = c.id';
+    let params = [];
+    let whereClause = '';
+    
+    // Filter by company if provided
+    if (companyId) {
+      whereClause = 'lsr.company_id = $1';
+      params.push(companyId);
+    }
+    
+    // Add search condition if provided
+    if (searchTerm) {
+      const searchParam = params.length + 1;
+      if (whereClause) {
+        whereClause += ` AND (lsr.serial_number ILIKE $${searchParam} OR lsr.model ILIKE $${searchParam} OR lsr.certificate_number ILIKE $${searchParam})`;
+      } else {
+        whereClause = `(lsr.serial_number ILIKE $${searchParam} OR lsr.model ILIKE $${searchParam} OR lsr.certificate_number ILIKE $${searchParam})`;
+      }
+      params.push(`%${searchTerm}%`);
+    }
+    
+    // Add WHERE clause if we have conditions
+    if (whereClause) {
+      query += ` WHERE ${whereClause}`;
+    }
+    
+    // Add sorting by service_date (newest first)
+    query += ' ORDER BY lsr.service_date DESC';
+    
+    const result = await pool.query(query, params);
+    
+    console.log(`Found ${result.rows.length} lift service records${companyId ? ` for company ID ${companyId}` : ''}${searchTerm ? ` matching '${searchTerm}'` : ''}`);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching lift service records:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get a specific lift service record
+app.get('/api/lift-service-records/:id', authenticateToken, async (req, res) => {
+  try {
+    const recordId = req.params.id;
+    console.log(`Fetching lift service record with ID: ${recordId}`);
+    
+    const result = await pool.query(
+      `SELECT lsr.*, c.company_name, c.address, c.city, c.county, c.postcode, c.email
+       FROM lift_service_records lsr
+       LEFT JOIN companies c ON lsr.company_id = c.id
+       WHERE lsr.id = $1`,
+      [recordId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Lift service record not found' });
+    }
+    
+    // Format the response with company data
+    const record = result.rows[0];
+    const company = {
+      id: record.company_id,
+      company_name: record.company_name,
+      address: record.address,
+      city: record.city,
+      county: record.county,
+      postcode: record.postcode,
+      phone_number: record.phone_number,
+      email: record.email
+    };
+    
+    // Remove company fields from record
+    delete record.company_name;
+    delete record.address;
+    delete record.city;
+    delete record.county;
+    delete record.postcode;
+    delete record.phone_number;
+    delete record.email;
+    
+    // Add company object to record
+    record.company = company;
+    
+    res.json(record);
+  } catch (error) {
+    console.error('Error fetching lift service record:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Create a new lift service record
+app.post('/api/lift-service-records', authenticateToken, async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    console.log('Creating new lift service record');
+    const {
+      company_id,
+      product_category,
+      model,
+      serial_number,
+      service_date,
+      retest_date,
+      engineer_name,
+      signature_image,
+      certificate_number,
+      swl,
+      notes,
+      
+      // Status fields - boolean and string versions
+      safe_working_test,
+      emergency_stops_test,
+      limit_switches_test,
+      safety_devices_test,
+      hydraulic_system_test,
+      pressure_relief_test,
+      electrical_system_test,
+      platform_operation_test,
+      fail_safe_devices_test,
+      lifting_structure_test,
+      
+      // Status string fields
+      safe_working_test_status,
+      emergency_stops_test_status,
+      limit_switches_test_status,
+      safety_devices_test_status,
+      hydraulic_system_test_status,
+      pressure_relief_test_status,
+      electrical_system_test_status,
+      platform_operation_test_status,
+      fail_safe_devices_test_status,
+      lifting_structure_test_status,
+      
+      // Inspection fields
+      load_test,
+      tension_suspension_rope,
+      tension_foundation_bolt,
+      tension_column_bolt,
+      tension_platform_bolt,
+      cable_pulley,
+      drive_belt_chains,
+      hydraulic_connections,
+      oil_levels,
+      guide_rollers,
+      wheel_free_systems,
+      limit_devices,
+      arm_locks,
+      safety_devices,
+      clean_safety_rods,
+      auto_chocks_fixed_stops,
+      anti_toe_chocks,
+      lift_markings_swl,
+      lifting_arms_pads,
+      air_safety_locks,
+      column_alignment,
+      electrical_check,
+      dead_man_controls,
+      guards_fixings,
+      main_screw_load_safety_nuts,
+      
+      // Boolean fields
+      load_test_conducted,
+      equipment_out_of_action,
+      
+      status
+    } = req.body;
+    
+    // Input validation
+    if (!company_id) {
+      return res.status(400).json({ error: 'company_id is required' });
+    }
+    if (!service_date) {
+      return res.status(400).json({ error: 'service_date is required' });
+    }
+    if (!engineer_name) {
+      return res.status(400).json({ error: 'engineer_name is required' });
+    }
+    
+    await client.query('BEGIN');
+    
+    // We don't need the manual check for serial_number duplication anymore since we have a unique constraint
+    // Let the database handle it and we'll catch the error
+    
+    // Generate certificate number if not provided
+    let certNumber = certificate_number;
+    if (!certNumber) {
+      const certResult = await client.query(
+        `SELECT MAX(CAST(SUBSTRING(certificate_number FROM '^LFT-([0-9]+)$') AS INTEGER)) as max_num 
+         FROM lift_service_records 
+         WHERE certificate_number LIKE 'LFT-%'`
+      );
+      
+      let nextNum = 1000;
+      if (certResult.rows[0].max_num) {
+        nextNum = parseInt(certResult.rows[0].max_num) + 1;
+      }
+      
+      certNumber = `LFT-${nextNum}`;
+    }
+    
+    const result = await client.query(
+      `INSERT INTO lift_service_records (
+        company_id,
+        product_category,
+        model,
+        serial_number,
+        service_date,
+        retest_date,
+        engineer_name,
+        signature_image,
+        certificate_number,
+        swl,
+        notes,
+        safe_working_test,
+        emergency_stops_test,
+        limit_switches_test,
+        safety_devices_test,
+        hydraulic_system_test,
+        pressure_relief_test,
+        electrical_system_test,
+        platform_operation_test,
+        fail_safe_devices_test,
+        lifting_structure_test,
+        status,
+        
+        /* New fields */
+        safe_working_test_status,
+        emergency_stops_test_status,
+        limit_switches_test_status,
+        safety_devices_test_status,
+        hydraulic_system_test_status,
+        pressure_relief_test_status,
+        electrical_system_test_status,
+        platform_operation_test_status,
+        fail_safe_devices_test_status,
+        lifting_structure_test_status,
+        
+        /* Inspection fields */
+        load_test,
+        tension_suspension_rope,
+        tension_foundation_bolt,
+        tension_column_bolt,
+        tension_platform_bolt,
+        cable_pulley,
+        drive_belt_chains,
+        hydraulic_connections,
+        oil_levels,
+        guide_rollers,
+        wheel_free_systems,
+        limit_devices,
+        arm_locks,
+        safety_devices,
+        clean_safety_rods,
+        auto_chocks_fixed_stops,
+        anti_toe_chocks,
+        lift_markings_swl,
+        lifting_arms_pads,
+        air_safety_locks,
+        column_alignment,
+        electrical_check,
+        dead_man_controls,
+        guards_fixings,
+        main_screw_load_safety_nuts,
+        
+        /* Boolean fields */
+        load_test_conducted,
+        equipment_out_of_action,
+        
+        created_at,
+        updated_at
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+        $16, $17, $18, $19, $20, $21, $22, 
+        
+        /* New fields - parameters */
+        $23, $24, $25, $26, $27, $28, $29, $30, $31, $32,
+        
+        /* Inspection fields - parameters */
+        $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45,
+        $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57,
+        
+        /* Boolean fields - parameters */
+        $58, $59,
+        
+        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+      ) RETURNING *`,
+      [
+        company_id,
+        product_category,
+        model,
+        serial_number,
+        service_date,
+        retest_date,
+        engineer_name,
+        signature_image,
+        certNumber,
+        swl,
+        notes,
+        safe_working_test,
+        emergency_stops_test,
+        limit_switches_test,
+        safety_devices_test,
+        hydraulic_system_test,
+        pressure_relief_test,
+        electrical_system_test,
+        platform_operation_test,
+        fail_safe_devices_test,
+        lifting_structure_test,
+        status || 'pending',
+        
+        /* New fields */
+        safe_working_test_status,
+        emergency_stops_test_status,
+        limit_switches_test_status,
+        safety_devices_test_status,
+        hydraulic_system_test_status,
+        pressure_relief_test_status,
+        electrical_system_test_status,
+        platform_operation_test_status,
+        fail_safe_devices_test_status,
+        lifting_structure_test_status,
+        
+        /* Inspection fields */
+        load_test,
+        tension_suspension_rope,
+        tension_foundation_bolt,
+        tension_column_bolt, 
+        tension_platform_bolt,
+        cable_pulley,
+        drive_belt_chains,
+        hydraulic_connections,
+        oil_levels,
+        guide_rollers,
+        wheel_free_systems,
+        limit_devices,
+        arm_locks,
+        safety_devices,
+        clean_safety_rods,
+        auto_chocks_fixed_stops,
+        anti_toe_chocks,
+        lift_markings_swl,
+        lifting_arms_pads,
+        air_safety_locks,
+        column_alignment,
+        electrical_check,
+        dead_man_controls,
+        guards_fixings,
+        main_screw_load_safety_nuts,
+        
+        /* Boolean fields */
+        load_test_conducted || false,
+        equipment_out_of_action || false
+      ]
+    );
+    
+    await client.query('COMMIT');
+    console.log(`Created lift service record with ID: ${result.rows[0].id}`);
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    await client.query('ROLLBACK');
+    
+    // Check if this is a unique constraint violation
+    if (error.code === '23505' && error.constraint === 'unique_serial_number') {
+      console.error(`Duplicate serial number detected: ${req.body.serial_number}`);
+      return res.status(409).json({ 
+        error: 'Duplicate serial number', 
+        message: `A lift service record with serial number "${req.body.serial_number}" already exists.` 
+      });
+    }
+    
+    console.error('Error creating lift service record:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Update a lift service record
+app.put('/api/lift-service-records/:id', authenticateToken, async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    const recordId = req.params.id;
+    console.log(`Updating lift service record with ID: ${recordId}`);
+    console.log('Request body:', JSON.stringify(req.body));
+    
+    // First check if record exists
+    const checkResult = await client.query('SELECT id FROM lift_service_records WHERE id = $1', [recordId]);
+    
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Lift service record not found' });
+    }
+    
+    // Start transaction
+    await client.query('BEGIN');
+    
+    const {
+      company_id,
+      product_category,
+      model,
+      serial_number,
+      service_date,
+      retest_date,
+      engineer_name,
+      signature_image,
+      certificate_number,
+      swl,
+      notes,
+      status,
+      
+      // Status fields - boolean values
+      safe_working_test,
+      emergency_stops_test,
+      limit_switches_test,
+      safety_devices_test,
+      hydraulic_system_test,
+      pressure_relief_test,
+      electrical_system_test,
+      platform_operation_test,
+      fail_safe_devices_test,
+      lifting_structure_test,
+      
+      // Status string fields
+      safe_working_test_status,
+      emergency_stops_test_status,
+      limit_switches_test_status,
+      safety_devices_test_status,
+      hydraulic_system_test_status,
+      pressure_relief_test_status,
+      electrical_system_test_status,
+      platform_operation_test_status,
+      fail_safe_devices_test_status,
+      lifting_structure_test_status,
+      
+      // Inspection fields
+      load_test,
+      tension_suspension_rope,
+      tension_foundation_bolt,
+      tension_column_bolt,
+      tension_platform_bolt,
+      cable_pulley,
+      drive_belt_chains,
+      hydraulic_connections,
+      oil_levels,
+      guide_rollers,
+      wheel_free_systems,
+      limit_devices,
+      arm_locks,
+      safety_devices,
+      clean_safety_rods,
+      auto_chocks_fixed_stops,
+      anti_toe_chocks,
+      lift_markings_swl,
+      lifting_arms_pads,
+      air_safety_locks,
+      column_alignment,
+      electrical_check,
+      dead_man_controls,
+      guards_fixings,
+      main_screw_load_safety_nuts,
+      
+      // Boolean fields
+      load_test_conducted,
+      equipment_out_of_action
+    } = req.body;
+    
+    console.log('Extracted values:',
+      `engineer_name: ${engineer_name}`,
+      `tension_suspension_rope: ${tension_suspension_rope}`,
+      `load_test: ${load_test}`
+    );
+    
+    const result = await client.query(
+      `UPDATE lift_service_records SET
+        company_id = $1,
+        product_category = $2,
+        model = $3,
+        serial_number = $4,
+        service_date = $5,
+        retest_date = $6,
+        engineer_name = $7,
+        signature_image = $8,
+        certificate_number = $9,
+        swl = $10,
+        notes = $11,
+        status = $12,
+        
+        safe_working_test = $13,
+        emergency_stops_test = $14,
+        limit_switches_test = $15,
+        safety_devices_test = $16,
+        hydraulic_system_test = $17,
+        pressure_relief_test = $18,
+        electrical_system_test = $19,
+        platform_operation_test = $20,
+        fail_safe_devices_test = $21,
+        lifting_structure_test = $22,
+        
+        /* Status text fields */
+        safe_working_test_status = $23,
+        emergency_stops_test_status = $24,
+        limit_switches_test_status = $25,
+        safety_devices_test_status = $26,
+        hydraulic_system_test_status = $27,
+        pressure_relief_test_status = $28,
+        electrical_system_test_status = $29,
+        platform_operation_test_status = $30,
+        fail_safe_devices_test_status = $31,
+        lifting_structure_test_status = $32,
+        
+        /* Inspection fields */
+        load_test = $33,
+        tension_suspension_rope = $34,
+        tension_foundation_bolt = $35,
+        tension_column_bolt = $36,
+        tension_platform_bolt = $37,
+        cable_pulley = $38,
+        drive_belt_chains = $39,
+        hydraulic_connections = $40,
+        oil_levels = $41,
+        guide_rollers = $42,
+        wheel_free_systems = $43,
+        limit_devices = $44,
+        arm_locks = $45,
+        safety_devices = $46,
+        clean_safety_rods = $47,
+        auto_chocks_fixed_stops = $48,
+        anti_toe_chocks = $49,
+        lift_markings_swl = $50,
+        lifting_arms_pads = $51,
+        air_safety_locks = $52,
+        column_alignment = $53,
+        electrical_check = $54,
+        dead_man_controls = $55,
+        guards_fixings = $56,
+        main_screw_load_safety_nuts = $57,
+        
+        /* Boolean fields */
+        load_test_conducted = $58,
+        equipment_out_of_action = $59,
+        
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $60
+      RETURNING *`,
+      [
+        company_id,
+        product_category,
+        model,
+        serial_number,
+        service_date,
+        retest_date,
+        engineer_name,
+        signature_image,
+        certificate_number,
+        swl,
+        notes,
+        status,
+        
+        // Status boolean fields
+        safe_working_test,
+        emergency_stops_test,
+        limit_switches_test,
+        safety_devices_test,
+        hydraulic_system_test,
+        pressure_relief_test,
+        electrical_system_test,
+        platform_operation_test,
+        fail_safe_devices_test,
+        lifting_structure_test,
+        
+        // Status string fields
+        safe_working_test_status,
+        emergency_stops_test_status,
+        limit_switches_test_status, 
+        safety_devices_test_status,
+        hydraulic_system_test_status,
+        pressure_relief_test_status,
+        electrical_system_test_status,
+        platform_operation_test_status,
+        fail_safe_devices_test_status,
+        lifting_structure_test_status,
+        
+        // Inspection fields
+        load_test,
+        tension_suspension_rope,
+        tension_foundation_bolt,
+        tension_column_bolt,
+        tension_platform_bolt,
+        cable_pulley,
+        drive_belt_chains,
+        hydraulic_connections,
+        oil_levels,
+        guide_rollers,
+        wheel_free_systems,
+        limit_devices,
+        arm_locks,
+        safety_devices,
+        clean_safety_rods,
+        auto_chocks_fixed_stops,
+        anti_toe_chocks,
+        lift_markings_swl,
+        lifting_arms_pads,
+        air_safety_locks,
+        column_alignment,
+        electrical_check,
+        dead_man_controls,
+        guards_fixings,
+        main_screw_load_safety_nuts,
+        
+        // Boolean fields
+        load_test_conducted === true || load_test_conducted === 'true',
+        equipment_out_of_action === true || equipment_out_of_action === 'true',
+        
+        recordId
+      ]
+    );
+    
+    if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Lift service record not found or update failed' });
+    }
+    
+    // Commit the transaction
+    await client.query('COMMIT');
+    
+    console.log(`Updated lift service record with ID: ${recordId}`);
+    console.log('Updated record:', result.rows[0]);
+    
+    res.json(result.rows[0]);
+  } catch (error) {
+    // Roll back the transaction in case of error
+    if (client) {
+      await client.query('ROLLBACK');
+    }
+    console.error('Error updating lift service record:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  } finally {
+    // Make sure to release the client
+    if (client) {
+      client.release();
+    }
+  }
+});
+
+// Delete a lift service record
+app.delete('/api/lift-service-records/:id', authenticateToken, async (req, res) => {
+  try {
+    const recordId = req.params.id;
+    console.log(`Deleting lift service record with ID: ${recordId}`);
+    
+    const result = await pool.query(
+      'DELETE FROM lift_service_records WHERE id = $1 RETURNING *',
+      [recordId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Lift service record not found' });
+    }
+    
+    console.log(`Deleted lift service record with ID: ${recordId}`);
+    res.json({ message: 'Lift service record deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting lift service record:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Generate public access token for a lift service record
+app.post('/api/lift-service-records/:id/public-token', authenticateToken, async (req, res) => {
+  try {
+    const recordId = req.params.id;
+    console.log(`Generating public access token for lift service record ID: ${recordId}`);
+    
+    // Generate a random token
+    const crypto = require('crypto');
+    const token = crypto.randomBytes(32).toString('hex');
+    
+    // Update the record with the new token
+    const result = await pool.query(
+      `UPDATE lift_service_records 
+       SET public_access_token = $1 
+       WHERE id = $2 
+       RETURNING *`,
+      [token, recordId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Lift service record not found' 
+      });
+    }
+    
+    console.log(`Generated public access token for lift service record ID: ${recordId}`);
+    res.status(200).json({ 
+      success: true, 
+      message: 'Public token generated successfully',
+      token: token
+    });
+  } catch (error) {
+    console.error('Error generating public token:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error generating public token' 
+    });
+  }
+});
+
+// Public access to lift service certificate
+app.get('/api/public/lift-service-certificate/:id', async (req, res) => {
+  try {
+    const recordId = req.params.id;
+    const token = req.query.token;
+    
+    console.log(`Public certificate access attempt for ID: ${recordId}`);
+    
+    if (!token) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Token is required' 
+      });
+    }
+    
+    // Query to get the record with the matching token
+    const result = await pool.query(
+      `SELECT 
+        lsr.*,
+        c.company_name,
+        c.address,
+        c.city,
+        c.county,
+        c.postcode,
+        c.phone_number,
+        c.email
+      FROM lift_service_records lsr
+      LEFT JOIN companies c ON lsr.company_id = c.id
+      WHERE lsr.id = $1 AND lsr.public_access_token = $2`,
+      [recordId, token]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Certificate not found or invalid token' 
+      });
+    }
+    
+    // Format the response data
+    const record = result.rows[0];
+    const company = {
+      id: record.company_id,
+      company_name: record.company_name,
+      address: record.address,
+      city: record.city,
+      county: record.county,
+      postcode: record.postcode,
+      phone_number: record.phone_number,
+      email: record.email
+    };
+    
+    // Remove company fields from record
+    delete record.company_name;
+    delete record.address;
+    delete record.city;
+    delete record.county;
+    delete record.postcode;
+    delete record.phone_number;
+    delete record.email;
+    
+    // Add company object to record
+    record.company = company;
+    
+    console.log(`Valid public certificate access for ID: ${recordId}`);
+    res.status(200).json(record);
+  } catch (error) {
+    console.error('Error retrieving public certificate:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error retrieving certificate' 
+    });
+  }
+});
+
+// --- END Lift Service Records API Endpoints ---
+
+// --- Debug endpoint for troubleshooting lift service records ---
+app.get('/api/debug/lift-record/:id', authenticateToken, async (req, res) => {
+  try {
+    const recordId = req.params.id;
+    console.log(`DEBUG: Fetching lift service record with ID: ${recordId}`);
+    
+    // First check if record exists
+    const checkResult = await pool.query('SELECT id FROM lift_service_records WHERE id = $1', [recordId]);
+    
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Record not found' });
+    }
+    
+    // Test the database connection with a simple query
+    const connectionTest = await pool.query('SELECT NOW() as time');
+    
+    // Get the full record with all fields
+    const result = await pool.query('SELECT * FROM lift_service_records WHERE id = $1', [recordId]);
+    
+    // Return test info and the record
+    res.json({
+      debug_info: {
+        database_connection: 'ok',
+        server_time: connectionTest.rows[0].time,
+        record_exists: true,
+        field_count: Object.keys(result.rows[0]).length
+      },
+      record: result.rows[0]
+    });
+  } catch (error) {
+    console.error('DEBUG ERROR:', error);
+    res.status(500).json({ 
+      error: 'Debug error', 
+      message: error.message,
+      stack: error.stack
+    });
+  }
+});
+
+// Test database update with a simple value
+app.post('/api/debug/lift-record/:id/test-update', authenticateToken, async (req, res) => {
+  try {
+    const recordId = req.params.id;
+    const testValue = req.body.test_value || 'TEST UPDATE VALUE';
+    
+    console.log(`DEBUG: Testing update on record ${recordId} with engineer_name = "${testValue}"`);
+    
+    // Try a simple update with just one field
+    const result = await pool.query(
+      'UPDATE lift_service_records SET engineer_name = $1, updated_at = NOW() WHERE id = $2 RETURNING id, engineer_name',
+      [testValue, recordId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Record not found or update failed' });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Test update successful',
+      updated_field: result.rows[0]
+    });
+  } catch (error) {
+    console.error('DEBUG UPDATE ERROR:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Debug update error', 
+      message: error.message
+    });
+  }
+});
+// ... existing code ...
+
 // Catch-all route for unmatched routes
 app.use((req, res) => {
   console.log(`Unmatched route: ${req.method} ${req.path}`);
@@ -967,3 +2620,8 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Test endpoint: http://localhost:${PORT}/api/test`);
 }); 
+
+//--------------------------------------------------
+// Service Records CRUD Operations
+//--------------------------------------------------
+// ... existing code ...

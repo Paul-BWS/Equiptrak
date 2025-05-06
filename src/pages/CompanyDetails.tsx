@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building, User, Mail, Phone, Smartphone, Edit, Trash2, Plus, X, Save, ArrowLeft, Loader2, Globe, Wrench, ClipboardList, Users, MessageSquare, MessageCircle, NotepadText, Pencil, MapPin, CheckCircle, Clock, AlertTriangle, Image, Upload } from "lucide-react";
+import { Building, User, Mail, Phone, Smartphone, Edit, Trash2, Plus, X, Save, ArrowLeft, Loader2, Globe, Wrench, ClipboardList, Users, MessageSquare, MessageCircle, NotepadText, Pencil, MapPin, CheckCircle, Clock, AlertTriangle, Image, Upload, ListFilter, Check, ClipboardCheck, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -18,6 +18,8 @@ import { Notes, NotesRef } from '@/components/shared/Notes';
 import { MapsProvider } from '@/contexts/MapsContext';
 import { CompanyMap } from '@/components/maps/CompanyMap';
 import { ServiceRecordsTable } from "@/components/service/components/ServiceRecordsTable";
+import { EquipmentStatusCount } from "@/components/service/components/EquipmentStatusCount";
+import { CompanyAllEquipmentTable } from "@/components/company/CompanyAllEquipmentTable";
 import LogoUploader from '@/components/LogoUploader';
 
 interface Company {
@@ -233,7 +235,7 @@ export default function CompanyDetails() {
   }, [id, user?.token]);
 
   const handleBackClick = () => {
-    navigate(-1);
+    navigate('/admin');
   };
 
   const handleEditClick = () => {
@@ -885,18 +887,83 @@ export default function CompanyDetails() {
                       {company.company_name}
                     </h2>
                   </div>
-                  <Button 
-                    size="sm" 
-                    className="bg-[#22c55e] hover:bg-opacity-90 text-white"
-                    onClick={() => navigate(`/equipment-types?companyId=${id}`)}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Equipment Types
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      size="sm" 
+                      className="bg-[#22c55e] hover:bg-opacity-90 text-white"
+                      onClick={() => navigate(`/equipment-types?companyId=${id}`)}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Equipment Types
+                    </Button>
+                  </div>
                 </div>
                 
-                {/* Service Records Table */}
-                <ServiceRecordsTable customerId={id} />
+                {/* Equipment Status Dashboard */}
+                <Card className="mb-6">
+                  <CardContent className="p-4">
+                    <h3 className="text-md font-semibold mb-4 flex items-center">
+                      <ClipboardCheck className="mr-2 h-4 w-4" />
+                      Equipment Status
+                    </h3>
+                    
+                    <div className="flex flex-row items-center justify-around text-center gap-4">
+                      {/* Valid Equipment */}
+                      <div className="flex flex-col items-center">
+                        <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-2">
+                          <Check className="h-6 w-6 text-green-500" />
+                        </div>
+                        <h3 className="text-sm font-medium">Valid</h3>
+                        <p className="text-2xl font-bold mt-1">
+                          <EquipmentStatusCount 
+                            companyId={id} 
+                            status="valid" 
+                          />
+                        </p>
+                      </div>
+                      
+                      {/* Upcoming Equipment */}
+                      <div className="flex flex-col items-center">
+                        <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mb-2">
+                          <Clock className="h-6 w-6 text-amber-500" />
+                        </div>
+                        <h3 className="text-sm font-medium">Upcoming</h3>
+                        <p className="text-2xl font-bold mt-1">
+                          <EquipmentStatusCount 
+                            companyId={id} 
+                            status="upcoming" 
+                          />
+                        </p>
+                      </div>
+                      
+                      {/* Invalid Equipment */}
+                      <div className="flex flex-col items-center">
+                        <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-2">
+                          <AlertTriangle className="h-6 w-6 text-red-500" />
+                        </div>
+                        <h3 className="text-sm font-medium">Invalid</h3>
+                        <p className="text-2xl font-bold mt-1">
+                          <EquipmentStatusCount 
+                            companyId={id} 
+                            status="invalid" 
+                          />
+                        </p>
+                      </div>
+                    </div>
+
+                    <p className="text-center text-gray-500 mt-4 text-xs">
+                      Data from company equipment service records
+                    </p>
+                  </CardContent>
+                </Card>
+                
+                {/* All Equipment List */}
+                <div className="mt-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-md font-semibold">All Equipment</h3>
+                  </div>
+                  <CompanyAllEquipmentTable companyId={id!} />
+                </div>
               </div>
             </TabsContent>
             
