@@ -132,7 +132,7 @@ export function Login() {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="flex min-h-screen bg-background">
       {/* Left side with robot image */}
       <div className="hidden md:flex md:w-1/2 items-center justify-center bg-[#7496da]">
         <div className="w-3/4 flex justify-center">
@@ -150,44 +150,44 @@ export function Login() {
       </div>
 
       {/* Right side with login form */}
-      <div className="w-full md:w-1/2 flex flex-col items-center justify-center p-4 md:p-8 bg-gray-50">
+      <div className="w-full md:w-1/2 flex flex-col items-center justify-center p-4 md:p-8">
         <div className="w-full max-w-md space-y-6">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold">EquipTrack</h1>
+            <h1 className="text-3xl font-bold text-foreground">EquipTrack</h1>
           </div>
           
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-foreground">Email</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                <Mail className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
                 <Input
                   id="email"
                   placeholder="Enter your email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 bg-background text-foreground"
                   required
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-foreground">Password</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                <Lock className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 pr-10"
+                  className="pl-10 pr-10 bg-background text-foreground"
                   required
                 />
                 <button 
                   type="button"
                   onClick={toggleShowPassword} 
-                  className="absolute right-3 top-3 text-gray-400"
+                  className="absolute right-3 top-3 text-muted-foreground"
                   tabIndex={-1}
                 >
                   {showPassword ? (
@@ -200,7 +200,7 @@ export function Login() {
             </div>
             <Button
               type="submit"
-              className="w-full bg-[#a6e15a] hover:bg-[#95cc4f] text-black"
+              className="w-full bg-[#a6e15a] hover:bg-[#95cc4f] text-black dark:text-black"
               disabled={isLoading}
             >
               {isLoading ? (
@@ -213,15 +213,15 @@ export function Login() {
               )}
             </Button>
 
-            {/* Add version display */}
-            <div className="text-center text-sm text-gray-500 mt-4">
+            {/* Version display */}
+            <div className="text-center text-sm text-muted-foreground mt-4">
               Version {APP_VERSION}
             </div>
             
             {/* Need spares button */}
             <Button
               variant="outline"
-              className="w-full mt-4 text-blue-500 hover:text-blue-600"
+              className="w-full mt-4"
               onClick={() => window.location.href = 'https://www.bws-ltd.co.uk/contact'}
             >
               <ExternalLink className="mr-2 h-4 w-4" />
@@ -231,7 +231,7 @@ export function Login() {
             {/* Phone number */}
             <Button
               variant="outline"
-              className="w-full text-blue-500 hover:text-blue-600"
+              className="w-full"
               onClick={() => window.location.href = 'tel:01612231843'}
             >
               <Phone className="mr-2 h-4 w-4" />
@@ -240,47 +240,18 @@ export function Login() {
 
             {/* Error display */}
             {error && (
-              <div className="bg-red-50 text-red-600 p-3 rounded-md flex items-start mt-4">
+              <div className="bg-destructive/10 text-destructive p-3 rounded-md flex items-start mt-4">
                 <AlertCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
                 <div>
                   <p className="font-medium">Login failed</p>
                   <p className="text-sm">{error}</p>
                   {debugInfo && DEBUG_MODE && (
-                    <p className="text-xs mt-1 text-red-500">{debugInfo}</p>
+                    <p className="text-xs mt-1 opacity-80">{debugInfo}</p>
                   )}
                 </div>
               </div>
             )}
           </form>
-          
-          {/* Contact buttons */}
-          <div className="mt-8 space-y-4">
-            <a 
-              href="https://www.basicwelding.co.uk" 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="flex items-center justify-center px-6 py-3 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow"
-            >
-              <div className="flex items-center text-[#7496da]">
-                <ExternalLink className="h-5 w-5 mr-3" />
-                <span className="font-medium">Need spares or repairs?</span>
-              </div>
-            </a>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <a 
-                href="tel:01612231843" 
-                className="flex items-center justify-center px-6 py-3 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow"
-              >
-                <Phone className="h-5 w-5 mr-3 text-[#7496da]" />
-                <span className="text-gray-700">0161 223 1843</span>
-              </a>
-              
-              <div className="flex items-center justify-center px-6 py-3 bg-white rounded-lg shadow-md">
-                <span className="text-xs text-gray-500">v{APP_VERSION}</span>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
