@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redirecting to Acme</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f5f5f5;
+    }
+    .container {
+      text-align: center;
+      padding: 2rem;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      max-width: 500px;
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 1rem;
+    }
+    p {
+      color: #666;
+      margin-bottom: 1.5rem;
+    }
+    .redirect-button {
+      background-color: #7b96d4;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background-color 0.2s;
+    }
+    .redirect-button:hover {
+      background-color: #6a82bc;
+    }
+    .countdown {
+      font-weight: bold;
+      color: #7b96d4;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Redirecting to Acme Company</h1>
+    <p>You will be redirected to the Acme company page in <span id="countdown" class="countdown">5</span> seconds.</p>
+    <p>If you are not redirected automatically, click the button below:</p>
+    <button id="redirect-button" class="redirect-button">Go to Acme Company</button>
+  </div>
+
+  <script>
+    // Acme company ID
+    const acmeCompanyId = '0cd307a7-c938-49da-b005-17746587ca8a';
+    const acmeUrl = `/admin/customer/${acmeCompanyId}`;
+    
+    // Set up redirect button
+    document.getElementById('redirect-button').addEventListener('click', function() {
+      window.location.href = acmeUrl;
+    });
+    
+    // Set up countdown
+    let countdown = 5;
+    const countdownElement = document.getElementById('countdown');
+    
+    const countdownInterval = setInterval(function() {
+      countdown--;
+      countdownElement.textContent = countdown;
+      
+      if (countdown <= 0) {
+        clearInterval(countdownInterval);
+        window.location.href = acmeUrl;
+      }
+    }, 1000);
+  </script>
+</body>
+</html> 

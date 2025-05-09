@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Navigation Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1 {
+      color: #333;
+    }
+    .link-container {
+      margin: 20px 0;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    a {
+      display: block;
+      margin: 10px 0;
+      color: #0066cc;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    button {
+      background-color: #0066cc;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover {
+      background-color: #0055aa;
+    }
+    .info {
+      background-color: #f5f5f5;
+      padding: 15px;
+      border-radius: 5px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Navigation Test Page</h1>
+  
+  <div class="link-container">
+    <h2>Test Links</h2>
+    <a href="/admin/customer/0cd307a7-c938-49da-b005-17746587ca8a">Link to Acme Company Page</a>
+    <a href="/admin">Link to Admin Dashboard</a>
+    <a href="/dashboard">Link to User Dashboard</a>
+    <a href="/">Link to Login Page</a>
+  </div>
+  
+  <div class="link-container">
+    <h2>Test Buttons</h2>
+    <button onclick="navigateTo('/admin/customer/0cd307a7-c938-49da-b005-17746587ca8a')">Navigate to Acme Company</button>
+    <button onclick="navigateTo('/admin')">Navigate to Admin</button>
+    <button onclick="navigateTo('/dashboard')">Navigate to Dashboard</button>
+    <button onclick="navigateTo('/')">Navigate to Login</button>
+  </div>
+  
+  <div class="info">
+    <h2>Debug Information</h2>
+    <p><strong>Acme Company ID:</strong> 0cd307a7-c938-49da-b005-17746587ca8a</p>
+    <p><strong>Current Path:</strong> <span id="current-path"></span></p>
+  </div>
+  
+  <script>
+    // Update current path
+    document.getElementById('current-path').textContent = window.location.pathname;
+    
+    // Navigation function
+    function navigateTo(path) {
+      console.log('Navigating to:', path);
+      window.location.href = path;
+    }
+  </script>
+</body>
+</html>
