@@ -20,7 +20,7 @@ import ServicePage from "@/pages/Service";
 import ProductsList from "@/pages/ProductsList";
 import ProductDetailsPage from "@/pages/ProductDetailsPage";
 import WorkOrdersList from "@/pages/WorkOrdersList";
-import NewWorkOrder from "@/pages/NewWorkOrder";
+import WorkOrderPage from "@/pages/WorkOrderPage";
 import EquipmentListPage from "@/pages/EquipmentList";
 import LiftServiceList from "@/pages/LiftServiceList";
 import LiftServiceForm from "@/pages/LiftServiceForm";
@@ -212,7 +212,19 @@ function App() {
                   
                   <Route path="/work-orders/new" element={
                     <ProtectedRoute>
-                      <NewWorkOrder />
+                      <WorkOrderPage />
+                    </ProtectedRoute>
+                  } />
+                  
+                  <Route path="/work-orders/:id" element={
+                    <ProtectedRoute>
+                      <WorkOrderPage />
+                    </ProtectedRoute>
+                  } />
+                  
+                  <Route path="/work-orders/:id/:companyId" element={
+                    <ProtectedRoute>
+                      <WorkOrderPage />
                     </ProtectedRoute>
                   } />
                   

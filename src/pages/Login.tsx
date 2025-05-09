@@ -9,14 +9,9 @@ import { useNavigate } from "react-router-dom";
 import ApiClient from "@/utils/ApiClient";
 
 // Define a version number for tracking deployments
-const APP_VERSION = "1.0.5";
+const APP_VERSION = "1.0.7";
 // Set to true to show detailed error information
 const DEBUG_MODE = true;
-
-// API base URL
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? '' // Use relative URL in production
-  : 'http://localhost:3001';
 
 export function Login() {
   const [email, setEmail] = useState("");
@@ -58,46 +53,27 @@ export function Login() {
     try {
       // First check if the server is accessible
       console.log("Testing server connection...");
-      try {
-        const healthCheck = await fetch(`${API_BASE_URL}/api/test`, {
-          method: 'GET',
-          mode: 'cors',
-          credentials: 'include'
-        });
-        
-        if (!healthCheck.ok) {
-          throw new Error('Server health check failed');
-        }
-      } catch (healthError) {
-        console.error("Server health check failed:", healthError);
-        setDebugInfo(`Server connection failed: ${healthError.message}`);
-        throw new Error('Unable to connect to server. Please check if the server is running.');
+      const healthCheck = await ApiClient.get('/api/test');
+      
+      if (!healthCheck.ok) {
+        throw new Error('Server health check failed');
       }
 
-      console.log("Sending login request directly with fetch");
-      const loginResponse = await fetch(`${API_BASE_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ 
-          email: email, 
-          password: password 
-        }),
-        credentials: 'include',
-        mode: 'cors'
+      console.log("Sending login request");
+      const loginResponse = await ApiClient.post('/api/auth/login', { 
+        email, 
+        password 
       });
       
       console.log("Login response status:", loginResponse.status);
       
       if (!loginResponse.ok) {
-        const errorText = await loginResponse.text();
-        console.error("Server returned error:", errorText);
-        setDebugInfo(`Server error (${loginResponse.status}): ${errorText || 'Unknown error'}`);
-        throw new Error(errorText || 'Authentication failed');
+        console.error("Server returned error:", loginResponse.error);
+        setDebugInfo(`Server error (${loginResponse.status}): ${loginResponse.error || 'Unknown error'}`);
+        throw new Error(loginResponse.error || 'Authentication failed');
       }
 
-      const data = await loginResponse.json();
+      const data = loginResponse.data;
       
       // Log the response for debugging
       console.log('Server response:', data);
