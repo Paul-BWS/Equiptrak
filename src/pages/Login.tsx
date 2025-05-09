@@ -154,6 +154,7 @@ export function Login() {
         <div className="w-full max-w-md space-y-6">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold">EquipTrack</h1>
+            <p className="text-sm text-gray-500 mt-2">v{APP_VERSION}</p>
           </div>
           
           <form onSubmit={handleSubmit} className="space-y-5">
