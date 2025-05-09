@@ -39,6 +39,7 @@ export default defineConfig(({ mode }) => {
     define: {
       // Make sure to stringify the values for proper JSON
       '__APP_ENV__': JSON.stringify(env.VITE_APP_ENV || 'development'),
+      '__APP_VERSION__': JSON.stringify('1.0.8'),
     },
     server: {
       port: 3000,
