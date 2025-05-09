@@ -200,7 +200,7 @@ export function Login() {
             </div>
             <Button
               type="submit"
-              className="w-full bg-[#7496da] hover:bg-[#5f7ab8]"
+              className="w-full bg-[#a6e15a] hover:bg-[#95cc4f] text-black"
               disabled={isLoading}
             >
               {isLoading ? (
@@ -212,23 +212,46 @@ export function Login() {
                 "Sign In"
               )}
             </Button>
-          </form>
-          
-          {error && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-600 flex items-start">
-              <AlertCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-medium">Login failed</p>
-                <p className="text-sm">{error}</p>
-                {debugInfo && DEBUG_MODE && (
-                  <details className="mt-2 text-xs bg-red-100 p-2 rounded">
-                    <summary>Technical details</summary>
-                    <pre className="whitespace-pre-wrap">{debugInfo}</pre>
-                  </details>
-                )}
-              </div>
+
+            {/* Add version display */}
+            <div className="text-center text-sm text-gray-500 mt-4">
+              Version {APP_VERSION}
             </div>
-          )}
+            
+            {/* Need spares button */}
+            <Button
+              variant="outline"
+              className="w-full mt-4 text-blue-500 hover:text-blue-600"
+              onClick={() => window.location.href = 'https://www.bws-ltd.co.uk/contact'}
+            >
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Need spares or repairs?
+            </Button>
+
+            {/* Phone number */}
+            <Button
+              variant="outline"
+              className="w-full text-blue-500 hover:text-blue-600"
+              onClick={() => window.location.href = 'tel:01612231843'}
+            >
+              <Phone className="mr-2 h-4 w-4" />
+              0161 223 1843
+            </Button>
+
+            {/* Error display */}
+            {error && (
+              <div className="bg-red-50 text-red-600 p-3 rounded-md flex items-start mt-4">
+                <AlertCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-medium">Login failed</p>
+                  <p className="text-sm">{error}</p>
+                  {debugInfo && DEBUG_MODE && (
+                    <p className="text-xs mt-1 text-red-500">{debugInfo}</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </form>
           
           {/* Contact buttons */}
           <div className="mt-8 space-y-4">
