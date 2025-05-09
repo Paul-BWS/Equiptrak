@@ -63,3 +63,10 @@ Thumbs.db
 
 # Log files
 *.log
+.vercel
+
+# Server specific
+server/node_modules/
+server/.env
+server/.env.production
+server/.env.example

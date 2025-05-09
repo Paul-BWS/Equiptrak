@@ -3,6 +3,12 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
 import type { ProxyOptions } from 'vite';
+import { IncomingMessage } from 'http';
+
+// Extend IncomingMessage to include body property
+interface ExtendedIncomingMessage extends IncomingMessage {
+  body?: any;
+}
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -47,12 +53,27 @@ export default defineConfig(({ mode }) => {
           configure: (proxy, options) => {
             proxy.on('error', (err, req, res) => {
               console.error('❌ API Proxy Error:', err);
+              // If the response hasn't been sent and we can set headers
+              if (!res.headersSent) {
+                res.writeHead(500, {
+                  'Content-Type': 'application/json'
+                });
+                const errorMessage = JSON.stringify({ error: 'Proxy Error: ' + err.message });
+                res.end(errorMessage);
+              }
             });
             proxy.on('proxyReq', (proxyReq, req, res) => {
               console.log('📤 Outgoing API Request:', req.method, req.url);
+              // Log the request body for debugging POST requests
+              const extendedReq = req as ExtendedIncomingMessage;
+              if (req.method === 'POST' && extendedReq.body) {
+                console.log('Request body:', extendedReq.body);
+              }
             });
             proxy.on('proxyRes', (proxyRes, req, res) => {
               console.log('📥 Incoming API Response:', proxyRes.statusCode, req.url);
+              // Log response headers for debugging
+              console.log('Response headers:', proxyRes.headers);
             });
           }
         } as ProxyOptions,

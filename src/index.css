@@ -54,6 +54,8 @@
     margin: 0;
     padding: 0;
     overflow-x: hidden;
+    width: 100%;
+    max-width: 100vw;
   }
 
   /* Ensure the root div takes up full height */
@@ -61,6 +63,26 @@
     height: 100%;
     display: flex;
     flex-direction: column;
+    width: 100%;
+    max-width: 100vw;
+  }
+
+  /* Fix for container widths on desktop */
+  @media (min-width: 1024px) {
+    .container {
+      max-width: 100% !important;
+      width: 100% !important;
+      padding-left: 2rem !important;
+      padding-right: 2rem !important;
+    }
+  }
+
+  /* Fix for mobile padding */
+  @media (max-width: 768px) {
+    .container {
+      padding-left: 1rem !important;
+      padding-right: 1rem !important;
+    }
   }
 
   @media print {

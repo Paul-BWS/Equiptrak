@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, ShoppingCart } from 'lucide-react';
+import { Search, ShoppingCart, AlertCircle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import axios from 'axios';
 
 interface Product {
   id: string;
@@ -19,6 +20,7 @@ interface Product {
   category: string;
   supplier: string;
   inventory_quantity: number;
+  adjustedPrice?: number;
 }
 
 interface ProductSelectorProps {
@@ -30,104 +32,162 @@ export default function ProductSelector({ onSelectProducts, onCancel }: ProductS
   const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [categories, setCategories] = useState<string[]>([]);
   const [suppliers, setSuppliers] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [pagination, setPagination] = useState({
+    total: 0,
+    limit: 100,
+    offset: 0,
+    hasMore: false
+  });
+  const [loadingMore, setLoadingMore] = useState(false);
   
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoading(true);
-        
-        // Fetch from our real API
-        const response = await fetch('/api/products/selector', {
-          headers: {
-            'Authorization': `Bearer ${user?.token || localStorage.getItem('token')}`
-          }
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Error fetching products: ${response.status}`);
+  // Use a more robust function to fetch products with pagination
+  const fetchProducts = useCallback(async (offset = 0, category = '', search = '') => {
+    try {
+      setLoadingMore(offset > 0);
+      if (offset === 0) setLoading(true);
+      
+      console.log(`Fetching products: offset=${offset}, category=${category}, search=${search}`);
+      
+      // Get auth token from user context or localStorage
+      const token = user?.token || localStorage.getItem('token');
+      
+      if (!token) {
+        throw new Error('Authentication token is missing');
+      }
+      
+      // Build query parameters
+      const params = new URLSearchParams();
+      params.append('limit', '100');
+      params.append('offset', offset.toString());
+      if (category) params.append('category', category);
+      if (search) params.append('search', search);
+      
+      // Use axios instead of fetch for better error handling
+      const response = await axios.get(`/api/products/selector?${params.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
-        
-        const data = await response.json();
-        
-        // Process the received data
-        const productsWithTrade = data.products.map((product: any) => ({
-          ...product,
-          // If trade_price isn't available, calculate it as 80% of the price
-          trade_price: product.trade_price || (product.price * 0.8)
-        }));
-        
+      });
+      
+      if (!response.data || !Array.isArray(response.data.products)) {
+        throw new Error('Invalid data format received from server');
+      }
+      
+      // Process the received data
+      const productsWithTrade = response.data.products.map((product: any) => ({
+        ...product,
+        // If trade_price isn't available, calculate it as 80% of the price
+        trade_price: product.trade_price || (product.price * 0.8)
+      }));
+      
+      // Update state based on whether we're loading more (append) or initial load (replace)
+      if (offset > 0) {
+        setProducts(prev => [...prev, ...productsWithTrade]);
+        setFilteredProducts(prev => [...prev, ...productsWithTrade]);
+      } else {
         setProducts(productsWithTrade);
         setFilteredProducts(productsWithTrade);
-        
-        // Extract unique categories and suppliers for filtering
+      }
+      
+      // Update pagination info
+      if (response.data.pagination) {
+        setPagination(response.data.pagination);
+      }
+      
+      // Extract unique categories and suppliers for filtering (only on initial load)
+      if (offset === 0) {
+        // Get all unique categories from products
+        const allProducts = offset > 0 ? [...products, ...productsWithTrade] : productsWithTrade;
         const uniqueCategories = Array.from(
-          new Set(productsWithTrade.map((p: Product) => p.category).filter(Boolean))
+          new Set(allProducts.map((p: Product) => p.category).filter(Boolean))
         );
         const uniqueSuppliers = Array.from(
-          new Set(productsWithTrade.map((p: Product) => p.supplier).filter(Boolean))
+          new Set(allProducts.map((p: Product) => p.supplier).filter(Boolean))
         );
         
         setCategories(uniqueCategories as string[]);
         setSuppliers(uniqueSuppliers as string[]);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch products');
-        console.error('Error fetching products:', err);
-      } finally {
-        setLoading(false);
       }
-    };
-    
-    fetchProducts();
-  }, [user]);
+      
+      // Reset error state if successful
+      setError(null);
+    } catch (err: any) {
+      console.error('Error fetching products:', err);
+      
+      // Provide detailed error message
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to fetch products';
+      setError(errorMessage);
+      
+      // Log additional info for debugging
+      if (err.response) {
+        console.error('Server response:', err.response.data);
+        console.error('Status:', err.response.status);
+      }
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, [user, products]);
   
-  // Handle search and category filtering
+  // Initial fetch on component mount
   useEffect(() => {
-    let filtered = products;
-    
-    // Apply category filter if selected
-    if (selectedCategory) {
-      filtered = filtered.filter(product => product.category === selectedCategory);
-    }
-    
-    // Apply search term filter
-    if (searchTerm.trim()) {
-      const lowerCaseSearchTerm = searchTerm.toLowerCase();
-      filtered = filtered.filter(product => 
-        product.name?.toLowerCase().includes(lowerCaseSearchTerm) ||
-        product.sku?.toLowerCase().includes(lowerCaseSearchTerm) ||
-        product.description?.toLowerCase().includes(lowerCaseSearchTerm)
-      );
-    }
-    
-    setFilteredProducts(filtered);
-  }, [searchTerm, selectedCategory, products]);
+    fetchProducts(0, selectedCategory, searchTerm);
+  }, []);
   
-  const handleProductSelect = (product: Product) => {
-    if (selectedProducts.some(p => p.id === product.id)) {
-      setSelectedProducts(selectedProducts.filter(p => p.id !== product.id));
-    } else {
-      setSelectedProducts([...selectedProducts, product]);
-    }
+  // Handle category filter change
+  const handleCategoryChange = (value: string) => {
+    // If "all" is selected, set empty string for API call
+    const categoryValue = value === 'all' ? '' : value;
+    setSelectedCategory(value);
+    // Reset and fetch with new category
+    setProducts([]);
+    setFilteredProducts([]);
+    fetchProducts(0, categoryValue, searchTerm);
   };
   
+  // Handle search form submission
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    // The search is already handled by the useEffect above
+    // Reset and fetch with search term
+    setProducts([]);
+    setFilteredProducts([]);
+    fetchProducts(0, selectedCategory, searchTerm);
   };
   
-  const handleCategoryChange = (value: string) => {
-    setSelectedCategory(value);
+  // Load more products when scrolling to bottom
+  const handleLoadMore = () => {
+    if (pagination.hasMore && !loadingMore) {
+      fetchProducts(pagination.offset + pagination.limit, selectedCategory, searchTerm);
+    }
   };
   
-  const handleAddSelected = () => {
-    onSelectProducts(selectedProducts);
+  const handleProductSelect = (product: Product) => {
+    // Use the adjusted price if it exists, otherwise use the original price
+    const finalProduct = {
+      ...product,
+      price: product.adjustedPrice || product.price
+    };
+    onSelectProducts([finalProduct]);
+  };
+  
+  const handlePriceAdjustment = (product: Product, newPrice: number) => {
+    if (isNaN(newPrice) || newPrice < 0) return;
+    
+    setFilteredProducts(prev => prev.map(p => {
+      if (p.id === product.id) {
+        return {
+          ...p,
+          adjustedPrice: newPrice
+        };
+      }
+      return p;
+    }));
   };
   
   const formatCurrency = (amount: number) => {
@@ -138,7 +198,8 @@ export default function ProductSelector({ onSelectProducts, onCancel }: ProductS
     }).format(amount);
   };
   
-  if (loading) {
+  // Render loading state
+  if (loading && !loadingMore) {
     return (
       <div className="p-4">
         <div className="flex mb-4">
@@ -160,17 +221,29 @@ export default function ProductSelector({ onSelectProducts, onCancel }: ProductS
     );
   }
   
+  // Render error state with more details
   if (error) {
     return (
       <div className="p-4">
-        <p className="text-red-500">{error}</p>
-        <Button onClick={() => window.location.reload()} className="mt-2">Try Again</Button>
+        <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+          <div className="flex items-start">
+            <AlertCircle className="h-5 w-5 text-red-500 mr-2 mt-0.5" />
+            <div>
+              <h3 className="text-red-800 font-semibold">Error loading products</h3>
+              <p className="text-red-700">{error}</p>
+            </div>
+          </div>
+        </div>
+        <div className="flex space-x-2">
+          <Button onClick={() => window.location.reload()} variant="outline">Reload Page</Button>
+          <Button onClick={() => fetchProducts(0, selectedCategory, searchTerm)}>Try Again</Button>
+        </div>
       </div>
     );
   }
   
   return (
-    <div className="p-4">
+    <div className="p-4 flex flex-col">
       <div className="grid grid-cols-2 gap-4 mb-6">
         <form onSubmit={handleSearch}>
           <div className="relative">
@@ -188,7 +261,7 @@ export default function ProductSelector({ onSelectProducts, onCancel }: ProductS
             <SelectValue placeholder="Filter by category" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Categories</SelectItem>
+            <SelectItem value="all">All Categories</SelectItem>
             {categories.map(category => (
               <SelectItem key={category} value={category}>{category}</SelectItem>
             ))}
@@ -207,33 +280,31 @@ export default function ProductSelector({ onSelectProducts, onCancel }: ProductS
       {filteredProducts.length === 0 ? (
         <div className="p-8 text-center text-gray-500">
           <ShoppingCart className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-          <p>No products found matching "{searchTerm}"</p>
+          <p>No products found matching your criteria</p>
         </div>
       ) : (
-        <div className="max-h-[400px] overflow-y-auto">
+        <div className="max-h-[400px] overflow-y-auto" onScroll={(e) => {
+          const element = e.currentTarget;
+          if (element.scrollHeight - element.scrollTop <= element.clientHeight + 200) {
+            handleLoadMore();
+          }
+        }}>
           {filteredProducts.map(product => (
             <div 
               key={product.id} 
-              className={`grid grid-cols-5 items-center p-4 border-b hover:bg-gray-50 cursor-pointer ${
-                selectedProducts.some(p => p.id === product.id) ? 'bg-blue-50' : ''
-              }`}
+              className="grid grid-cols-5 items-center p-4 border-b hover:bg-gray-50 cursor-pointer"
               onClick={() => handleProductSelect(product)}
             >
               <div className="flex items-center">
-                <Checkbox 
-                  checked={selectedProducts.some(p => p.id === product.id)}
-                  onCheckedChange={() => handleProductSelect(product)}
-                  className="mr-2"
-                />
                 {product.image_url ? (
                   <img 
                     src={product.image_url} 
                     alt={product.name} 
-                    className="h-16 w-16 object-contain"
+                    className="h-24 w-24 object-contain"
                   />
                 ) : (
-                  <div className="h-16 w-16 bg-gray-200 flex items-center justify-center">
-                    <ShoppingCart className="h-6 w-6 text-gray-400" />
+                  <div className="h-24 w-24 bg-gray-200 flex items-center justify-center">
+                    <ShoppingCart className="h-8 w-8 text-gray-400" />
                   </div>
                 )}
               </div>
@@ -248,24 +319,26 @@ export default function ProductSelector({ onSelectProducts, onCancel }: ProductS
               <div className="text-right font-bold">{formatCurrency(product.price || 0)}</div>
             </div>
           ))}
+          
+          {loadingMore && (
+            <div className="p-4 text-center">
+              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+              <p className="mt-2 text-gray-500">Loading more products...</p>
+            </div>
+          )}
+          
+          {pagination.hasMore && !loadingMore && (
+            <div className="p-4 text-center">
+              <Button variant="outline" onClick={handleLoadMore}>
+                Load More ({pagination.total - (pagination.offset + filteredProducts.length)} remaining)
+              </Button>
+            </div>
+          )}
         </div>
       )}
       
-      <div className="flex justify-between mt-6">
-        <div>
-          {selectedProducts.length} product{selectedProducts.length !== 1 ? 's' : ''} selected
-        </div>
-        <div className="space-x-2">
-          <Button variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleAddSelected}
-            disabled={selectedProducts.length === 0}
-          >
-            Add Selected Products
-          </Button>
-        </div>
+      <div className="mt-6 flex justify-end">
+        <Button variant="outline" onClick={onCancel}>Cancel</Button>
       </div>
     </div>
   );

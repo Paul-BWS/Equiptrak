@@ -21,9 +21,9 @@ export function Layout() {
   
   // For authenticated users, render the layout
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="flex flex-col md:flex-row min-h-screen w-full max-w-[100vw] bg-gray-100 dark:bg-[#1D2125] overflow-hidden">
       {user && <Sidebar />}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 w-full overflow-y-auto overflow-x-hidden">
         <Outlet />
       </main>
     </div>

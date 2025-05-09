@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   Card, 
@@ -27,12 +27,15 @@ import {
   Building,
   ClipboardList
 } from 'lucide-react';
+import axios from 'axios';
+import { format } from 'date-fns';
 
 // Interface for work order data
 interface WorkOrder {
-  id: string;
+  id: string | number;  // Allow both string and number IDs
   company_id: string;
   company_name: string;
+  work_order_number: string;
   date: string;
   job_tracker: string;
   order_number: string;
@@ -49,88 +52,126 @@ interface WorkOrder {
 
 export default function WorkOrdersList() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [pagination, setPagination] = useState({
-    total: 0,
-    limit: 20,
-    offset: 0,
-    hasMore: false
-  });
 
   useEffect(() => {
-    // In a real implementation, this would fetch work orders from the API
-    // For now, I'll use mock data
-    const mockWorkOrders: WorkOrder[] = [
-      {
-        id: '1',
-        company_id: '101',
-        company_name: 'Tube & Wire Display Ltd',
-        date: '2025-04-01',
-        job_tracker: '20929',
-        order_number: 'Simon',
-        taken_by: 'dan',
-        staff: 'Dominic Jones',
-        status: 'COMPLETED',
-        description: 'Butt welder faulty slide piston going across slowly. Stripped Air control valve and replaced hose to footpedal...',
-        total: 480.00,
-        vat: 80.00,
-        discount: 0,
-        created_at: '2025-04-01T09:00:00Z',
-        updated_at: '2025-04-01T14:30:00Z'
-      },
-      {
-        id: '2',
-        company_id: '102',
-        company_name: 'Smith Manufacturing',
-        date: '2025-03-28',
-        job_tracker: '20928',
-        order_number: 'P-1234',
-        taken_by: 'sarah',
-        staff: 'Michael Brown',
-        status: 'PENDING',
-        description: 'Annual maintenance of CNC machines',
-        total: 750.00,
-        vat: 150.00,
-        discount: 50.00,
-        created_at: '2025-03-28T10:15:00Z',
-        updated_at: '2025-03-28T10:15:00Z'
-      },
-      {
-        id: '3',
-        company_id: '103',
-        company_name: 'Johnson Electronics',
-        date: '2025-03-25',
-        job_tracker: '20927',
-        order_number: 'JE-555',
-        taken_by: 'robert',
-        staff: 'Dominic Jones',
-        status: 'IN PROGRESS',
-        description: 'Replacement of faulty circuit boards in control panel',
-        total: 1250.00,
-        vat: 250.00,
-        discount: 0,
-        created_at: '2025-03-25T13:45:00Z',
-        updated_at: '2025-03-26T09:30:00Z'
+    const fetchWorkOrders = async () => {
+      if (!user?.token) return;
+      
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await axios.get('/api/work-orders', {
+          headers: {
+            Authorization: `Bearer ${user.token}`
+          }
+        });
+        
+        if (response.data && Array.isArray(response.data)) {
+          setWorkOrders(response.data);
+        } else {
+          throw new Error('Invalid response format');
+        }
+      } catch (error: any) {
+        console.error('Error fetching work orders:', error);
+        const errorMessage = error.response?.data?.message || 'Failed to load work orders';
+        setError(errorMessage);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: errorMessage
+        });
+      } finally {
+        setLoading(false);
       }
-    ];
+    };
+    
+    fetchWorkOrders();
+  }, [user?.token]);
 
-    setWorkOrders(mockWorkOrders);
-    setLoading(false);
-  }, [user]);
-
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Filter work orders based on search term
-    // In a real implementation, this would call the API with the search term
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await axios.get('/api/work-orders', {
+        headers: {
+          Authorization: `Bearer ${user.token}`
+        },
+        params: {
+          search: searchTerm
+        }
+      });
+      
+      if (response.data) {
+        setWorkOrders(response.data);
+      } else {
+        throw new Error('Invalid response format');
+      }
+    } catch (error) {
+      console.error('Error searching work orders:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to search work orders"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleWorkOrderClick = (workOrderId: string) => {
-    navigate(`/work-orders/${workOrderId}`);
+  const handleWorkOrderClick = (workOrder: WorkOrder) => {
+    navigate(`/work-orders/${workOrder.work_order_number}`);
+  };
+
+  const formatDate = (dateString: string) => {
+    try {
+      return format(new Date(dateString), 'dd/MM/yyyy');
+    } catch (error) {
+      return dateString;
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-GB', {
+      style: 'currency',
+      currency: 'GBP',
+      minimumFractionDigits: 2
+    }).format(amount);
+  };
+
+  const getStatusBadge = (status: string) => {
+    const statusColors: { [key: string]: string } = {
+      'QUOTATION': 'bg-blue-500',
+      'COMPLETED': 'bg-green-500',
+      'AWAIT ATTEND': 'bg-orange-500',
+      'AWAIT COMP': 'bg-purple-500',
+      'AWAIT DEL': 'bg-indigo-500',
+      'AWAIT SPARES': 'bg-red-500',
+      'AWAIT ONO': 'bg-pink-500',
+      'WORKSHOP': 'bg-cyan-500',
+      'WARRANTY': 'bg-emerald-500',
+      'ON HIRE': 'bg-teal-500',
+      'BWS': 'bg-sky-500',
+      'BACK ORDER': 'bg-amber-500',
+      'DEBT LIST': 'bg-rose-500',
+      'AWAIT RETURN': 'bg-violet-500',
+      'PENDING': 'bg-yellow-500'
+    };
+
+    return (
+      <Badge className={`${statusColors[status] || 'bg-gray-500'}`}>
+        {status}
+      </Badge>
+    );
   };
 
   if (loading) {
@@ -138,7 +179,7 @@ export default function WorkOrdersList() {
       <div className="min-h-screen bg-[#f8f9fc]">
         <div className="border-b bg-white shadow-sm">
           <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-            <h1 className="text-2xl font-semibold">Jobs</h1>
+            <h1 className="text-2xl font-semibold">Work Orders</h1>
           </div>
         </div>
         <div className="container mx-auto px-4 py-6">
@@ -155,142 +196,57 @@ export default function WorkOrdersList() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-[#f8f9fc]">
-        <div className="border-b bg-white shadow-sm">
-          <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-            <h1 className="text-2xl font-semibold">Jobs</h1>
-          </div>
-        </div>
-        <div className="container mx-auto px-4 py-6">
-          <Card className="border-destructive">
-            <CardContent className="p-6">
-              <p className="text-destructive">{error}</p>
-              <Button onClick={() => window.location.reload()} className="mt-4">Try Again</Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  const getStatusBadge = (status: string) => {
-    switch (status.toUpperCase()) {
-      case 'COMPLETED':
-        return <Badge className="bg-green-500">COMPLETED</Badge>;
-      case 'IN PROGRESS':
-        return <Badge className="bg-blue-500">IN PROGRESS</Badge>;
-      case 'PENDING':
-        return <Badge className="bg-yellow-500">PENDING</Badge>;
-      default:
-        return <Badge>{status}</Badge>;
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-GB', {
-      style: 'currency',
-      currency: 'GBP'
-    }).format(amount);
-  };
-
   return (
     <div className="min-h-screen bg-[#f8f9fc]">
       <div className="border-b bg-white shadow-sm">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-semibold">Jobs</h1>
-          <div className="flex items-center">
-            <div className="text-gray-600 flex items-center mr-4">
-              <span className="font-medium">Hello {user?.email?.split('@')[0] || 'User'}</span>
-              <span className="mx-2">•</span>
-              <span>{new Date().toLocaleDateString('en-US', { 
-                weekday: 'long',
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })}</span>
-            </div>
-            <Button 
-              className="bg-[#21c15b] hover:bg-[#21c15b]/90 text-white border border-[#21c15b]"
-              onClick={() => navigate('/work-orders/new')}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              New Job
-            </Button>
-          </div>
+          <h1 className="text-2xl font-semibold">Work Orders</h1>
+          <Button onClick={() => navigate('/work-orders/new')}>
+            <Plus className="mr-2 h-4 w-4" />
+            New Work Order
+          </Button>
         </div>
       </div>
 
       <div className="container mx-auto px-4 py-6">
-        <form onSubmit={handleSearch} className="mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search jobs by company, description, job tracker..."
-              className="pl-10 pr-20"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <Button 
-              type="submit" 
-              size="sm" 
-              className="absolute right-1 top-1 h-8"
-            >
-              Search
-            </Button>
-          </div>
-        </form>
-
-        {workOrders.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center p-6">
-              <div className="rounded-full bg-muted p-3 mb-3">
-                <ClipboardList className="h-6 w-6" />
+        <Card className="mb-6">
+          <CardContent className="p-4">
+            <form onSubmit={handleSearch} className="flex gap-4">
+              <div className="flex-1">
+                <Input
+                  placeholder="Search work orders..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full"
+                />
               </div>
-              <h3 className="text-lg font-semibold mb-1">No jobs found</h3>
-              <p className="text-center text-muted-foreground mb-4">
-                {searchTerm ? 
-                  `No jobs match your search for "${searchTerm}"` : 
-                  "You don't have any jobs yet."}
-              </p>
-              {searchTerm && (
-                <Button variant="outline" onClick={() => setSearchTerm('')}>
-                  Clear Search
-                </Button>
-              )}
-              {!searchTerm && (
-                <Button 
-                  className="bg-[#21c15b] hover:bg-[#21c15b]/90 text-white border border-[#21c15b]"
-                  onClick={() => navigate('/work-orders/new')}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Your First Job
-                </Button>
-              )}
-            </CardContent>
-          </Card>
+              <Button type="submit">
+                <Search className="mr-2 h-4 w-4" />
+                Search
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        {error ? (
+          <div className="text-center py-8 text-red-500">{error}</div>
+        ) : workOrders.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            No work orders found.
+          </div>
         ) : (
-          <div className="bg-white rounded-lg border shadow-sm">
+          <div className="bg-white rounded-lg shadow">
             <Table>
               <TableHeader>
-                <TableRow className="bg-gray-50">
-                  <TableHead className="w-[180px]">Date</TableHead>
-                  <TableHead className="w-[250px]">Company</TableHead>
-                  <TableHead className="w-[120px]">Job #</TableHead>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Company</TableHead>
+                  <TableHead>Work Order</TableHead>
+                  <TableHead>Job Tracker</TableHead>
                   <TableHead>Description</TableHead>
-                  <TableHead className="w-[120px]">Total</TableHead>
-                  <TableHead className="w-[120px] text-center">Status</TableHead>
-                  <TableHead className="w-[80px]"></TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead className="text-center">Status</TableHead>
+                  <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -298,7 +254,7 @@ export default function WorkOrdersList() {
                   <TableRow 
                     key={workOrder.id}
                     className="cursor-pointer hover:bg-gray-50"
-                    onClick={() => handleWorkOrderClick(workOrder.id)}
+                    onClick={() => handleWorkOrderClick(workOrder)}
                   >
                     <TableCell className="font-medium">
                       <div className="flex items-center">
@@ -312,9 +268,10 @@ export default function WorkOrdersList() {
                         {workOrder.company_name}
                       </div>
                     </TableCell>
-                    <TableCell>{workOrder.job_tracker}</TableCell>
+                    <TableCell>{workOrder.work_order_number}</TableCell>
+                    <TableCell>{workOrder.job_tracker || '-'}</TableCell>
                     <TableCell className="max-w-[300px] truncate">{workOrder.description}</TableCell>
-                    <TableCell className="font-medium">{formatCurrency(workOrder.total)}</TableCell>
+                    <TableCell>{formatCurrency(workOrder.total)}</TableCell>
                     <TableCell className="text-center">{getStatusBadge(workOrder.status)}</TableCell>
                     <TableCell>
                       <Button 
@@ -322,7 +279,7 @@ export default function WorkOrdersList() {
                         size="icon"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleWorkOrderClick(workOrder.id);
+                          handleWorkOrderClick(workOrder);
                         }}
                       >
                         <ChevronRight className="h-4 w-4" />

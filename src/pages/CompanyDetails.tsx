@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building, User, Mail, Phone, Smartphone, Edit, Trash2, Plus, X, Save, ArrowLeft, Loader2, Globe, Wrench, ClipboardList, Users, MessageSquare, MessageCircle, NotepadText, Pencil, MapPin, CheckCircle, Clock, AlertTriangle, Image, Upload } from "lucide-react";
+import { Building, User, Mail, Phone, Smartphone, Edit, Trash2, Plus, X, Save, ArrowLeft, Loader2, Globe, Wrench, ClipboardList, Users, MessageSquare, MessageCircle, NotepadText, Pencil, MapPin, CheckCircle, Clock, AlertTriangle, Image, Upload, ListFilter, Check, ClipboardCheck, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -18,7 +18,13 @@ import { Notes, NotesRef } from '@/components/shared/Notes';
 import { MapsProvider } from '@/contexts/MapsContext';
 import { CompanyMap } from '@/components/maps/CompanyMap';
 import { ServiceRecordsTable } from "@/components/service/components/ServiceRecordsTable";
+import { EquipmentStatusCount } from "@/components/service/components/EquipmentStatusCount";
+import { CompanyAllEquipmentTable } from "@/components/company/CompanyAllEquipmentTable";
 import LogoUploader from '@/components/LogoUploader';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { format } from "date-fns";
+import { formatCurrency } from "@/lib/utils";
+import axios from "axios";
 
 interface Company {
   id: string;
@@ -61,6 +67,16 @@ interface Equipment {
   serial_number: string;
   next_test_date: string;
   status: "valid" | "expired" | "upcoming";
+}
+
+interface WorkOrder {
+  id: string;
+  work_order_number: string;
+  job_tracker: string;
+  date: string;
+  status: string;
+  description: string;
+  total: number;
 }
 
 // Component for Notes Section
@@ -149,6 +165,33 @@ export default function CompanyDetails() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+
+  const getStatusBadge = (status: string) => {
+    const statusColors: { [key: string]: string } = {
+      'QUOTATION': 'bg-blue-500',
+      'COMPLETED': 'bg-green-500',
+      'AWAIT ATTEND': 'bg-orange-500',
+      'AWAIT COMP': 'bg-purple-500',
+      'AWAIT DEL': 'bg-indigo-500',
+      'AWAIT SPARES': 'bg-red-500',
+      'AWAIT ONO': 'bg-pink-500',
+      'WORKSHOP': 'bg-cyan-500',
+      'WARRANTY': 'bg-emerald-500',
+      'ON HIRE': 'bg-teal-500',
+      'BWS': 'bg-sky-500',
+      'BACK ORDER': 'bg-amber-500',
+      'DEBT LIST': 'bg-rose-500',
+      'AWAIT RETURN': 'bg-violet-500',
+      'PENDING': 'bg-yellow-500'
+    };
+
+    return (
+      <Badge className={`${statusColors[status] || 'bg-gray-500'}`}>
+        {status}
+      </Badge>
+    );
+  };
 
   // Move fetchCompanyData outside useEffect
   const fetchCompanyData = async () => {
@@ -233,7 +276,7 @@ export default function CompanyDetails() {
   }, [id, user?.token]);
 
   const handleBackClick = () => {
-    navigate(-1);
+    navigate('/admin');
   };
 
   const handleEditClick = () => {
@@ -584,6 +627,40 @@ export default function CompanyDetails() {
     }
   };
 
+  // Add fetchWorkOrders function
+  const fetchWorkOrders = async () => {
+    if (!id || !user?.token) return;
+    
+    try {
+      const response = await axios.get(`/api/work-orders`, {
+        headers: {
+          'Authorization': `Bearer ${user.token}`
+        },
+        params: {
+          companyId: id
+        }
+      });
+      
+      if (response.data) {
+        setWorkOrders(response.data);
+      } else {
+        throw new Error('Failed to fetch work orders');
+      }
+    } catch (err) {
+      console.error('Error fetching work orders:', err);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load work orders"
+      });
+    }
+  };
+
+  // Add useEffect to fetch work orders
+  useEffect(() => {
+    fetchWorkOrders();
+  }, [id, user?.token]);
+
   if (loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -651,8 +728,8 @@ export default function CompanyDetails() {
                 value="jobs" 
                 className="flex flex-col items-center justify-center h-20 w-20 md:h-24 md:w-28 rounded-lg bg-white shadow-sm data-[state=active]:ring-2 data-[state=active]:ring-orange-500 hover:bg-gray-50"
               >
-                <Wrench className="h-6 w-6 md:h-8 md:w-8 text-orange-500 mb-1 md:mb-2" />
-                <span className="font-medium text-xs md:text-sm">Jobs</span>
+                <ClipboardList className="h-6 w-6 md:h-8 md:w-8 text-orange-500 mb-1 md:mb-2" />
+                <span className="font-medium text-xs md:text-sm">Work Orders</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="service" 
@@ -859,18 +936,66 @@ export default function CompanyDetails() {
                 <div className="flex flex-row items-center justify-between mb-6">
                   <div>
                     <h2 className="text-xl font-semibold flex items-center">
-                      <Wrench className="mr-2 h-6 w-6 text-orange-500" />
-                      {company.company_name}
+                      <ClipboardList className="mr-2 h-6 w-6 text-orange-500" />
+                      Work Orders
                     </h2>
                   </div>
-                  <Button size="sm" className="bg-[#22c55e] hover:bg-opacity-90 text-white">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Job
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      size="sm" 
+                      className="bg-[#22c55e] hover:bg-opacity-90 text-white"
+                      onClick={() => navigate(`/work-orders/new?companyId=${id}`)}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Work Order
+                    </Button>
+                  </div>
                 </div>
                 
-                <div className="bg-gray-50 p-4 rounded-lg border border-dashed border-gray-300 text-center">
-                  <p className="text-gray-500">Job tracking functionality coming soon. This section will display all current and past jobs for {company.company_name}.</p>
+                {/* Work Orders Table */}
+                <div className="mt-4">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Work Order</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                        <TableHead></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {workOrders.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                            No work orders found. Click "Work Order" to create one.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        workOrders.map((order) => (
+                          <TableRow key={order.id}>
+                            <TableCell>{order.work_order_number}</TableCell>
+                            <TableCell>{format(new Date(order.date), 'dd/MM/yyyy')}</TableCell>
+                            <TableCell>
+                              {getStatusBadge(order.status)}
+                            </TableCell>
+                            <TableCell className="max-w-md truncate">{order.description}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(order.total)}</TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => navigate(`/work-orders/${order.work_order_number}/${id}`)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
                 </div>
               </div>
             </TabsContent>
@@ -885,18 +1010,83 @@ export default function CompanyDetails() {
                       {company.company_name}
                     </h2>
                   </div>
-                  <Button 
-                    size="sm" 
-                    className="bg-[#22c55e] hover:bg-opacity-90 text-white"
-                    onClick={() => navigate(`/equipment-types?companyId=${id}`)}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Equipment Types
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      size="sm" 
+                      className="bg-[#22c55e] hover:bg-opacity-90 text-white"
+                      onClick={() => navigate(`/equipment-types?companyId=${id}`)}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Equipment Types
+                    </Button>
+                  </div>
                 </div>
                 
-                {/* Service Records Table */}
-                <ServiceRecordsTable customerId={id} />
+                {/* Equipment Status Dashboard */}
+                <Card className="mb-6">
+                  <CardContent className="p-4">
+                    <h3 className="text-md font-semibold mb-4 flex items-center">
+                      <ClipboardCheck className="mr-2 h-4 w-4" />
+                      Equipment Status
+                    </h3>
+                    
+                    <div className="flex flex-row items-center justify-around text-center gap-4">
+                      {/* Valid Equipment */}
+                      <div className="flex flex-col items-center">
+                        <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-2">
+                          <Check className="h-6 w-6 text-green-500" />
+                        </div>
+                        <h3 className="text-sm font-medium">Valid</h3>
+                        <p className="text-2xl font-bold mt-1">
+                          <EquipmentStatusCount 
+                            companyId={id} 
+                            status="valid" 
+                          />
+                        </p>
+                      </div>
+                      
+                      {/* Upcoming Equipment */}
+                      <div className="flex flex-col items-center">
+                        <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mb-2">
+                          <Clock className="h-6 w-6 text-amber-500" />
+                        </div>
+                        <h3 className="text-sm font-medium">Upcoming</h3>
+                        <p className="text-2xl font-bold mt-1">
+                          <EquipmentStatusCount 
+                            companyId={id} 
+                            status="upcoming" 
+                          />
+                        </p>
+                      </div>
+                      
+                      {/* Invalid Equipment */}
+                      <div className="flex flex-col items-center">
+                        <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-2">
+                          <AlertTriangle className="h-6 w-6 text-red-500" />
+                        </div>
+                        <h3 className="text-sm font-medium">Invalid</h3>
+                        <p className="text-2xl font-bold mt-1">
+                          <EquipmentStatusCount 
+                            companyId={id} 
+                            status="invalid" 
+                          />
+                        </p>
+                      </div>
+                    </div>
+
+                    <p className="text-center text-gray-500 mt-4 text-xs">
+                      Data from company equipment service records
+                    </p>
+                  </CardContent>
+                </Card>
+                
+                {/* All Equipment List */}
+                <div className="mt-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-md font-semibold">All Equipment</h3>
+                  </div>
+                  <CompanyAllEquipmentTable companyId={id!} />
+                </div>
               </div>
             </TabsContent>
             

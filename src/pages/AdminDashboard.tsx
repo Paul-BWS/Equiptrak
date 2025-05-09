@@ -254,7 +254,7 @@ export default function AdminDashboard() {
           <h1 className="text-2xl font-semibold">Admin Dashboard</h1>
           <div className="flex items-center">
             <div className="text-gray-600 items-center mr-4 hidden sm:flex">
-              <span className="font-medium">Hello {user?.email?.split('@')[0] || 'Admin'}</span>
+              <span className="font-medium">Hello {user?.email?.split('@')[0] || 'admin'}</span>
               <span className="mx-2">•</span>
               <span>{new Date().toLocaleDateString('en-US', { 
                 weekday: 'long',
@@ -264,7 +264,7 @@ export default function AdminDashboard() {
               })}</span>
             </div>
             <Button 
-              className="bg-white sm:bg-[#21c15b] hover:bg-gray-100 sm:hover:bg-[#21c15b]/90 text-[#21c15b] sm:text-white border border-[#21c15b]"
+              className="bg-[#21c15b] hover:bg-[#1ba34b] text-white"
               onClick={() => setIsAddModalOpen(true)}
             >
               <Plus className="h-4 w-4 sm:mr-2" />
@@ -274,9 +274,9 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-6">
+      <div className="w-full md:container lg:w-[85%] xl:w-[80%] mx-auto px-2 md:px-4 py-4 md:py-6">
         <div className="bg-white rounded-lg shadow-sm">
-          <div className="p-6">
+          <div className="p-4 md:p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-semibold">Manage Companies</h2>
             </div>
@@ -301,14 +301,14 @@ export default function AdminDashboard() {
                 {error}
               </div>
             ) : (
-              <div className="rounded-lg border border-gray-100">
-                <Table>
+              <div className="rounded-lg border border-gray-100 overflow-x-auto w-full">
+                <Table className="w-full table-fixed md:table-auto">
                   <TableHeader>
                     <TableRow className="bg-gray-50">
-                      <TableHead className="text-gray-600">Company Name</TableHead>
-                      <TableHead className="text-gray-600">Address</TableHead>
-                      <TableHead className="text-gray-600">Added Date</TableHead>
-                      <TableHead className="text-right text-gray-600 hidden sm:table-cell">Actions</TableHead>
+                      <TableHead className="text-gray-600 w-[30%] md:w-auto">Company Name</TableHead>
+                      <TableHead className="text-gray-600 w-[30%] md:w-auto">Address</TableHead>
+                      <TableHead className="text-gray-600 w-[25%] md:w-auto">Added Date</TableHead>
+                      <TableHead className="text-right text-gray-600 w-[15%] md:w-auto">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -324,11 +324,11 @@ export default function AdminDashboard() {
                             {company.company_name}
                           </div>
                         </TableCell>
-                        <TableCell>{company.address || "No address provided"}</TableCell>
+                        <TableCell className="truncate">{company.address || "No address provided"}</TableCell>
                         <TableCell>
                           {new Date(company.created_at || Date.now()).toLocaleDateString()}
                         </TableCell>
-                        <TableCell className="text-right hidden sm:table-cell">
+                        <TableCell className="text-right">
                           <Button 
                             variant="ghost" 
                             size="sm" 
@@ -422,7 +422,7 @@ export default function AdminDashboard() {
                   <DialogFooter>
                     <Button 
                       type="submit" 
-                      className="bg-[#22c55e] hover:bg-opacity-90 text-white"
+                      className="bg-[#21c15b] hover:bg-[#1ba34b] text-white"
                     >
                       Add Company
                     </Button>

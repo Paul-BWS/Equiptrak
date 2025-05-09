@@ -7,8 +7,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Printer } from 'lucide-react';
 import LoadingSpinner from '@/components/LoadingSpinner';
 
-// This component handles both /certificate/:id/qr and /service-certificate/:recordId/qr 
-// and /lift-certificate/:id/qr
+// This component handles various certificate QR codes:
+// - /certificate/:id/qr
+// - /service-certificate/:recordId/qr
+// - /lift-certificate/:id/qr
+// - /qr-print/spot-welder/:id
 export default function QRCodePrintPage() {
   const location = useLocation();
   const params = useParams();
@@ -21,6 +24,7 @@ export default function QRCodePrintPage() {
   // Determine the record type based on the URL path
   const isLiftCertificate = location.pathname.includes('lift-certificate');
   const isServiceCertificate = location.pathname.includes('service-certificate');
+  const isSpotWelder = location.pathname.includes('spot-welder');
   
   // Check if we have a temporary record passed via state (our workaround)
   const tempRecord = location.state?.tempRecord;
@@ -56,6 +60,9 @@ export default function QRCodePrintPage() {
         } else if (isServiceCertificate) {
           endpoint = `/api/service-records/${params.recordId}`;
           id = params.recordId;
+        } else if (isSpotWelder) {
+          endpoint = `/api/spot-welders/${params.id}`;
+          id = params.id;
         } else {
           endpoint = `/api/certificate/${params.id}`;
           id = params.id;
@@ -78,6 +85,27 @@ export default function QRCodePrintPage() {
           setCompanyName(data.company?.company_name || 'Unknown');
           certificateToken = data.public_access_token;
           publicEndpoint = `/public-certificate/${id}`;
+        } else if (isSpotWelder) {
+          setCertificateNumber(data.certificate_number || 'Unknown');
+          setCompanyName(data.company_name || 'Unknown');
+          
+          // Check if we already have a public access token
+          if (!data.public_access_token) {
+            // Generate a new token
+            try {
+              const tokenResponse = await axios.post(`/api/spot-welders/${id}/public-token`);
+              certificateToken = tokenResponse.data.public_access_token;
+            } catch (tokenError) {
+              console.error('Error generating spot welder token:', tokenError);
+              setError('Failed to generate QR code access token.');
+              setLoading(false);
+              return;
+            }
+          } else {
+            certificateToken = data.public_access_token;
+          }
+          
+          publicEndpoint = `/spot-welder-certificate/${id}`;
         } else {
           setCertificateNumber(data.certificate_number || 'Unknown');
           setCompanyName(data.customer_name || 'Unknown');
@@ -105,7 +133,7 @@ export default function QRCodePrintPage() {
     };
     
     fetchCertificateInfo();
-  }, [params, isLiftCertificate, isServiceCertificate, tempRecord]);
+  }, [params, isLiftCertificate, isServiceCertificate, isSpotWelder, tempRecord]);
   
   const handlePrint = () => {
     window.print();

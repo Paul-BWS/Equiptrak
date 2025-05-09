@@ -8,8 +8,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
-import { AddCompressorModal } from "../modals/AddCompressorModal";
+import { ArrowLeft, Plus } from "lucide-react";
 import { getStatus } from "@/utils/serviceStatus";
 
 export function CompressorList() {
@@ -145,7 +144,13 @@ export function CompressorList() {
           <ArrowLeft className="h-4 w-4" />
           Back
         </Button>
-        <AddCompressorModal customerId={customerId} onSuccess={refetch} />
+        <Button 
+          onClick={() => navigate(`/add-compressor?companyId=${customerId}`)}
+          className="dark:bg-[#a6e15a] dark:text-black dark:hover:bg-[#95cc51] bg-[#7b96d4] text-white hover:bg-[#6a85c3]"
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Add Compressor
+        </Button>
       </div>
 
       <div className="space-y-4">
