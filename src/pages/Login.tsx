@@ -9,7 +9,7 @@ import { useNavigate } from "react-router-dom";
 import ApiClient from "@/utils/ApiClient";
 
 // Define a version number for tracking deployments
-const APP_VERSION = "1.0.7";
+const APP_VERSION = "1.0.8";
 // Set to true to show detailed error information
 const DEBUG_MODE = true;
 
