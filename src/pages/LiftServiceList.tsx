@@ -34,12 +34,37 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
+// Configure axios defaults
+if (import.meta.env.DEV) {
+  axios.defaults.baseURL = 'http://localhost:3001';
+} else {
+  axios.defaults.baseURL = window.location.origin;
+}
+
+axios.interceptors.request.use(request => {
+  console.log('[DEBUG] Request:', request.method, request.url);
+  return request;
+});
+
+axios.interceptors.response.use(
+  response => {
+    console.log('[DEBUG] Response:', response.status, response.config.url);
+    return response;
+  },
+  error => {
+    console.error('[DEBUG] Response Error:', error.message);
+    return Promise.reject(error);
+  }
+);
+
 export default function LiftServiceList() {
   const navigate = useNavigate();
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const companyIdParam = searchParams.get('companyId');
   const { user } = useAuth();
+  
+  console.log('[DEBUG] Component mounted with companyId:', companyIdParam);
   
   const [liftRecords, setLiftRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -55,6 +80,9 @@ export default function LiftServiceList() {
     const headers = {};
     if (user?.token) {
       headers['Authorization'] = `Bearer ${user.token}`;
+      console.log('[DEBUG] Using auth token:', user.token.substring(0, 10) + '...');
+    } else {
+      console.warn('[DEBUG] No auth token available');
     }
     return headers;
   };
@@ -63,43 +91,48 @@ export default function LiftServiceList() {
   useEffect(() => {
     const fetchLiftServiceRecords = async () => {
       try {
+        console.log('[DEBUG] Starting to fetch records');
         setLoading(true);
-        setError(null); // Reset error state on new fetch
+        setError(null);
         
-        // Build query URL with optional company filter
-        let url = '/api/lift-service-records';
-        
-        // Only filter by company if a company ID is provided and user is not an admin
+        let url = '/api/lift-services';
         if (companyIdParam) {
           url += `?company_id=${companyIdParam}`;
         }
         
+        console.log('[DEBUG] Fetching from URL:', url);
         const response = await axios.get(url, { headers: getAuthHeaders() });
-        // Ensure response data is an array, even if empty
-        setLiftRecords(Array.isArray(response.data) ? response.data : []);
+        console.log('[DEBUG] Response status:', response.status);
+        console.log('[DEBUG] Response data:', response.data);
+        
+        setLiftRecords(response.data || []);
+        console.log('[DEBUG] Records set to state');
         setLoading(false);
       } catch (err) {
-        console.error('Error fetching lift service records:', err);
-        // Check if it's a 404 error, which means no records, not a real error
-        if (axios.isAxiosError(err) && err.response?.status === 404) {
-          setLiftRecords([]); // Set to empty array if 404
-          setError(null); // Clear any previous errors
-        } else {
-          // Set error for other types of failures
-          setError('Failed to load lift service records. Please try again later.');
+        console.error('[DEBUG] Error fetching records:', err);
+        if (axios.isAxiosError(err)) {
+          console.error('[DEBUG] Response:', err.response?.data);
+          console.error('[DEBUG] Status:', err.response?.status);
         }
+        setLiftRecords([]);
+        setError('Failed to load lift service records. Please try again later.');
         setLoading(false);
       }
     };
     
-    // Admin users can view all lift service records, others need a company ID
-    if (user?.role === 'admin' || companyIdParam) {
-      fetchLiftServiceRecords();
-    } else {
-      setLoading(false);
-      setError('No company ID provided. Please select a company to view their service records.');
-    }
+    fetchLiftServiceRecords();
   }, [companyIdParam, user]);
+  
+  // Log state changes
+  useEffect(() => {
+    console.log('[DEBUG] State updated:', {
+      recordsCount: liftRecords.length,
+      loading,
+      error,
+      searchTerm,
+      categoryFilter
+    });
+  }, [liftRecords, loading, error, searchTerm, categoryFilter]);
   
   // Filter records based on search term and category
   const filteredRecords = liftRecords.filter(record => {
@@ -110,10 +143,12 @@ export default function LiftServiceList() {
       (record.certificate_number && record.certificate_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (record.company?.company_name && record.company.company_name.toLowerCase().includes(searchTerm.toLowerCase()));
       
-    const matchesCategory = !categoryFilter || record.product_category === categoryFilter;
+    const matchesCategory = !categoryFilter || categoryFilter === 'all' || record.product_category === categoryFilter;
     
     return matchesSearch && matchesCategory;
   });
+  
+  console.log('[DEBUG] Filtered records count:', filteredRecords.length);
   
   // Format date for display
   const formatDate = (dateString) => {
@@ -203,80 +238,51 @@ export default function LiftServiceList() {
   };
   
   return (
-    <>
-      <div className="bg-white w-full border-b mb-6">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-4">
+        <div className="flex items-center justify-between mb-8">
           <div className="flex items-center">
-            <Button variant="outline" onClick={handleBack} className="mr-4">
-              <ArrowLeft className="h-4 w-4 mr-2" />
+            <Button 
+              variant="back"
+              onClick={handleBack}
+              className="mr-4 rounded-full"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
               Back
             </Button>
-            <h1 className="text-2xl font-bold flex items-center">
+            <h1 className="text-2xl font-semibold flex items-center">
+              <Forklift className="mr-2 h-6 w-6 text-yellow-500" />
               Lift Service Records
             </h1>
           </div>
-          
-          <Button onClick={handleAddNew} className="bg-[#21c15b] hover:bg-[#1ca54e] text-white">
-            <Plus className="h-4 w-4 mr-2" />
-            New Lift Service
+          <Button 
+            variant="primary"
+            onClick={handleAddNew}
+            className="rounded-full"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Lift
           </Button>
         </div>
-      </div>
-      
-      <div className="container mx-auto px-4 max-w-6xl">
-        {/* Filters */}
-        <Card className="mb-6">
-          <CardContent className="pt-6">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="relative flex-grow">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search by model, serial number, or company..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-            
-              <div className="w-full md:w-64">
-                <Select 
-                  value={categoryFilter} 
-                  onValueChange={(value) => setCategoryFilter(value === "all" ? "" : value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Filter by category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    <SelectItem value="scissor_lift">Scissor Lift</SelectItem>
-                    <SelectItem value="jacking_beam">Jacking Beam</SelectItem>
-                    <SelectItem value="2_post_lift">2 Post Lift</SelectItem>
-                    <SelectItem value="4_post_lift">4 Post Lift</SelectItem>
-                    <SelectItem value="mobile_column_lift">Mobile Column Lift</SelectItem>
-                    <SelectItem value="in_ground_lift">In-Ground Lift</SelectItem>
-                    <SelectItem value="platform_lift">Platform Lift</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      
-        {/* Loading state */}
-        {loading && (
-          <div className="flex justify-center items-center py-12">
-            <LoadingSpinner />
-          </div>
-        )}
-      
-        {/* Error state */}
-        {error && (
-          <Card className="bg-red-50 border-red-200 mb-6">
+
+        {/* Status Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <Card>
             <CardContent className="pt-6">
-              <p className="text-red-600">{error}</p>
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Valid Records</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {filteredRecords.filter(r => r.status?.toLowerCase() === 'pass').length}
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                  <FileText className="h-6 w-6 text-green-600" />
+                </div>
+              </div>
             </CardContent>
           </Card>
+<<<<<<< HEAD
         )}
       
         {/* No records state */}
@@ -293,34 +299,120 @@ export default function LiftServiceList() {
               <Button onClick={handleAddNew} className="bg-[#21c15b] hover:bg-[#1ca54e] text-white">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Lift Service Record
-              </Button>
+=======
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Due Service</p>
+                  <p className="text-2xl font-bold text-amber-600">
+                    {filteredRecords.filter(r => r.status?.toLowerCase() === 'remedial').length}
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
+                  <Calendar className="h-6 w-6 text-amber-600" />
+                </div>
+              </div>
             </CardContent>
           </Card>
-        )}
-        
-        {/* Records list - Table Format */}
-        {!loading && !error && filteredRecords.length > 0 && (
-          <div className="rounded-md border">
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Failed/Expired</p>
+                  <p className="text-2xl font-bold text-red-600">
+                    {filteredRecords.filter(r => ['fail', 'expired'].includes(r.status?.toLowerCase())).length}
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <AlertTriangle className="h-6 w-6 text-red-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Search and Filter Section */}
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+              <Input
+                placeholder="Search by model, serial number, or certificate number..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-[200px]">
+              <Filter className="mr-2 h-4 w-4" />
+              <SelectValue placeholder="Filter by category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              <SelectItem value="scissor">Scissor Lift</SelectItem>
+              <SelectItem value="boom">Boom Lift</SelectItem>
+              <SelectItem value="telehandler">Telehandler</SelectItem>
+              <SelectItem value="forklift">Forklift</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Records Table */}
+        {loading ? (
+          <LoadingSpinner />
+        ) : error ? (
+          <div className="bg-destructive/15 text-destructive p-4 rounded-lg">
+            {error}
+          </div>
+        ) : filteredRecords.length === 0 ? (
+          <div className="text-center py-8">
+            <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg border border-dashed border-gray-300 dark:border-gray-600">
+              <Forklift className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-gray-100">No lift service records</h3>
+              <p className="mt-2 text-gray-500 dark:text-gray-400">Get started by adding a new lift service record.</p>
+              <Button
+                variant="primary"
+                onClick={handleAddNew}
+                className="mt-4 rounded-full"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Lift
+>>>>>>> development
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-card rounded-lg border border-border overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Type</TableHead>
+                  <TableHead>Certificate No.</TableHead>
                   <TableHead>Model</TableHead>
-                  <TableHead>Serial #</TableHead>
-                  <TableHead>Certificate #</TableHead>
-                  <TableHead>Service Date</TableHead>
+                  <TableHead>Serial Number</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Test Date</TableHead>
+                  <TableHead>Next Due</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredRecords.map(record => (
-                  <TableRow 
-                    key={record.id} 
-                    className="cursor-pointer"
-                    onClick={() => handleViewRecord(record.id)}
-                  >
+                {filteredRecords.map((record) => (
+                  <TableRow key={record.id}>
+                    <TableCell>{record.certificate_number || 'N/A'}</TableCell>
+                    <TableCell>{record.model || 'N/A'}</TableCell>
+                    <TableCell>{record.serial_number || 'N/A'}</TableCell>
+                    <TableCell className="capitalize">{record.product_category || 'N/A'}</TableCell>
+                    <TableCell>{formatDate(record.test_date)}</TableCell>
+                    <TableCell>{formatDate(record.next_test_date)}</TableCell>
+                    <TableCell>{getStatusBadge(record.status)}</TableCell>
                     <TableCell>
+<<<<<<< HEAD
                       {record.product_category ? record.product_category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'N/A'}
                     </TableCell>
                     <TableCell>
@@ -361,33 +453,43 @@ export default function LiftServiceList() {
                             handleViewCertificate(record.id);
                           }}
                           title="View Certificate"
+=======
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleViewRecord(record.id)}
+                          className="h-8 w-8"
+>>>>>>> development
                         >
-                          <FileText className="h-4 w-4" />
+                          <Pencil className="h-4 w-4 text-blue-500" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handlePrintQRCode(record.id);
-                          }}
-                          title="QR Code"
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleViewCertificate(record.id)}
+                          className="h-8 w-8"
                         >
-                          <QrCode className="h-4 w-4" />
+                          <FileText className="h-4 w-4 text-green-500" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-600"
-                          onClick={(e) => {
-                            e.stopPropagation();
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handlePrintQRCode(record.id)}
+                          className="h-8 w-8"
+                        >
+                          <QrCode className="h-4 w-4 text-purple-500" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
                             setDeletingId(record.id);
                             setDeleteDialogOpen(true);
                           }}
-                          title="Delete Record"
+                          className="h-8 w-8"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4 text-red-500" />
                         </Button>
                       </div>
                     </TableCell>
@@ -397,42 +499,35 @@ export default function LiftServiceList() {
             </Table>
           </div>
         )}
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Lift Service Record</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete this lift service record? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setDeleteDialogOpen(false)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => deletingId && handleDelete(deletingId)}
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
-      
-      {/* Add Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center">
-              <AlertTriangle className="h-5 w-5 text-red-500 mr-2" />
-              Confirm Deletion
-            </DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this lift service record? 
-              This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                setDeleteDialogOpen(false);
-                setDeletingId(null);
-              }}
-              disabled={isDeleting}
-            >
-              Cancel
-            </Button>
-            <Button 
-              variant="destructive" 
-              onClick={() => deletingId && handleDelete(deletingId)}
-              disabled={isDeleting}
-            >
-              {isDeleting ? <LoadingSpinner /> : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+    </div>
   );
 } 

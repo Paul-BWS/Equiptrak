@@ -29,6 +29,10 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { format } from 'date-fns';
+<<<<<<< HEAD
+=======
+import { formatCurrency } from '@/lib/utils';
+>>>>>>> development
 
 // Interface for work order data
 interface WorkOrder {
@@ -140,6 +144,7 @@ export default function WorkOrdersList() {
     }
   };
 
+<<<<<<< HEAD
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-GB', {
       style: 'currency',
@@ -148,6 +153,8 @@ export default function WorkOrdersList() {
     }).format(amount);
   };
 
+=======
+>>>>>>> development
   const getStatusBadge = (status: string) => {
     const statusColors: { [key: string]: string } = {
       'QUOTATION': 'bg-blue-500',

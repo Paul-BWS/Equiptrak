@@ -6,6 +6,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Search, ShoppingCart, AlertCircle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+<<<<<<< HEAD
+=======
+import { formatCurrency } from '@/lib/utils';
+>>>>>>> development
 import axios from 'axios';
 
 interface Product {
@@ -174,6 +178,7 @@ export default function ProductSelector({ onSelectProducts, onCancel }: ProductS
       price: product.adjustedPrice || product.price
     };
     onSelectProducts([finalProduct]);
+<<<<<<< HEAD
   };
   
   const handlePriceAdjustment = (product: Product, newPrice: number) => {
@@ -188,14 +193,22 @@ export default function ProductSelector({ onSelectProducts, onCancel }: ProductS
       }
       return p;
     }));
+=======
+>>>>>>> development
   };
   
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-GB', {
-      style: 'currency',
-      currency: 'GBP',
-      minimumFractionDigits: 2
-    }).format(amount);
+  const handlePriceAdjustment = (product: Product, newPrice: number) => {
+    if (isNaN(newPrice) || newPrice < 0) return;
+    
+    setFilteredProducts(prev => prev.map(p => {
+      if (p.id === product.id) {
+        return {
+          ...p,
+          adjustedPrice: newPrice
+        };
+      }
+      return p;
+    }));
   };
   
   // Render loading state

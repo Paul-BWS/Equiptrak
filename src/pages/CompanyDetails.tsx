@@ -7,7 +7,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+<<<<<<< HEAD
 import { Building, User, Mail, Phone, Smartphone, Edit, Trash2, Plus, X, Save, ArrowLeft, Loader2, Globe, Wrench, ClipboardList, Users, MessageSquare, MessageCircle, NotepadText, Pencil, MapPin, CheckCircle, Clock, AlertTriangle, Image, Upload, ListFilter, Check, ClipboardCheck, Search } from "lucide-react";
+=======
+import { Building, User, Mail, Phone, Smartphone, Edit, Trash2, Plus, X, Save, ArrowLeft, Loader2, Globe, Wrench, ClipboardList, Users, MessageSquare, MessageCircle, NotepadText, Pencil, MapPin, CheckCircle, Clock, AlertTriangle, ListFilter, Check, ClipboardCheck, Search } from "lucide-react";
+>>>>>>> development
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,7 +24,10 @@ import { CompanyMap } from '@/components/maps/CompanyMap';
 import { ServiceRecordsTable } from "@/components/service/components/ServiceRecordsTable";
 import { EquipmentStatusCount } from "@/components/service/components/EquipmentStatusCount";
 import { CompanyAllEquipmentTable } from "@/components/company/CompanyAllEquipmentTable";
+<<<<<<< HEAD
 import LogoUploader from '@/components/LogoUploader';
+=======
+>>>>>>> development
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/utils";
@@ -90,7 +97,7 @@ const NotesSection = ({ companyId, companyName }: { companyId: string, companyNa
   };
 
   return (
-    <div className="flex-1 bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+    <div className="flex-1 bg-card rounded-lg p-6 shadow-sm border border-border">
       <div className="flex flex-row items-center justify-between mb-6">
         <div>
           <h2 className="text-xl font-semibold flex items-center">
@@ -100,10 +107,11 @@ const NotesSection = ({ companyId, companyName }: { companyId: string, companyNa
         </div>
         <Button
           onClick={handleAddNoteClick}
-          className="bg-[#22c55e] hover:bg-opacity-90 text-white"
+          variant="primary"
+          className="rounded-full"
         >
           <Plus className="mr-2 h-4 w-4" />
-          Add Note
+          Note
         </Button>
       </div>
       
@@ -672,7 +680,7 @@ export default function CompanyDetails() {
   if (error || !company) {
     return (
       <div className="container mx-auto p-4">
-        <Button variant="outline" onClick={handleBackClick} className="mb-4">
+        <Button variant="primary" onClick={handleBackClick} className="mb-4">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
         </Button>
@@ -684,21 +692,36 @@ export default function CompanyDetails() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8f9fc]">
-      <div className="border-b bg-white shadow-sm">
+    <div className="min-h-screen bg-background">
+      <div className="bg-background">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center">
-            <Button variant="outline" onClick={handleBackClick} className="mr-4">
+            <Button 
+              variant="back" 
+              onClick={handleBackClick} 
+              className="mr-4 rounded-full"
+            >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
             </Button>
+            <h1 className="text-2xl font-semibold">
+              {company.company_name}
+            </h1>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={handleEditClick} className="border-gray-300 bg-white hover:bg-gray-50">
+            <Button 
+              variant="primary" 
+              onClick={handleEditClick}
+              className="rounded-full"
+            >
               <Edit className="mr-2 h-4 w-4" />
-              Edit Details
+              Edit
             </Button>
-            <Button variant="outline" onClick={handleDeleteClick} className="border-gray-300 bg-white hover:bg-gray-50">
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteClick}
+              className="rounded-full"
+            >
               <Trash2 className="mr-2 h-4 w-4" />
               Delete
             </Button>
@@ -712,42 +735,42 @@ export default function CompanyDetails() {
             <TabsList className="flex flex-wrap gap-2 md:gap-4 justify-center border-0 bg-transparent p-4 rounded-lg shadow-sm">
               <TabsTrigger 
                 value="details" 
-                className="flex flex-col items-center justify-center h-20 w-20 md:h-24 md:w-28 rounded-lg bg-white shadow-sm data-[state=active]:ring-2 data-[state=active]:ring-blue-500 hover:bg-gray-50"
+                className="flex flex-col items-center justify-center h-20 w-20 md:h-24 md:w-28 rounded-lg bg-card shadow-sm data-[state=active]:ring-2 data-[state=active]:ring-gray-300 hover:bg-accent dark:hover:bg-accent/50"
               >
                 <Building className="h-6 w-6 md:h-8 md:w-8 text-blue-500 mb-1 md:mb-2" />
                 <span className="font-medium text-xs md:text-sm">Details</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="contacts" 
-                className="flex flex-col items-center justify-center h-20 w-20 md:h-24 md:w-28 rounded-lg bg-white shadow-sm data-[state=active]:ring-2 data-[state=active]:ring-green-500 hover:bg-gray-50"
+                className="flex flex-col items-center justify-center h-20 w-20 md:h-24 md:w-28 rounded-lg bg-card shadow-sm data-[state=active]:ring-2 data-[state=active]:ring-gray-300 hover:bg-accent"
               >
                 <User className="h-6 w-6 md:h-8 md:w-8 text-green-500 mb-1 md:mb-2" />
                 <span className="font-medium text-xs md:text-sm">Contacts</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="jobs" 
-                className="flex flex-col items-center justify-center h-20 w-20 md:h-24 md:w-28 rounded-lg bg-white shadow-sm data-[state=active]:ring-2 data-[state=active]:ring-orange-500 hover:bg-gray-50"
+                className="flex flex-col items-center justify-center h-20 w-20 md:h-24 md:w-28 rounded-lg bg-card shadow-sm data-[state=active]:ring-2 data-[state=active]:ring-gray-300 hover:bg-accent"
               >
                 <ClipboardList className="h-6 w-6 md:h-8 md:w-8 text-orange-500 mb-1 md:mb-2" />
                 <span className="font-medium text-xs md:text-sm">Work Orders</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="service" 
-                className="flex flex-col items-center justify-center h-20 w-20 md:h-24 md:w-28 rounded-lg bg-white shadow-sm data-[state=active]:ring-2 data-[state=active]:ring-purple-500 hover:bg-gray-50"
+                className="flex flex-col items-center justify-center h-20 w-20 md:h-24 md:w-28 rounded-lg bg-card shadow-sm data-[state=active]:ring-2 data-[state=active]:ring-gray-300 hover:bg-accent"
               >
-                <ClipboardList className="h-6 w-6 md:h-8 md:w-8 text-purple-500 mb-1 md:mb-2" />
+                <Wrench className="h-6 w-6 md:h-8 md:w-8 text-purple-500 mb-1 md:mb-2" />
                 <span className="font-medium text-xs md:text-sm">Service</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="personnel" 
-                className="flex flex-col items-center justify-center h-20 w-20 md:h-24 md:w-28 rounded-lg bg-white shadow-sm data-[state=active]:ring-2 data-[state=active]:ring-amber-500 hover:bg-gray-50"
+                className="flex flex-col items-center justify-center h-20 w-20 md:h-24 md:w-28 rounded-lg bg-card shadow-sm data-[state=active]:ring-2 data-[state=active]:ring-gray-300 hover:bg-accent"
               >
-                <Users className="h-6 w-6 md:h-8 md:w-8 text-amber-500 mb-1 md:mb-2" />
+                <Users className="h-6 w-6 md:h-8 md:w-8 text-yellow-500 mb-1 md:mb-2" />
                 <span className="font-medium text-xs md:text-sm">Personnel</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="chat" 
-                className="flex flex-col items-center justify-center h-20 w-20 md:h-24 md:w-28 rounded-lg bg-white shadow-sm data-[state=active]:ring-2 data-[state=active]:ring-pink-500 hover:bg-gray-50"
+                className="flex flex-col items-center justify-center h-20 w-20 md:h-24 md:w-28 rounded-lg bg-card shadow-sm data-[state=active]:ring-2 data-[state=active]:ring-gray-300 hover:bg-accent"
               >
                 <MessageSquare className="h-6 w-6 md:h-8 md:w-8 text-pink-500 mb-1 md:mb-2" />
                 <span className="font-medium text-xs md:text-sm">Chat</span>
@@ -758,28 +781,9 @@ export default function CompanyDetails() {
           <div className="mt-10">
             <TabsContent value="details" className="space-y-4">
               <div className="flex flex-col md:flex-row gap-6">
-                <Card className="flex-1 shadow-sm border-gray-200">
+                <Card className="flex-1 shadow-sm border-border bg-card dark:bg-card">
                   <CardHeader className="pb-2">
-                    <div className="flex items-center gap-3">
-                      <LogoUploader
-                        companyId={company.id}
-                        logoUrl={company.logo_url}
-                        onUploadComplete={(newLogoUrl) => {
-                          // Update local state immediately for better UX
-                          setCompany({
-                            ...company,
-                            logo_url: newLogoUrl
-                          });
-                          // Refresh all company data
-                          fetchCompanyData();
-                        }}
-                        inline
-                        size="sm"
-                      />
-                      <CardTitle className="flex items-center text-xl font-semibold">
-                        {company.company_name}
-                      </CardTitle>
-                    </div>
+                    <CardTitle className="text-xl font-semibold">Company Information</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-y-4 gap-x-6">
@@ -871,8 +875,8 @@ export default function CompanyDetails() {
                   </CardContent>
                 </Card>
                 
-                <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                  <div className="p-4 border-b border-gray-200">
+                <div className="flex-1 bg-card rounded-lg shadow-sm border border-border overflow-hidden">
+                  <div className="p-4 border-b border-border">
                     <h3 className="text-lg font-medium flex items-center">
                       <MapPin className="mr-2 h-5 w-5 text-blue-500" />
                       Location
@@ -894,22 +898,27 @@ export default function CompanyDetails() {
                 </div>
               </div>
 
-              {/* Notes Section (moved from tab) */}
+              {/* Notes Section */}
               <NotesSection companyId={company.id} companyName={company.company_name} />
             </TabsContent>
             
             <TabsContent value="contacts" className="space-y-4">
-              <div className="bg-white rounded-lg p-6 shadow-sm">
+              <div className="bg-card rounded-lg p-6 shadow-sm border border-border">
                 <div className="flex flex-row items-center justify-between mb-6">
                   <div>
                     <h2 className="text-xl font-semibold flex items-center">
                       <User className="mr-2 h-6 w-6 text-green-500" />
-                      {company.company_name}
+                      Contacts
                     </h2>
                   </div>
-                  <Button size="sm" onClick={() => setIsAddContactDialogOpen(true)} className="bg-[#22c55e] hover:bg-opacity-90 text-white">
+                  <Button 
+                    variant="primary"
+                    size="sm"
+                    className="rounded-full"
+                    onClick={() => setIsAddContactDialogOpen(true)}
+                  >
                     <Plus className="mr-2 h-4 w-4" />
-                    Add Contact
+                    Contact
                   </Button>
                 </div>
                 
@@ -925,14 +934,14 @@ export default function CompanyDetails() {
                       if (contact) handleEditContact(contact);
                     }}
                     onDeleteContact={handleDeleteContact}
+                    iconColor="#7b96d4"
                   />
                 )}
               </div>
             </TabsContent>
             
-            {/* Jobs Tab */}
             <TabsContent value="jobs" className="space-y-4">
-              <div className="bg-white rounded-lg p-6 shadow-sm">
+              <div className="bg-card rounded-lg p-6 shadow-sm border border-border">
                 <div className="flex flex-row items-center justify-between mb-6">
                   <div>
                     <h2 className="text-xl font-semibold flex items-center">
@@ -942,12 +951,22 @@ export default function CompanyDetails() {
                   </div>
                   <div className="flex gap-2">
                     <Button 
+<<<<<<< HEAD
                       size="sm" 
                       className="bg-[#22c55e] hover:bg-opacity-90 text-white"
                       onClick={() => navigate(`/work-orders/new?companyId=${id}`)}
                     >
                       <Plus className="mr-2 h-4 w-4" />
                       Work Order
+=======
+                      variant="primary"
+                      size="sm"
+                      className="rounded-full"
+                      onClick={() => navigate(`/work-orders/new?companyId=${id}`)}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Order
+>>>>>>> development
                     </Button>
                   </div>
                 </div>
@@ -969,7 +988,11 @@ export default function CompanyDetails() {
                       {workOrders.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+<<<<<<< HEAD
                             No work orders found. Click "Work Order" to create one.
+=======
+                            No work orders found. Click "Order" to create one.
+>>>>>>> development
                           </TableCell>
                         </TableRow>
                       ) : (
@@ -985,10 +1008,18 @@ export default function CompanyDetails() {
                             <TableCell>
                               <Button
                                 variant="ghost"
+<<<<<<< HEAD
                                 size="sm"
                                 onClick={() => navigate(`/work-orders/${order.work_order_number}/${id}`)}
                               >
                                 <Pencil className="h-4 w-4" />
+=======
+                                size="icon"
+                                onClick={() => navigate(`/work-orders/${order.work_order_number}/${id}`)}
+                                className="h-8 w-8"
+                              >
+                                <Pencil className="h-4 w-4 text-[#7b96d4] dark:text-[#7b96d4]" />
+>>>>>>> development
                               </Button>
                             </TableCell>
                           </TableRow>
@@ -1000,24 +1031,24 @@ export default function CompanyDetails() {
               </div>
             </TabsContent>
             
-            {/* Service Tab */}
             <TabsContent value="service" className="space-y-4">
-              <div className="bg-white rounded-lg p-6 shadow-sm">
+              <div className="bg-card rounded-lg p-6 shadow-sm border border-border">
                 <div className="flex flex-row items-center justify-between mb-6">
                   <div>
                     <h2 className="text-xl font-semibold flex items-center">
-                      <ClipboardList className="mr-2 h-6 w-6 text-purple-500" />
-                      {company.company_name}
+                      <Wrench className="mr-2 h-6 w-6 text-purple-500" />
+                      Service Records
                     </h2>
                   </div>
                   <div className="flex gap-2">
                     <Button 
-                      size="sm" 
-                      className="bg-[#22c55e] hover:bg-opacity-90 text-white"
+                      variant="primary"
+                      size="sm"
+                      className="rounded-full"
                       onClick={() => navigate(`/equipment-types?companyId=${id}`)}
                     >
                       <Plus className="mr-2 h-4 w-4" />
-                      Equipment Types
+                      Equipment
                     </Button>
                   </div>
                 </div>
@@ -1026,7 +1057,7 @@ export default function CompanyDetails() {
                 <Card className="mb-6">
                   <CardContent className="p-4">
                     <h3 className="text-md font-semibold mb-4 flex items-center">
-                      <ClipboardCheck className="mr-2 h-4 w-4" />
+                      <ListFilter className="mr-2 h-4 w-4" />
                       Equipment Status
                     </h3>
                     
@@ -1073,6 +1104,131 @@ export default function CompanyDetails() {
                         </p>
                       </div>
                     </div>
+                  </CardContent>
+                </Card>
+                
+                {/* All Equipment List */}
+                <div className="mt-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-md font-semibold">All Equipment</h3>
+                  </div>
+                  <CompanyAllEquipmentTable companyId={id!} />
+                </div>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="personnel" className="space-y-4">
+              <div className="bg-card rounded-lg p-6 shadow-sm border border-border">
+                <div className="flex flex-row items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-xl font-semibold flex items-center">
+                      <Users className="mr-2 h-6 w-6 text-yellow-500" />
+                      Personnel Records
+                    </h2>
+                  </div>
+<<<<<<< HEAD
+                  <div className="flex gap-2">
+                    <Button 
+                      size="sm" 
+                      className="bg-[#22c55e] hover:bg-opacity-90 text-white"
+                      onClick={() => navigate(`/equipment-types?companyId=${id}`)}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Equipment Types
+                    </Button>
+                  </div>
+                </div>
+                
+                {/* Equipment Status Dashboard */}
+                <Card className="mb-6">
+                  <CardContent className="p-4">
+                    <h3 className="text-md font-semibold mb-4 flex items-center">
+                      <ClipboardCheck className="mr-2 h-4 w-4" />
+                      Equipment Status
+                    </h3>
+                    
+                    <div className="flex flex-row items-center justify-around text-center gap-4">
+                      {/* Valid Equipment */}
+=======
+                  <Button 
+                    variant="primary"
+                    size="sm"
+                    className="rounded-full"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Personnel
+                  </Button>
+                </div>
+                
+                {/* Personnel Status Dashboard */}
+                <Card className="mb-6">
+                  <CardContent className="p-4">
+                    <h3 className="text-md font-semibold mb-4 flex items-center">
+                      <ListFilter className="mr-2 h-4 w-4" />
+                      Personnel Status
+                    </h3>
+                    
+                    <div className="flex flex-row items-center justify-around text-center gap-4">
+                      {/* Active Personnel */}
+>>>>>>> development
+                      <div className="flex flex-col items-center">
+                        <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-2">
+                          <Check className="h-6 w-6 text-green-500" />
+                        </div>
+<<<<<<< HEAD
+                        <h3 className="text-sm font-medium">Valid</h3>
+                        <p className="text-2xl font-bold mt-1">
+                          <EquipmentStatusCount 
+                            companyId={id} 
+                            status="valid" 
+                          />
+                        </p>
+                      </div>
+                      
+                      {/* Upcoming Equipment */}
+=======
+                        <h3 className="text-sm font-medium">Active</h3>
+                        <p className="text-2xl font-bold mt-1">0</p>
+                      </div>
+                      
+                      {/* Training Due */}
+>>>>>>> development
+                      <div className="flex flex-col items-center">
+                        <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mb-2">
+                          <Clock className="h-6 w-6 text-amber-500" />
+                        </div>
+<<<<<<< HEAD
+                        <h3 className="text-sm font-medium">Upcoming</h3>
+                        <p className="text-2xl font-bold mt-1">
+                          <EquipmentStatusCount 
+                            companyId={id} 
+                            status="upcoming" 
+                          />
+                        </p>
+                      </div>
+                      
+                      {/* Invalid Equipment */}
+=======
+                        <h3 className="text-sm font-medium">Training Due</h3>
+                        <p className="text-2xl font-bold mt-1">0</p>
+                      </div>
+                      
+                      {/* Certifications Expired */}
+>>>>>>> development
+                      <div className="flex flex-col items-center">
+                        <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-2">
+                          <AlertTriangle className="h-6 w-6 text-red-500" />
+                        </div>
+<<<<<<< HEAD
+                        <h3 className="text-sm font-medium">Invalid</h3>
+                        <p className="text-2xl font-bold mt-1">
+                          <EquipmentStatusCount 
+                            companyId={id} 
+                            status="invalid" 
+                          />
+                        </p>
+                      </div>
+                    </div>
 
                     <p className="text-center text-gray-500 mt-4 text-xs">
                       Data from company equipment service records
@@ -1099,45 +1255,112 @@ export default function CompanyDetails() {
                       <Users className="mr-2 h-6 w-6 text-amber-500" />
                       {company.company_name}
                     </h2>
-                  </div>
-                  <Button size="sm" className="bg-[#22c55e] hover:bg-opacity-90 text-white">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Personnel
-                  </Button>
-                </div>
+=======
+                        <h3 className="text-sm font-medium">Expired Certs</h3>
+                        <p className="text-2xl font-bold mt-1">0</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
                 
-                <div className="bg-gray-50 p-4 rounded-lg border border-dashed border-gray-300 text-center">
-                  <p className="text-gray-500">Manage personnel information, certifications, and training records for {company.company_name} staff.</p>
+                {/* Personnel List */}
+                <div className="mt-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-md font-semibold">All Personnel</h3>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-center">
+                    <p className="text-gray-500 dark:text-gray-400">No personnel records found. Click "+ Personnel" to add staff members.</p>
+>>>>>>> development
+                  </div>
                 </div>
               </div>
             </TabsContent>
             
-            {/* Chat Tab */}
             <TabsContent value="chat" className="space-y-4">
-              <div className="bg-white rounded-lg p-6 shadow-sm">
+              <div className="bg-card rounded-lg p-6 shadow-sm border border-border">
                 <div className="flex flex-row items-center justify-between mb-6">
                   <div>
                     <h2 className="text-xl font-semibold flex items-center">
                       <MessageSquare className="mr-2 h-6 w-6 text-pink-500" />
-                      {company.company_name}
+                      Chat History
                     </h2>
                   </div>
+                  <Button 
+                    variant="primary"
+                    size="sm"
+                    className="rounded-full"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Chat
+                  </Button>
                 </div>
                 
-                <div className="bg-gray-50 p-6 rounded-lg min-h-[400px] flex flex-col">
-                  <div className="flex-1 mb-4 overflow-y-auto">
-                    <div className="bg-gray-100 p-3 rounded-lg mb-2 max-w-[80%]">
-                      <p className="text-sm font-medium">System</p>
-                      <p>Welcome to the communication channel for {company.company_name}.</p>
-                      <p className="text-xs text-gray-500 mt-1">Today, 9:30 AM</p>
+                {/* Chat Status Dashboard */}
+                <Card className="mb-6">
+                  <CardContent className="p-4">
+                    <h3 className="text-md font-semibold mb-4 flex items-center">
+                      <ListFilter className="mr-2 h-4 w-4" />
+                      Chat Overview
+                    </h3>
+                    
+                    <div className="flex flex-row items-center justify-around text-center gap-4">
+                      {/* Active Chats */}
+                      <div className="flex flex-col items-center">
+                        <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-2">
+                          <MessageCircle className="h-6 w-6 text-green-500" />
+                        </div>
+                        <h3 className="text-sm font-medium">Active</h3>
+                        <p className="text-2xl font-bold mt-1">0</p>
+                      </div>
+                      
+                      {/* Pending Responses */}
+                      <div className="flex flex-col items-center">
+                        <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mb-2">
+                          <Clock className="h-6 w-6 text-amber-500" />
+                        </div>
+                        <h3 className="text-sm font-medium">Pending</h3>
+                        <p className="text-2xl font-bold mt-1">0</p>
+                      </div>
+                      
+                      {/* Closed Chats */}
+                      <div className="flex flex-col items-center">
+                        <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mb-2">
+                          <Check className="h-6 w-6 text-blue-500" />
+                        </div>
+                        <h3 className="text-sm font-medium">Closed</h3>
+                        <p className="text-2xl font-bold mt-1">0</p>
+                      </div>
                     </div>
+                  </CardContent>
+                </Card>
+                
+                {/* Chat Interface */}
+                <div className="mt-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-md font-semibold">Messages</h3>
                   </div>
-                  
-                  <div className="flex gap-2">
-                    <Input placeholder="Type your message..." className="flex-1" />
-                    <Button className="bg-[#22c55e] hover:bg-opacity-90 text-white">
-                      Send
-                    </Button>
+                  <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg min-h-[400px] flex flex-col">
+                    <div className="flex-1 mb-4 overflow-y-auto">
+                      <div className="bg-white dark:bg-gray-700 p-3 rounded-lg mb-2 max-w-[80%] shadow-sm">
+                        <p className="text-sm font-medium text-gray-600 dark:text-gray-300">System</p>
+                        <p className="text-gray-800 dark:text-gray-100">Welcome to the chat channel for {company.company_name}.</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Today, 9:30 AM</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <Input 
+                        placeholder="Type your message..." 
+                        className="flex-1"
+                      />
+                      <Button 
+                        variant="primary"
+                        className="rounded-full"
+                      >
+                        <MessageCircle className="h-4 w-4 mr-2" />
+                        Send
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1272,7 +1495,10 @@ export default function CompanyDetails() {
               <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleSaveCompany} disabled={isSaving}>
+              <Button 
+                onClick={handleSaveCompany} 
+                disabled={isSaving}
+              >
                 {isSaving ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1435,9 +1661,9 @@ export default function CompanyDetails() {
                 >
                   Cancel
                 </Button>
-                <Button 
+                <Button
                   type="submit"
-                  className="bg-22c55e text-black hover:bg-opacity-90"
+                  className="bg-[#a6e15a] hover:bg-[#95cc4f] text-white dark:bg-[#a6e15a] dark:text-white dark:hover:bg-[#95cc4f] transition-all duration-300"
                   disabled={isAddingContact}
                 >
                   {isAddingContact ? 'Adding...' : 'Add Contact'}

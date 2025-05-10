@@ -4,13 +4,13 @@
  
 @layer base {
   :root {
-    --background: 0 0% 95%; /* Light grey background */
+    --background: 0 0% 100%; /* White background for light mode */
     --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%; /* White card background */
+    --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222 60% 66%; /* #7b96d4 - Blue for light mode */
+    --primary: 222 60% 66%;
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -22,20 +22,20 @@
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 222 60% 66%; /* Match primary */
+    --ring: 222 60% 66%;
     --radius: 0.5rem;
   }
  
   .dark {
-    --background: 215 10% 14%; /* #1D2125 */
+    --background: 215 10% 14%; /* #1D2125 for dark mode */
     --foreground: 210 40% 98%;
-    --card: 214 9% 15%; /* #1E2227 */
+    --card: 214 9% 15%;
     --card-foreground: 210 40% 98%;
-    --popover: 215 10% 14%; /* #1D2125 */
+    --popover: 215 10% 14%;
     --popover-foreground: 210 40% 98%;
-    --primary: 222 60% 66%; /* #7b96d4 - Blue for dark mode too */
+    --primary: 222 60% 66%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 358 100% 68%; /* #FD7575 */
+    --secondary: 358 100% 68%;
     --secondary-foreground: 210 40% 98%;
     --muted: 217 10% 18%;
     --muted-foreground: 215 20.2% 65.1%;
@@ -45,7 +45,7 @@
     --destructive-foreground: 210 40% 98%;
     --border: 217 10% 25%;
     --input: 217 10% 25%;
-    --ring: 222 60% 66%; /* Match primary */
+    --ring: 222 60% 66%;
   }
 
   /* Ensure html and body take up full height */
@@ -56,6 +56,10 @@
     overflow-x: hidden;
     width: 100%;
     max-width: 100vw;
+<<<<<<< HEAD
+=======
+    @apply bg-background text-foreground;
+>>>>>>> development
   }
 
   /* Ensure the root div takes up full height */
@@ -65,6 +69,10 @@
     flex-direction: column;
     width: 100%;
     max-width: 100vw;
+<<<<<<< HEAD
+=======
+    @apply bg-background;
+>>>>>>> development
   }
 
   /* Fix for container widths on desktop */

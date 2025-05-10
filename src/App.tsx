@@ -72,12 +72,24 @@ const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode;
 };
 
 function App() {
+  console.log("App component - Initializing");
+  
   return (
     <Router>
-      <ThemeProvider defaultTheme="light" storageKey="equiptrak-theme">
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="light"
+        disableTransitionOnChange
+        enableSystem={false}
+        storageKey="equiptrak-theme"
+      >
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
+<<<<<<< HEAD
             <div className="w-full max-w-[100vw] overflow-x-hidden">
+=======
+            <div className="min-h-screen w-full max-w-[100vw] bg-background text-foreground">
+>>>>>>> development
               <Routes>
                 <Route path="/login" element={<Login />} />
                 
