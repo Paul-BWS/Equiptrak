@@ -14,10 +14,9 @@ const buttonVariants = cva(
         outline:
           "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-background dark:hover:bg-accent dark:hover:text-accent-foreground",
         secondary:
-<<<<<<< HEAD
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "underline-offset-4 hover:underline text-primary",
+          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
+        ghost: "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent dark:hover:text-accent-foreground",
+        link: "text-primary underline-offset-4 hover:underline",
         primaryBlue: 
           "bg-[#273f78] text-white hover:bg-[#1e3366] shadow-sm",
         light:
@@ -26,13 +25,8 @@ const buttonVariants = cva(
           "bg-[#a6e15a] text-gray-800 hover:bg-[#95cb52] shadow-sm",
         green:
           "bg-[#21c15b] text-white hover:bg-[#1ca54e] shadow-sm",
-=======
-          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent dark:hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
         primary: "bg-[#a6e15a] text-white hover:bg-[#95cc4f] dark:bg-[#a6e15a] dark:text-white dark:hover:bg-[#95cc4f] transition-all duration-300",
         back: "bg-[#7b96d4] text-white hover:bg-[#6a85c3] dark:bg-[#7b96d4] dark:text-white dark:hover:bg-[#6a85c3] transition-all duration-300",
->>>>>>> development
       },
       size: {
         default: "h-9 px-4 py-2",

@@ -56,10 +56,7 @@
     overflow-x: hidden;
     width: 100%;
     max-width: 100vw;
-<<<<<<< HEAD
-=======
     @apply bg-background text-foreground;
->>>>>>> development
   }
 
   /* Ensure the root div takes up full height */
@@ -69,10 +66,7 @@
     flex-direction: column;
     width: 100%;
     max-width: 100vw;
-<<<<<<< HEAD
-=======
     @apply bg-background;
->>>>>>> development
   }
 
   /* Fix for container widths on desktop */

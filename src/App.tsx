@@ -85,11 +85,7 @@ function App() {
       >
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-<<<<<<< HEAD
-            <div className="w-full max-w-[100vw] overflow-x-hidden">
-=======
             <div className="min-h-screen w-full max-w-[100vw] bg-background text-foreground">
->>>>>>> development
               <Routes>
                 <Route path="/login" element={<Login />} />
                 

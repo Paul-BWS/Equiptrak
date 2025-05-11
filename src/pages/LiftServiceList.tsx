@@ -282,24 +282,6 @@ export default function LiftServiceList() {
               </div>
             </CardContent>
           </Card>
-<<<<<<< HEAD
-        )}
-      
-        {/* No records state */}
-        {!loading && !error && filteredRecords.length === 0 && (
-          <Card className="bg-gray-50 border-gray-200 mb-6">
-            <CardContent className="pt-6 text-center py-12">
-              <Forklift className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Lift Service Records Found</h3>
-              <p className="text-gray-500 mb-6">
-                {searchTerm || categoryFilter
-                  ? "No records match your current search criteria. Try adjusting your filters."
-                  : "Get started by adding your first lift service record."}
-              </p>
-              <Button onClick={handleAddNew} className="bg-[#21c15b] hover:bg-[#1ca54e] text-white">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Lift Service Record
-=======
 
           <Card>
             <CardContent className="pt-6">
@@ -382,7 +364,6 @@ export default function LiftServiceList() {
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Lift
->>>>>>> development
               </Button>
             </div>
           </div>
@@ -412,55 +393,12 @@ export default function LiftServiceList() {
                     <TableCell>{formatDate(record.next_test_date)}</TableCell>
                     <TableCell>{getStatusBadge(record.status)}</TableCell>
                     <TableCell>
-<<<<<<< HEAD
-                      {record.product_category ? record.product_category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'N/A'}
-                    </TableCell>
-                    <TableCell>
-                      {record.model || 'N/A'}
-                    </TableCell>
-                    <TableCell>
-                      {record.serial_number || 'N/A'}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {record.certificate_number || 'N/A'}
-                    </TableCell>
-                    <TableCell>
-                      {formatDate(record.service_date)}
-                    </TableCell>
-                    <TableCell>
-                      {getStatusBadge(record.status)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          className="h-8 w-8 p-0 text-blue-600 hover:bg-blue-100 hover:text-blue-800"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/lift-service/edit/${record.id}`);
-                          }}
-                          title="Edit Record"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleViewCertificate(record.id);
-                          }}
-                          title="View Certificate"
-=======
                       <div className="flex justify-end gap-2">
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => handleViewRecord(record.id)}
                           className="h-8 w-8"
->>>>>>> development
                         >
                           <Pencil className="h-4 w-4 text-blue-500" />
                         </Button>

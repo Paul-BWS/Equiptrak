@@ -16,13 +16,6 @@ export function Layout({ children }: LayoutProps) {
   }
 
   return (
-<<<<<<< HEAD
-    <div className="flex flex-col md:flex-row min-h-screen w-full max-w-[100vw] bg-gray-100 dark:bg-[#1D2125] overflow-hidden">
-      {user && <Sidebar />}
-      <main className="flex-1 w-full overflow-y-auto overflow-x-hidden">
-        <Outlet />
-      </main>
-=======
     <div className="flex h-screen w-full max-w-[100vw] bg-background text-foreground">
       <Sidebar />
       <div className="flex flex-col flex-1 bg-background">
@@ -30,7 +23,6 @@ export function Layout({ children }: LayoutProps) {
           {children || <Outlet />}
         </main>
       </div>
->>>>>>> development
     </div>
   );
 }

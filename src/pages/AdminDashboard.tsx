@@ -248,30 +248,6 @@ export default function AdminDashboard() {
   );
 
   return (
-<<<<<<< HEAD
-    <div className="min-h-screen bg-[#f8f9fc]">
-      <div className="border-b bg-white shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-semibold">Admin Dashboard</h1>
-          <div className="flex items-center">
-            <div className="text-gray-600 items-center mr-4 hidden sm:flex">
-              <span className="font-medium">Hello {user?.email?.split('@')[0] || 'admin'}</span>
-              <span className="mx-2">•</span>
-              <span>{new Date().toLocaleDateString('en-US', { 
-                weekday: 'long',
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })}</span>
-            </div>
-            <Button 
-              className="bg-[#21c15b] hover:bg-[#1ba34b] text-white"
-              onClick={() => setIsAddModalOpen(true)}
-            >
-              <Plus className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Add Company</span>
-            </Button>
-=======
     <div className="w-full md:container lg:w-[85%] xl:w-[80%] mx-auto px-2 md:px-4 py-4 md:py-6">
       <div className="bg-white dark:bg-[#1D2125] rounded-lg shadow-sm">
         <div className="p-4 md:p-6">
@@ -296,16 +272,7 @@ export default function AdminDashboard() {
                 Add
               </Button>
             </div>
->>>>>>> development
           </div>
-
-<<<<<<< HEAD
-      <div className="w-full md:container lg:w-[85%] xl:w-[80%] mx-auto px-2 md:px-4 py-4 md:py-6">
-        <div className="bg-white rounded-lg shadow-sm">
-          <div className="p-4 md:p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold">Manage Companies</h2>
-=======
           <div className="relative mb-6">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
@@ -316,78 +283,14 @@ export default function AdminDashboard() {
               className="pl-10 bg-gray-50 dark:bg-[#2D3135] dark:text-gray-200 dark:placeholder-gray-400"
             />
           </div>
-
           {loading ? (
             <div className="flex justify-center items-center h-64">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#6c8aec] border-r-transparent" />
->>>>>>> development
             </div>
           ) : error ? (
             <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-md text-red-600 dark:text-red-400">
               {error}
             </div>
-<<<<<<< HEAD
-
-            {loading ? (
-              <div className="flex justify-center items-center h-64">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#6c8aec] border-r-transparent" />
-              </div>
-            ) : error ? (
-              <div className="bg-red-50 p-4 rounded-md text-red-600">
-                {error}
-              </div>
-            ) : (
-              <div className="rounded-lg border border-gray-100 overflow-x-auto w-full">
-                <Table className="w-full table-fixed md:table-auto">
-                  <TableHeader>
-                    <TableRow className="bg-gray-50">
-                      <TableHead className="text-gray-600 w-[30%] md:w-auto">Company Name</TableHead>
-                      <TableHead className="text-gray-600 w-[30%] md:w-auto">Address</TableHead>
-                      <TableHead className="text-gray-600 w-[25%] md:w-auto">Added Date</TableHead>
-                      <TableHead className="text-right text-gray-600 w-[15%] md:w-auto">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredCompanies.map((company) => (
-                      <TableRow 
-                        key={company.id}
-                        className="cursor-pointer hover:bg-gray-50 hover:shadow-md transition-shadow"
-                        onClick={() => handleCompanyClick(company.id)}
-                      >
-                        <TableCell className="font-medium">
-                          <div className="flex items-center">
-                            <Building className="mr-2 h-4 w-4 text-[#6c8aec]" />
-                            {company.company_name}
-                          </div>
-                        </TableCell>
-                        <TableCell className="truncate">{company.address || "No address provided"}</TableCell>
-                        <TableCell>
-                          {new Date(company.created_at || Date.now()).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="text-[#6c8aec] hover:text-[#5a75d9] hover:bg-[#f8f9fc]"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCompanyClick(company.id);
-                            }}
-                          >
-                            <Pencil className="mr-2 h-4 w-4" />
-                            <ChevronRight className="ml-2 h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-              {/* Shopify Integration card has been removed from here */}
-=======
           ) : (
             <div className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-x-auto w-full">
               <Table className="w-full table-fixed md:table-auto">
@@ -434,14 +337,11 @@ export default function AdminDashboard() {
                   ))}
                 </TableBody>
               </Table>
->>>>>>> development
             </div>
           )}
-
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
             {/* Shopify Integration card has been removed from here */}
           </div>
-
           <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
@@ -489,20 +389,6 @@ export default function AdminDashboard() {
                       />
                     </div>
                   </div>
-<<<<<<< HEAD
-                  <DialogFooter>
-                    <Button 
-                      type="submit" 
-                      className="bg-[#21c15b] hover:bg-[#1ba34b] text-white"
-                    >
-                      Add Company
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
-          </div>
-=======
                   
                   <div className="grid gap-2">
                     <Label htmlFor="telephone">Telephone</Label>
@@ -533,7 +419,6 @@ export default function AdminDashboard() {
               </form>
             </DialogContent>
           </Dialog>
->>>>>>> development
         </div>
       </div>
     </div>

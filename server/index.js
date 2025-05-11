@@ -111,35 +111,24 @@ app.locals.authenticateToken = authenticateToken;
 const spotWelderModule = require('./routes/spot-welders');
 const compressorModule = require('./routes/compressors');
 const serviceRecordModule = require('./routes/service-records');
-<<<<<<< HEAD
-=======
 const workOrdersModule = require('./routes/work-orders');
 const liftServiceModule = require('./routes/lift-services');
->>>>>>> development
 
 // Initialize route modules with app reference for auth and DB access
 // Call the init function for modules that export an object with init
 app.use('/api/spot-welders', spotWelderModule.init(app));
 app.use('/api/compressors', compressorModule.init(app));
-<<<<<<< HEAD
-// Call the module directly for modules that export a function
-app.use('/api/service-records', serviceRecordModule(app));
-=======
 // Call the module directly for modules that export a router
 app.use('/api/service-records', serviceRecordModule(app));
 app.use('/api/work-orders', workOrdersModule);
 app.use('/api/lift-services', liftServiceModule.init(app));
->>>>>>> development
 
 // Log the module exports to debug
 console.log('spotWelderModule type:', typeof spotWelderModule);
 console.log('spotWelderModule keys:', Object.keys(spotWelderModule));
 console.log('compressorModule type:', typeof compressorModule);
 console.log('serviceRecordModule type:', typeof serviceRecordModule);
-<<<<<<< HEAD
-=======
 console.log('workOrdersModule type:', typeof workOrdersModule);
->>>>>>> development
 
 // Test endpoint
 app.get('/api/test', (req, res) => {

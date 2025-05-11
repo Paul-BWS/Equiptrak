@@ -70,3 +70,5 @@ server/node_modules/
 server/.env
 server/.env.production
 server/.env.example
+
+backups/

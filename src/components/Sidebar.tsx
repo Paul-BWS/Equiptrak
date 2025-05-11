@@ -12,16 +12,12 @@ import {
   Building,
   ClipboardList,
   Package,
-<<<<<<< HEAD
-  BellRing
-=======
   BellRing,
   ChevronLeft,
   ChevronRight,
   MessageSquare,
   Moon,
   Sun
->>>>>>> development
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -49,16 +45,6 @@ export function Sidebar() {
   );
 
   const sidebarContent = (
-<<<<<<< HEAD
-    <div className="flex flex-col h-full bg-[#7b96d4] text-white dark:bg-[#1E2227]">
-      <div className="p-4 border-b border-white/20 flex justify-between items-center">
-        <h2 className="text-xl font-bold text-white">EquipTrack</h2>
-        {isMobile && (
-          <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={() => setIsOpen(false)}>
-            <X className="h-5 w-5" />
-          </Button>
-        )}
-=======
     <div className={cn(
       "flex flex-col h-screen bg-[#f5f5f5] border-r border-gray-200 transition-all duration-300 dark:bg-[#1D2125] dark:border-gray-800",
       isCollapsed ? "w-[70px]" : "w-64"
@@ -73,7 +59,6 @@ export function Sidebar() {
         >
           {isCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
         </Button>
->>>>>>> development
       </div>
       
       <div className="flex-1 py-4 overflow-auto">
@@ -178,7 +163,6 @@ export function Sidebar() {
                   }`}
                   onClick={() => {
                     navigate("/admin-reminders");
-                    if (isMobile) setIsOpen(false);
                   }}
                 >
                   <BellRing className="mr-2 h-5 w-5" />
@@ -272,35 +256,9 @@ export function Sidebar() {
       </div>
     </div>
   );
-<<<<<<< HEAD
-  
-  if (isMobile) {
-    return (
-      <div className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b bg-white dark:bg-[#1E2227] px-4 md:hidden">
-        <Sheet open={isOpen} onOpenChange={setIsOpen}>
-          <div className="flex items-center">
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <h1 className="ml-2 text-xl font-semibold">EquipTrack</h1>
-          </div>
-          <SheetContent side="left" className="p-0 w-[280px]">
-            {sidebarContent}
-          </SheetContent>
-        </Sheet>
-      </div>
-    );
-  }
-  
-  return (
-    <div className="hidden md:block md:w-64 lg:w-56 xl:w-64 border-r shrink-0">
-=======
 
   return (
     <nav className="h-screen flex-shrink-0">
->>>>>>> development
       {sidebarContent}
     </nav>
   );

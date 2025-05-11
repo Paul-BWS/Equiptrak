@@ -9,11 +9,7 @@ import { useNavigate } from "react-router-dom";
 import ApiClient from "@/utils/ApiClient";
 
 // Define a version number for tracking deployments
-<<<<<<< HEAD
 const APP_VERSION = "1.0.8";
-=======
-const APP_VERSION = "1.0.7";
->>>>>>> development
 // Set to true to show detailed error information
 const DEBUG_MODE = true;
 
@@ -157,12 +153,8 @@ export function Login() {
       <div className="w-full md:w-1/2 flex flex-col items-center justify-center p-4 md:p-8">
         <div className="w-full max-w-md space-y-6">
           <div className="text-center mb-8">
-<<<<<<< HEAD
-            <h1 className="text-3xl font-bold">EquipTrack</h1>
-            <p className="text-sm text-gray-500 mt-2">v{APP_VERSION}</p>
-=======
             <h1 className="text-3xl font-bold text-foreground">EquipTrack</h1>
->>>>>>> development
+            <p className="text-sm text-gray-500 mt-2">v{APP_VERSION}</p>
           </div>
           
           <form onSubmit={handleSubmit} className="space-y-5">

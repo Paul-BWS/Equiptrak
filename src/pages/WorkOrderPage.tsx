@@ -68,10 +68,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-<<<<<<< HEAD
-=======
 import { formatCurrency } from '@/lib/utils';
->>>>>>> development
 
 interface Company {
   id: string;
@@ -429,17 +426,6 @@ export default function WorkOrderPage() {
     }
   };
   
-<<<<<<< HEAD
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-GB', {
-      style: 'currency',
-      currency: 'GBP',
-      minimumFractionDigits: 2
-    }).format(amount);
-  };
-
-=======
->>>>>>> development
   const handleAddNonStockItem = () => {
     const newItem: WorkOrderItem = {
       id: `non-stock-${Date.now()}`,
