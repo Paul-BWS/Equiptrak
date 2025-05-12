@@ -395,3 +395,20 @@ kill -9 [PID]
 # Or run on alternative port
 PORT=3002 node server/index.js
 ```
+
+# UI Color Update
+
+All previous green action buttons (such as Add, +Order, +Equipment, etc.) should now use the following purple color scheme for consistency:
+
+- **Background:** #6d53b5
+- **Text:** White
+- **Hover:** #7e65d8
+
+This applies to all main action buttons across the app, in both light and dark mode.
+
+Example Tailwind classes:
+```jsx
+className="bg-[#6d53b5] hover:bg-[#7e65d8] text-white rounded-full px-4 h-10 flex items-center gap-2"
+```
+
+This ensures a consistent, modern look throughout the application.

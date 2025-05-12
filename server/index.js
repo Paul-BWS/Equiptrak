@@ -8,6 +8,7 @@ require('dotenv-safe').config({
 // Simple server without any image handling
 const path = require('path');
 // require('dotenv').config({ path: path.resolve(__dirname, '.env') }); // REMOVED - Handled by dotenv-safe
+
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');

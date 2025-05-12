@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Mail, Lock, Loader2, Phone, ExternalLink, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import ApiClient from "@/utils/ApiClient";
+import ThemeToggle from '@/components/ThemeToggle';
 
 // Define a version number for tracking deployments
 const APP_VERSION = "1.0.8";
@@ -132,31 +133,44 @@ export function Login() {
   };
 
   return (
-    <div className="flex min-h-screen bg-background">
-      {/* Left side with robot image */}
-      <div className="hidden md:flex md:w-1/2 items-center justify-center bg-[#7496da]">
-        <div className="w-3/4 flex justify-center">
-          <img 
-            src="/images/robot.png" 
-            alt="Robot Assistant" 
-            className="w-auto h-auto max-h-[80vh]"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.onerror = null;
-              target.src = "https://placehold.co/400x500/7496da/white?text=Robot+Image";
-            }}
-          />
+    <div className="flex min-h-screen bg-[#f8f9fc] dark:bg-[#18181b]">
+      {/* Left side with background image and overlay text */}
+      <div className="hidden md:flex md:w-1/2 items-center justify-center relative m-4 rounded-lg overflow-hidden bg-[#f8f9fc] dark:bg-[#232329]">
+        <img 
+          src="/images/top-view-man-repairing-car.jpg" 
+          alt="Top view man repairing car" 
+          className="absolute inset-0 w-full h-full object-cover" 
+          style={{ zIndex: 1 }}
+        />
+        {/* Purple overlay for hue effect */}
+        <div className="absolute inset-0 bg-[#6c47ff] bg-opacity-20" style={{ zIndex: 2 }} />
+        <div className="absolute inset-0 bg-black bg-opacity-20 flex flex-col justify-between" style={{ zIndex: 3 }}>
+          <div className="p-6 flex justify-between items-start">
+            <span className="text-3xl font-bold text-white tracking-widest">BWS</span>
+            <a
+              href="https://www.basicwelding.co.uk"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ml-auto px-4 py-2 rounded-lg text-white bg-[#6d53b5] hover:bg-[#7e65d8] text-sm font-medium shadow transition-colors"
+              style={{ minWidth: 'fit-content' }}
+            >
+              Go to website
+            </a>
+          </div>
+          <div className="flex-1" />
+          <div className="flex flex-col items-center justify-end pb-8">
+            <h2 className="text-xl md:text-2xl font-light text-gray-100 text-center drop-shadow-lg">Your One Stop Shop For Bodyshop.</h2>
+          </div>
         </div>
       </div>
 
       {/* Right side with login form */}
-      <div className="w-full md:w-1/2 flex flex-col items-center justify-center p-4 md:p-8">
+      <div className="w-full md:w-1/2 flex flex-col items-center justify-center p-4 md:p-8 bg-[#f8f9fc] dark:bg-[#18181b]">
         <div className="w-full max-w-md space-y-6">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-foreground">EquipTrack</h1>
+            <h1 className="text-3xl font-bold text-foreground">Login</h1>
             <p className="text-sm text-gray-500 mt-2">v{APP_VERSION}</p>
           </div>
-          
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-foreground">Email</Label>
@@ -201,25 +215,18 @@ export function Login() {
             </div>
             <Button
               type="submit"
-              className="w-full bg-[#a6e15a] hover:bg-[#95cc4f] text-black dark:text-black"
+              className="w-full bg-[#6d53b5] hover:bg-[#7e65d8] text-white"
+              style={{ background: '#6d53b5', color: '#fff' }}
               disabled={isLoading}
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Signing in...
                 </>
               ) : (
                 "Sign In"
               )}
             </Button>
-
-            {/* Version display */}
-            <div className="text-center text-sm text-muted-foreground mt-4">
-              Version {APP_VERSION}
-            </div>
-            
-            {/* Need spares button */}
             <Button
               variant="outline"
               className="w-full mt-4"
@@ -228,8 +235,6 @@ export function Login() {
               <ExternalLink className="mr-2 h-4 w-4" />
               Need spares or repairs?
             </Button>
-
-            {/* Phone number */}
             <Button
               variant="outline"
               className="w-full"
@@ -238,8 +243,6 @@ export function Login() {
               <Phone className="mr-2 h-4 w-4" />
               0161 223 1843
             </Button>
-
-            {/* Error display */}
             {error && (
               <div className="bg-destructive/10 text-destructive p-3 rounded-md flex items-start mt-4">
                 <AlertCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
@@ -255,6 +258,7 @@ export function Login() {
           </form>
         </div>
       </div>
+      <ThemeToggle />
     </div>
   );
 }

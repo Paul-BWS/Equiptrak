@@ -100,8 +100,7 @@ const NotesSection = ({ companyId, companyName }: { companyId: string, companyNa
         </div>
         <Button
           onClick={handleAddNoteClick}
-          variant="primary"
-          className="rounded-full"
+          className="bg-[#6d53b5] hover:bg-[#7e65d8] text-white rounded-full px-4 h-10 flex items-center gap-2"
         >
           <Plus className="mr-2 h-4 w-4" />
           Note
@@ -702,12 +701,11 @@ export default function CompanyDetails() {
             </h1>
           </div>
           <div className="flex gap-2">
-            <Button 
-              variant="primary" 
+            <Button
+              className="bg-[#6d53b5] hover:bg-[#7e65d8] text-white px-4 h-10 rounded-full flex items-center gap-2"
               onClick={handleEditClick}
-              className="rounded-full"
             >
-              <Edit className="mr-2 h-4 w-4" />
+              <Edit className="h-5 w-5" />
               Edit
             </Button>
             <Button 
@@ -945,11 +943,11 @@ export default function CompanyDetails() {
                   <div className="flex gap-2">
                     <Button 
                       size="sm" 
-                      className="bg-[#22c55e] hover:bg-opacity-90 text-white"
+                      className="bg-[#6d53b5] hover:bg-[#7e65d8] text-white rounded-full px-4 h-10 flex items-center gap-2"
                       onClick={() => navigate(`/work-orders/new?companyId=${id}`)}
                     >
                       <Plus className="mr-2 h-4 w-4" />
-                      Work Order
+                      Order
                     </Button>
                   </div>
                 </div>
@@ -971,7 +969,7 @@ export default function CompanyDetails() {
                       {workOrders.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                            No work orders found. Click "Work Order" to create one.
+                            No work orders found. Click "Order" to create one.
                           </TableCell>
                         </TableRow>
                       ) : (
@@ -1015,7 +1013,7 @@ export default function CompanyDetails() {
                     <Button 
                       variant="primary"
                       size="sm"
-                      className="rounded-full"
+                      className="bg-[#6d53b5] hover:bg-[#7e65d8] text-white rounded-full px-4 h-10 flex items-center gap-2"
                       onClick={() => navigate(`/equipment-types?companyId=${id}`)}
                     >
                       <Plus className="mr-2 h-4 w-4" />

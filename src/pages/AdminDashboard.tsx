@@ -265,7 +265,7 @@ export default function AdminDashboard() {
                 })}</span>
               </div>
               <Button 
-                className="bg-[#a6e15a] hover:bg-[#95cc4f] text-white px-6 h-10 rounded-full flex items-center gap-2"
+                className="bg-[#6d53b5] hover:bg-[#7e65d8] text-white px-6 h-10 rounded-full flex items-center gap-2"
                 onClick={() => setIsAddModalOpen(true)}
               >
                 <Plus className="h-5 w-5" />

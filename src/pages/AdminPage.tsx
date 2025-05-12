@@ -40,7 +40,7 @@ export function AdminPage() {
       <div className="fixed bottom-6 right-6 z-50">
         <Button 
           onClick={() => setIsCreateOpen(true)}
-          className="h-14 px-8 rounded-full shadow-lg bg-[#a6e15a] hover:bg-[#95cc4f] text-black flex items-center gap-3 text-lg font-medium"
+          className="h-14 px-8 rounded-full shadow-lg bg-[#6d53b5] hover:bg-[#7e65d8] text-white flex items-center gap-3 text-lg font-medium"
         >
           <Plus className="h-6 w-6" />
           Add Company
