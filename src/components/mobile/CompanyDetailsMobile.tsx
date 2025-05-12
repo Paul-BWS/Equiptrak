@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { 
   ChevronLeft, Share2, Building, User, ClipboardList, 
-  Wrench, Users, MessageSquare, Phone, Mail, Plus 
+  Wrench, Users, MessageSquare, Phone, Mail, Plus, Users2 
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -22,6 +22,10 @@ interface Contact {
 interface Company {
   id: string;
   company_name: string;
+  address?: string;
+  city?: string;
+  county?: string;
+  postcode?: string;
   contacts: Contact[];
 }
 
@@ -34,71 +38,111 @@ export function CompanyDetailsMobile() {
   const [company, setCompany] = useState<Company | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Add debugging useEffect
-  useEffect(() => {
-    console.log('Current contacts state:', contacts);
-  }, [contacts]);
+  // Add debugging logs
+  console.log('CompanyDetailsMobile - Rendering with ID:', id);
+  console.log('CompanyDetailsMobile - User:', user);
+  console.log('CompanyDetailsMobile - Current path:', window.location.pathname);
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!id || !user?.token) return;
+      if (!id || !user?.token) {
+        console.log('Missing id or token:', { id, token: user?.token });
+        setError('Missing required data');
+        setLoading(false);
+        return;
+      }
       
       try {
         setLoading(true);
+        setError(null);
+        console.log('Fetching company data for ID:', id);
         
         // Fetch company data
         const companyResponse = await fetch(`/api/companies/${id}`, {
           headers: {
             'Authorization': `Bearer ${user.token}`,
             'Content-Type': 'application/json'
-          },
-          credentials: 'include'
+          }
         });
         
+        console.log('Company response status:', companyResponse.status);
+        
         if (!companyResponse.ok) {
-          throw new Error('Failed to fetch company data');
+          const errorText = await companyResponse.text();
+          console.error('Company fetch failed:', companyResponse.status, errorText);
+          throw new Error(`Failed to fetch company data: ${companyResponse.status}`);
         }
         
         const companyData = await companyResponse.json();
+        console.log('Received company data:', companyData);
+        
+        if (!companyData || typeof companyData !== 'object') {
+          console.error('Invalid company data received:', companyData);
+          throw new Error('Invalid company data format');
+        }
+        
         setCompany(companyData);
 
         // Fetch contacts data
+        console.log('Fetching contacts data for company:', id);
         const contactsResponse = await fetch(`/api/companies/${id}/contacts`, {
           headers: {
             'Authorization': `Bearer ${user.token}`,
             'Content-Type': 'application/json'
-          },
-          credentials: 'include'
+          }
         });
         
-        if (contactsResponse.ok) {
-          const contactsData = await contactsResponse.json();
-          console.log('Received contacts data:', contactsData);
+        console.log('Contacts response status:', contactsResponse.status);
+        
+        if (!contactsResponse.ok) {
+          const errorText = await contactsResponse.text();
+          console.error('Contacts fetch failed:', contactsResponse.status, errorText);
           
-          // Ensure we have valid contact data
-          if (Array.isArray(contactsData)) {
-            // Sort contacts to ensure primary contacts appear first
-            const sortedContacts = contactsData.sort((a, b) => {
-              if (a.is_primary && !b.is_primary) return -1;
-              if (!a.is_primary && b.is_primary) return 1;
-              return 0;
+          if (contactsResponse.status === 403) {
+            toast({
+              title: "Access Denied",
+              description: "You are not authorized to view contacts for this company.",
+              variant: "destructive"
             });
-            console.log('Sorted contacts:', sortedContacts);
-            setContacts(sortedContacts);
-          } else {
-            console.error('Invalid contacts data received:', contactsData);
             setContacts([]);
+          } else {
+            toast({
+              title: "Error",
+              description: "Failed to load contacts. Please try again later.",
+              variant: "destructive"
+            });
           }
+          return;
+        }
+        
+        const contactsData = await contactsResponse.json();
+        console.log('Received contacts data:', contactsData);
+        
+        if (Array.isArray(contactsData)) {
+          const sortedContacts = contactsData.sort((a, b) => {
+            if (a.is_primary && !b.is_primary) return -1;
+            if (!a.is_primary && b.is_primary) return 1;
+            return 0;
+          });
+          console.log('Sorted contacts:', sortedContacts);
+          setContacts(sortedContacts);
         } else {
-          console.error("Error fetching contacts:", await contactsResponse.text());
+          console.error('Invalid contacts data received:', contactsData);
           setContacts([]);
+          toast({
+            title: "Error",
+            description: "Invalid contacts data received",
+            variant: "destructive"
+          });
         }
       } catch (error) {
         console.error('Error fetching data:', error);
+        setError(error instanceof Error ? error.message : 'Failed to load data');
         toast({
           title: "Error",
-          description: "Failed to load data",
+          description: error instanceof Error ? error.message : "Failed to load data",
           variant: "destructive",
         });
       } finally {
@@ -117,13 +161,14 @@ export function CompanyDetailsMobile() {
 
   const navigationTabs = [
     { id: 'details', icon: Building, label: 'Details', color: '#7496da' },
-    { id: 'contacts', icon: User, label: 'Contacts', color: '#4CAF50' },
-    { id: 'workorders', icon: ClipboardList, label: 'Work Orders', color: '#FF9800' },
-    { id: 'service', icon: Wrench, label: 'Service', color: '#9C27B0' },
-    { id: 'personnel', icon: Users, label: 'Personnel', color: '#FFB74D' },
-    { id: 'chat', icon: MessageSquare, label: 'Chat', color: '#E91E63' }
+    { id: 'contacts', icon: Users, label: 'Contacts', color: '#4CAF50' },
+    { id: 'notes', icon: MessageSquare, label: 'Notes', color: '#FF9800' },
+    { id: 'equipment', icon: Wrench, label: 'Equipment', color: '#E91E63' },
+    { id: 'service', icon: ClipboardList, label: 'Service', color: '#9C27B0' },
+    { id: 'certificates', icon: Share2, label: 'Certificates', color: '#795548' }
   ];
 
+  // Show loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-[#f8f9fa] flex items-center justify-center">
@@ -132,10 +177,37 @@ export function CompanyDetailsMobile() {
     );
   }
 
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[#f8f9fa] flex flex-col items-center justify-center p-4">
+        <div className="text-center mb-4">
+          <p className="text-red-600 mb-2">{error}</p>
+          <p className="text-gray-600">Unable to load company details</p>
+        </div>
+        <button 
+          onClick={() => navigate(user?.role === 'admin' ? '/mobile/companies' : '/dashboard')}
+          className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+        >
+          Back to Companies
+        </button>
+      </div>
+    );
+  }
+
+  // Show error state if no company data
   if (!company) {
     return (
-      <div className="min-h-screen bg-[#f8f9fa] p-4">
-        <div className="text-center text-gray-500">Company not found</div>
+      <div className="min-h-screen bg-[#f8f9fa] flex flex-col items-center justify-center p-4">
+        <div className="text-center mb-4">
+          <p className="text-gray-600">Failed to load company data</p>
+        </div>
+        <button 
+          onClick={() => navigate(user?.role === 'admin' ? '/mobile/companies' : '/dashboard')}
+          className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+        >
+          Back to Companies
+        </button>
       </div>
     );
   }
@@ -145,14 +217,14 @@ export function CompanyDetailsMobile() {
       {/* Header */}
       <div className="fixed top-0 left-0 right-0 bg-white z-50">
         <div className="flex items-center justify-between p-4">
-          <div className="w-10 h-10 flex items-center justify-center bg-[#f0f2f5] rounded-full cursor-pointer"
-               onClick={() => navigate('/admin')}>
+          <div 
+            className="w-10 h-10 flex items-center justify-center bg-[#f0f2f5] rounded-full cursor-pointer"
+            onClick={() => navigate(user?.role === 'admin' ? '/mobile/companies' : '/dashboard')}
+          >
             <ChevronLeft className="h-6 w-6 text-gray-600" />
           </div>
           <h1 className="text-lg font-semibold">Details</h1>
-          <div className="w-10 h-10 flex items-center justify-center bg-[#f0f2f5] rounded-full cursor-pointer">
-            <Share2 className="h-5 w-5 text-gray-600" />
-          </div>
+          <div className="w-10 h-10" /> {/* Spacer for alignment */}
         </div>
       </div>
 
@@ -164,7 +236,6 @@ export function CompanyDetailsMobile() {
             <Building className="h-8 w-8 text-[#7496da]" />
           </div>
           <h2 className="text-xl font-semibold mb-1">{company.company_name}</h2>
-          <span className="text-sm text-gray-500">Company Profile</span>
         </div>
 
         {/* Navigation Tabs */}
@@ -174,48 +245,17 @@ export function CompanyDetailsMobile() {
               key={tab.id}
               onClick={() => {
                 if (tab.id === 'contacts') {
-                  navigate(`/company/${id}/contacts`);
+                  navigate(`/mobile/company/${company.id}/contacts`);
                 } else {
                   setActiveTab(tab.id);
                 }
               }}
-              className="flex flex-col items-center"
+              className={`flex flex-col items-center justify-center p-4 rounded-xl transition-colors ${
+                activeTab === tab.id ? 'bg-white shadow-sm' : 'bg-transparent'
+              }`}
             >
-              <div 
-                className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 transition-all ${
-                  activeTab === tab.id 
-                  ? 'bg-white/80' 
-                  : 'bg-white shadow-sm'
-                }`}
-              >
-                <tab.icon 
-                  className={`h-5 w-5 transition-colors ${
-                    activeTab === tab.id || (tab.id === 'contacts' && activeTab !== tab.id) || (tab.id === 'workorders' && activeTab !== tab.id) || (tab.id === 'service' && activeTab !== tab.id) || (tab.id === 'personnel' && activeTab !== tab.id) || (tab.id === 'chat' && activeTab !== tab.id)
-                    ? tab.id === 'contacts' ? 'text-[#4CAF50]'
-                    : tab.id === 'workorders' ? 'text-[#FF9800]'
-                    : tab.id === 'service' ? 'text-[#9C27B0]'
-                    : tab.id === 'personnel' ? 'text-[#FFB74D]'
-                    : tab.id === 'chat' ? 'text-[#E91E63]'
-                    : tab.id === activeTab ? `text-[${tab.color}]`
-                    : 'text-gray-400'
-                    : 'text-gray-400'
-                  }`}
-                />
-              </div>
-              <span 
-                className={`text-xs transition-colors ${
-                  activeTab === tab.id 
-                  ? tab.id === 'details' ? 'text-[#7496da] font-medium'
-                  : tab.id === 'contacts' ? 'text-[#4CAF50] font-medium'
-                  : tab.id === 'workorders' ? 'text-[#FF9800] font-medium'
-                  : tab.id === 'service' ? 'text-[#9C27B0] font-medium'
-                  : tab.id === 'personnel' ? 'text-[#FFB74D] font-medium'
-                  : 'text-[#E91E63] font-medium'
-                  : 'text-gray-500'
-                }`}
-              >
-                {tab.label}
-              </span>
+              <tab.icon className={`h-6 w-6 mb-2`} style={{ color: tab.color }} />
+              <span className="text-sm font-medium">{tab.label}</span>
             </button>
           ))}
         </div>
@@ -225,158 +265,93 @@ export function CompanyDetailsMobile() {
           <div className="bg-white rounded-2xl p-6 shadow-sm">
             <h3 className="text-lg font-semibold mb-4">Details</h3>
             <div className="space-y-4">
-              <div>
-                <label className="text-sm text-gray-500">Name</label>
-                <div className="text-base mt-1">
-                  {(() => {
-                    const primaryContact = contacts.find(contact => contact.is_primary);
-                    if (primaryContact) {
-                      return `${primaryContact.first_name} ${primaryContact.last_name}`;
-                    }
-                    return '';
-                  })()}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm text-gray-500">Mobile Phone</label>
-                <div className="flex items-center justify-between mt-1">
-                  <span className="text-base">
-                    {(() => {
-                      const primaryContact = contacts.find(contact => contact.is_primary);
-                      return primaryContact?.mobile || '';
-                    })()}
-                  </span>
-                  <Phone className="h-5 w-5 text-[#7496da]" />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm text-gray-500">Office Phone</label>
-                <div className="flex items-center justify-between mt-1">
-                  <span className="text-base">
-                    {(() => {
-                      const primaryContact = contacts.find(contact => contact.is_primary);
-                      return primaryContact?.telephone || '';
-                    })()}
-                  </span>
-                  <Phone className="h-5 w-5 text-[#7496da]" />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm text-gray-500">Email</label>
-                <div className="flex items-center justify-between mt-1">
-                  <span className="text-base">
-                    {(() => {
-                      const primaryContact = contacts.find(contact => contact.is_primary);
-                      return primaryContact?.email || '';
-                    })()}
-                  </span>
-                  <Mail className="h-5 w-5 text-[#7496da]" />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Contacts Section */}
-        {activeTab === 'contacts' && (
-          <div className="space-y-6">
-            {/* Add Contact Button */}
-            <button 
-              className="w-full bg-white rounded-2xl p-4 shadow-sm flex items-center justify-center space-x-2 text-[#4CAF50] hover:bg-[#4CAF50]/5 transition-colors"
-              onClick={() => console.log('Add contact')}
-            >
-              <Plus className="h-5 w-5" />
-              <span className="font-medium">Add New Contact</span>
-            </button>
-
-            {/* Contacts List */}
-            {contacts.map((contact, index) => (
-              <div key={contact.id} className="bg-white rounded-2xl p-6 shadow-sm space-y-6">
-                {/* Contact Header */}
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-[#4CAF50]/10 rounded-full flex items-center justify-center">
-                    <User className="h-6 w-6 text-[#4CAF50]" />
-                  </div>
+              {/* Primary Contact Details */}
+              {contacts.find(contact => contact.is_primary) && (
+                <>
                   <div>
-                    <h3 className="font-semibold text-gray-900">
-                      {contact.first_name} {contact.last_name}
-                    </h3>
-                    <div className="flex items-center gap-2">
-                      {contact.is_primary && (
-                        <span className="text-xs px-2 py-0.5 bg-[#4CAF50]/10 text-[#4CAF50] rounded-full font-medium">
-                          Primary Contact
-                        </span>
-                      )}
-                      {contact.job_title && (
-                        <span className="text-sm text-gray-500">
-                          {contact.job_title}
-                        </span>
-                      )}
+                    <label className="text-sm text-gray-500">Primary Contact</label>
+                    <div className="text-base mt-1">
+                      {(() => {
+                        const primaryContact = contacts.find(contact => contact.is_primary);
+                        if (primaryContact) {
+                          return `${primaryContact.first_name} ${primaryContact.last_name}`;
+                        }
+                        return '';
+                      })()}
                     </div>
                   </div>
-                </div>
 
-                {/* Quick Actions */}
-                <div className="grid grid-cols-2 gap-3">
-                  <a 
-                    href={`tel:${contact.mobile}`}
-                    className="flex items-center justify-center space-x-2 bg-[#f8f9fa] rounded-xl py-3 hover:bg-[#4CAF50]/5 transition-colors"
-                  >
-                    <Phone className="h-5 w-5 text-[#4CAF50]" />
-                    <span className="text-sm font-medium text-gray-700">Call Mobile</span>
-                  </a>
-                  <a 
-                    href={`mailto:${contact.email}`}
-                    className="flex items-center justify-center space-x-2 bg-[#f8f9fa] rounded-xl py-3 hover:bg-[#4CAF50]/5 transition-colors"
-                  >
-                    <Mail className="h-5 w-5 text-[#4CAF50]" />
-                    <span className="text-sm font-medium text-gray-700">Send Email</span>
-                  </a>
-                </div>
-
-                {/* Contact Details */}
-                <div className="space-y-4">
                   <div>
                     <label className="text-sm text-gray-500">Mobile Phone</label>
                     <div className="flex items-center justify-between mt-1">
-                      <span className="text-base">{contact.mobile || ''}</span>
-                      <a href={`tel:${contact.mobile}`}>
-                        <Phone className="h-5 w-5 text-[#4CAF50]" />
-                      </a>
+                      <span className="text-base">
+                        {(() => {
+                          const primaryContact = contacts.find(contact => contact.is_primary);
+                          return primaryContact?.mobile || '';
+                        })()}
+                      </span>
+                      <Phone className="h-5 w-5 text-[#7496da]" />
                     </div>
                   </div>
 
-                  {contact.telephone && (
-                    <div>
-                      <label className="text-sm text-gray-500">Office Phone</label>
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-base">{contact.telephone}</span>
-                        <a href={`tel:${contact.telephone}`}>
-                          <Phone className="h-5 w-5 text-[#4CAF50]" />
-                        </a>
-                      </div>
+                  <div>
+                    <label className="text-sm text-gray-500">Office Phone</label>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-base">
+                        {(() => {
+                          const primaryContact = contacts.find(contact => contact.is_primary);
+                          return primaryContact?.telephone || '';
+                        })()}
+                      </span>
+                      <Phone className="h-5 w-5 text-[#7496da]" />
                     </div>
-                  )}
+                  </div>
 
                   <div>
                     <label className="text-sm text-gray-500">Email</label>
                     <div className="flex items-center justify-between mt-1">
-                      <span className="text-base">{contact.email || ''}</span>
-                      <a href={`mailto:${contact.email}`}>
-                        <Mail className="h-5 w-5 text-[#4CAF50]" />
-                      </a>
+                      <span className="text-base">
+                        {(() => {
+                          const primaryContact = contacts.find(contact => contact.is_primary);
+                          return primaryContact?.email || '';
+                        })()}
+                      </span>
+                      <Mail className="h-5 w-5 text-[#7496da]" />
                     </div>
                   </div>
+                </>
+              )}
+
+              {/* Company Address */}
+              {(company.address || company.city || company.county || company.postcode) && (
+                <div>
+                  <label className="text-sm text-gray-500">Address</label>
+                  <div className="text-base mt-1">
+                    {[
+                      company.address,
+                      company.city,
+                      company.county,
+                      company.postcode
+                    ].filter(Boolean).join(', ')}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )}
+            </div>
           </div>
         )}
 
-        {/* Other tab content sections would go here */}
+        {/* Equipment Section */}
+        {activeTab === 'equipment' && (
+          <div className="bg-white rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold">Equipment</h3>
+              <button className="text-primary hover:text-primary/90">
+                <Plus className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="text-gray-500 text-center py-4">No equipment found</p>
+          </div>
+        )}
       </div>
     </div>
   );

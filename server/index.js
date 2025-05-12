@@ -114,6 +114,7 @@ const compressorModule = require('./routes/compressors');
 const serviceRecordModule = require('./routes/service-records');
 const workOrdersModule = require('./routes/work-orders');
 const liftServiceModule = require('./routes/lift-services');
+const mobileRoutes = require('./routes/mobile');
 
 // Initialize route modules with app reference for auth and DB access
 // Call the init function for modules that export an object with init
@@ -123,6 +124,7 @@ app.use('/api/compressors', compressorModule.init(app));
 app.use('/api/service-records', serviceRecordModule(app));
 app.use('/api/work-orders', workOrdersModule);
 app.use('/api/lift-services', liftServiceModule.init(app));
+app.use('/', mobileRoutes);
 
 // Log the module exports to debug
 console.log('spotWelderModule type:', typeof spotWelderModule);
@@ -438,10 +440,16 @@ app.get('/api/companies/:id/contacts', authenticateToken, async (req, res) => {
     console.log(`[Contacts Route] Received request for companyId: ${companyId}`);
     console.log(`[Contacts Route] Authenticated user: ${JSON.stringify(req.user)}`);
 
+    // Check if user has access to this company's contacts
+    if (req.user.role !== 'admin' && req.user.company_id !== companyId) {
+      console.log(`[Contacts Route] Access denied. User company: ${req.user.company_id}, Requested company: ${companyId}`);
+      return res.status(403).json({ error: 'Not authorized to access this company\'s contacts' });
+    }
+
     const result = await pool.query(
       `SELECT * FROM contacts
        WHERE company_id = $1
-       ORDER BY first_name, last_name`,
+       ORDER BY is_primary DESC, first_name, last_name`,
       [companyId]
     );
 
@@ -2611,6 +2619,26 @@ app.post('/api/debug/lift-record/:id/test-update', authenticateToken, async (req
 });
 // ... existing code ...
 
+// Mobile companies route
+app.get('/api/mobile/companies', authenticateToken, async (req, res) => {
+  try {
+    let query = 'SELECT * FROM companies ORDER BY company_name';
+    let params = [];
+    
+    // If user is not admin, only show their company
+    if (req.user.role !== 'admin') {
+      query = 'SELECT * FROM companies WHERE id = $1';
+      params = [req.user.company_id];
+    }
+    
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching companies for mobile:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Catch-all route for unmatched routes
 app.use((req, res) => {
   console.log(`Unmatched route: ${req.method} ${req.path}`);
@@ -2618,6 +2646,11 @@ app.use((req, res) => {
     error: 'Not Found',
     message: `The requested URL ${req.path} was not found on this server.`
   });
+});
+
+// Serve React app for all non-API routes (for React Router support)
+app.get(/^\/(?!api).*/, (req, res) => {
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
 // Start server

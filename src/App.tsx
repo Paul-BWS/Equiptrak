@@ -31,41 +31,50 @@ import CompressorsPage from "@/pages/CompressorsPage";
 import AddCompressorPage from "@/pages/AddCompressorPage";
 import QRCodePrintPage from "@/pages/QRCodePrintPage";
 import ServiceForm from "@/pages/ServiceForm";
+import CompaniesListMobilePage from "@/pages/CompaniesListMobilePage";
+import { CompanyDetailsMobile } from "@/components/mobile/CompanyDetailsMobile";
+import ContactsPage from "@/pages/mobile/ContactsPage";
+import ContactDetailsPage from "@/pages/mobile/ContactDetailsPage";
 
 // Create a client
 const queryClient = new QueryClient();
 
-// Root redirect component
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  requiredRole?: 'admin' | 'user';
+}
+
 const RootRedirect = () => {
   const { user } = useAuth();
-  return <Navigate to={user?.role === 'admin' ? "/admin" : "/dashboard"} replace />;
+  const isMobile = window.innerWidth <= 768;
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (isMobile) {
+    return <Navigate to="/mobile/companies" replace />;
+  }
+
+  if (user.role === 'admin') {
+    return <Navigate to="/admin" replace />;
+  }
+
+  return <Navigate to="/dashboard" replace />;
 };
 
-// Protected route component
-const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode; requiredRole?: 'admin' | 'user' }) => {
-  const { user, isLoading } = useAuth();
-  console.log('ProtectedRoute - User:', user?.email, 'Role:', user?.role, 'Required Role:', requiredRole);
-
-  if (isLoading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-r-transparent" />
-      </div>
-    );
-  }
+const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
+  const { user } = useAuth();
+  console.log('ProtectedRoute - Checking auth for role:', requiredRole);
 
   if (!user) {
     console.log('ProtectedRoute - No user, redirecting to login');
     return <Navigate to="/login" replace />;
   }
 
-  // If a specific role is required, check it
-  if (requiredRole) {
-    if (user.role !== requiredRole) {
-      console.log('ProtectedRoute - Wrong role, redirecting to appropriate dashboard');
-      // Redirect admin to admin dashboard, users to user dashboard
-      return <Navigate to={user.role === 'admin' ? "/admin" : "/dashboard"} replace />;
-    }
+  if (requiredRole && user.role !== requiredRole) {
+    console.log('ProtectedRoute - Wrong role, redirecting to appropriate dashboard');
+    return <Navigate to={user.role === 'admin' ? "/admin" : "/dashboard"} replace />;
   }
 
   return <>{children}</>;
@@ -79,19 +88,55 @@ function App() {
       <ThemeProvider
         attribute="class"
         defaultTheme="light"
-        disableTransitionOnChange
         enableSystem={false}
         storageKey="equiptrak-theme"
       >
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-            <div className="min-h-screen w-full max-w-[100vw] bg-background text-foreground">
+            <div className="min-h-screen w-full max-w-[100vw] bg-background text-foreground antialiased">
               <Routes>
                 <Route path="/login" element={<Login />} />
-                
+                <Route path="/" element={<RootRedirect />} />
+
+                {/* Mobile Routes */}
+                <Route path="/mobile/companies" element={
+                  <ProtectedRoute>
+                    <div className="bg-background">
+                      <CompaniesListMobilePage />
+                    </div>
+                  </ProtectedRoute>
+                } />
+                <Route path="/mobile/companies/:id" element={
+                  <ProtectedRoute>
+                    <div className="bg-background">
+                      <CompanyDetailsMobile />
+                    </div>
+                  </ProtectedRoute>
+                } />
+                <Route path="/mobile/company/:id" element={
+                  <ProtectedRoute>
+                    <div className="bg-background">
+                      <CompanyDetailsMobile />
+                    </div>
+                  </ProtectedRoute>
+                } />
+                <Route path="/mobile/company/:id/contacts" element={
+                  <ProtectedRoute>
+                    <div className="bg-background">
+                      <ContactsPage />
+                    </div>
+                  </ProtectedRoute>
+                } />
+                <Route path="/mobile/company/:id/contacts/:contactId" element={
+                  <ProtectedRoute>
+                    <div className="bg-background">
+                      <ContactDetailsPage />
+                    </div>
+                  </ProtectedRoute>
+                } />
+
+                {/* Desktop Routes */}
                 <Route element={<Layout />}>
-                  <Route path="/" element={<RootRedirect />} />
-                  
                   <Route path="/admin" element={
                     <ProtectedRoute requiredRole="admin">
                       <AdminDashboard />
@@ -122,75 +167,15 @@ function App() {
                     </ProtectedRoute>
                   } />
                   
-                  <Route path="/compressors" element={
-                    <ProtectedRoute>
-                      <CompressorList />
-                    </ProtectedRoute>
-                  } />
-                  
-                  <Route path="/compressors" element={
-                    <ProtectedRoute>
-                      <CompressorsPage />
-                    </ProtectedRoute>
-                  } />
-                  
                   <Route path="/equipment-list" element={
-                    <ProtectedRoute requiredRole="admin">
+                    <ProtectedRoute>
                       <EquipmentListPage />
-                    </ProtectedRoute>
-                  } />
-                  
-                  <Route path="/spot-welders" element={
-                    <ProtectedRoute>
-                      <SpotWelderList />
-                    </ProtectedRoute>
-                  } />
-                  
-                  <Route path="/add-spot-welder" element={
-                    <ProtectedRoute>
-                      <AddSpotWelderPage />
-                    </ProtectedRoute>
-                  } />
-                  
-                  <Route path="/edit-spot-welder/:id" element={
-                    <ProtectedRoute>
-                      <EditSpotWelderPage />
-                    </ProtectedRoute>
-                  } />
-                  
-                  <Route path="/spot-welder-certificate/:id" element={
-                    <ProtectedRoute>
-                      <SpotWelderCertificatePage />
                     </ProtectedRoute>
                   } />
                   
                   <Route path="/company/:id/equipment" element={
                     <ProtectedRoute>
                       <CompanyAllEquipment />
-                    </ProtectedRoute>
-                  } />
-                  
-                  <Route path="/products" element={
-                    <ProtectedRoute requiredRole="admin">
-                      <ProductsList />
-                    </ProtectedRoute>
-                  } />
-                  
-                  <Route path="/products/:productId" element={
-                    <ProtectedRoute requiredRole="admin">
-                      <ProductDetailsPage />
-                    </ProtectedRoute>
-                  } />
-                  
-                  <Route path="/service-certificate/:id" element={
-                    <ProtectedRoute>
-                      <ServiceCertificate />
-                    </ProtectedRoute>
-                  } />
-                  
-                  <Route path="/service-certificate/:id/qr" element={
-                    <ProtectedRoute>
-                      <QRCodePrintPage />
                     </ProtectedRoute>
                   } />
                   
@@ -209,6 +194,30 @@ function App() {
                   <Route path="/service/edit/:id" element={
                     <ProtectedRoute>
                       <ServiceForm />
+                    </ProtectedRoute>
+                  } />
+                  
+                  <Route path="/service-certificate/:id" element={
+                    <ProtectedRoute>
+                      <ServiceCertificate />
+                    </ProtectedRoute>
+                  } />
+                  
+                  <Route path="/service-inspection/:id" element={
+                    <ProtectedRoute>
+                      <ServiceInspectionDetailsPage />
+                    </ProtectedRoute>
+                  } />
+                  
+                  <Route path="/products" element={
+                    <ProtectedRoute>
+                      <ProductsList />
+                    </ProtectedRoute>
+                  } />
+                  
+                  <Route path="/products/:id" element={
+                    <ProtectedRoute>
+                      <ProductDetailsPage />
                     </ProtectedRoute>
                   } />
                   
@@ -260,31 +269,19 @@ function App() {
                     </ProtectedRoute>
                   } />
                   
-                  <Route path="/service-inspection/details" element={
+                  <Route path="/compressors" element={
                     <ProtectedRoute>
-                      <ServiceInspectionDetailsPage />
+                      <CompressorsPage />
                     </ProtectedRoute>
                   } />
                   
-                  <Route path="/service-inspection/details/:id" element={
-                    <ProtectedRoute>
-                      <ServiceInspectionDetailsPage />
-                    </ProtectedRoute>
-                  } />
-                  
-                  <Route path="/compressor-certificate/:id" element={
-                    <ProtectedRoute>
-                      <ServiceCertificate />
-                    </ProtectedRoute>
-                  } />
-                  
-                  <Route path="/add-compressor" element={
+                  <Route path="/compressors/new" element={
                     <ProtectedRoute>
                       <AddCompressorPage />
                     </ProtectedRoute>
                   } />
-
-                  <Route path="/qr-print/spot-welder/:id" element={
+                  
+                  <Route path="/qr-code/:id" element={
                     <ProtectedRoute>
                       <QRCodePrintPage />
                     </ProtectedRoute>

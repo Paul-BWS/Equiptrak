@@ -8,9 +8,10 @@ import { Mail, Lock, Loader2, Phone, ExternalLink, Eye, EyeOff, AlertCircle } fr
 import { useNavigate } from "react-router-dom";
 import ApiClient from "@/utils/ApiClient";
 import ThemeToggle from '@/components/ThemeToggle';
+import { useIsMobile } from "@/hooks/use-mobile";
 
 // Define a version number for tracking deployments
-const APP_VERSION = "1.0.8";
+const APP_VERSION = "1.0.9";
 // Set to true to show detailed error information
 const DEBUG_MODE = true;
 
@@ -25,6 +26,7 @@ export function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [debugInfo, setDebugInfo] = useState<string | null>(null);
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     console.log("Current user state:", user, "Redirecting:", redirecting);
@@ -35,14 +37,19 @@ export function Login() {
       setRedirecting(true);
       
       if (user.role === 'admin') {
-        console.log('Redirecting logged-in admin to dashboard');
-        navigate("/admin");
+        if (isMobile) {
+          console.log('Redirecting logged-in admin to mobile companies list');
+          navigate("/mobile/companies");  // Direct to mobile companies list
+        } else {
+          console.log('Redirecting logged-in admin to desktop dashboard');
+          navigate("/admin");
+        }
       } else {
         console.log('Redirecting logged-in user to dashboard');
         navigate("/dashboard");
       }
     }
-  }, [user, redirecting, navigate]);
+  }, [user, redirecting, navigate, isMobile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,10 +115,15 @@ export function Login() {
 
       // Redirect based on role
       if (userData.role === 'admin') {
-        console.log('Redirecting admin user to /admin');
-        navigate("/admin");
+        if (isMobile) {
+          console.log('Redirecting admin user to mobile companies list');
+          navigate("/mobile/companies");  // Direct to mobile companies list
+        } else {
+          console.log('Redirecting admin user to desktop admin page');
+          navigate("/admin");
+        }
       } else {
-        console.log('Redirecting regular user to /dashboard');
+        console.log('Redirecting regular user to dashboard');
         navigate("/dashboard");
       }
     } catch (error) {
@@ -168,6 +180,11 @@ export function Login() {
       <div className="w-full md:w-1/2 flex flex-col items-center justify-center p-4 md:p-8 bg-[#f8f9fc] dark:bg-[#18181b]">
         <div className="w-full max-w-md space-y-6">
           <div className="text-center mb-8">
+            <img
+              src="/images/logo.png"
+              alt="BWS Logo"
+              style={{ width: 80, height: 80, objectFit: 'contain', margin: '0 auto 16px auto', display: 'block' }}
+            />
             <h1 className="text-3xl font-bold text-foreground">Login</h1>
             <p className="text-sm text-gray-500 mt-2">v{APP_VERSION}</p>
           </div>

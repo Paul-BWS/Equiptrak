@@ -20,6 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useTheme } from "@/components/theme-provider";
 
 interface Contact {
   id: string;
@@ -38,16 +39,21 @@ export default function ContactsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { theme } = useTheme();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     const fetchContacts = async () => {
-      if (!id || !user?.token) return;
+      if (!id || !user?.token) {
+        console.log('Missing id or token:', { id, token: user?.token });
+        return;
+      }
       
       try {
         setLoading(true);
+        console.log('Fetching contacts for company ID:', id);
         const response = await fetch(`/api/companies/${id}/contacts`, {
           headers: {
             'Authorization': `Bearer ${user.token}`,
@@ -58,21 +64,26 @@ export default function ContactsPage() {
         
         if (response.ok) {
           const data = await response.json();
+          console.log('Received contacts data:', data);
           const sortedContacts = data.sort((a: Contact, b: Contact) => {
             if (a.is_primary && !b.is_primary) return -1;
             if (!a.is_primary && b.is_primary) return 1;
             return 0;
           });
+          console.log('Sorted contacts:', sortedContacts);
           setContacts(sortedContacts);
         } else {
+          console.error('Failed to fetch contacts:', response.status);
           throw new Error('Failed to fetch contacts');
         }
       } catch (error) {
+        console.error('Error fetching contacts:', error);
         toast({
           title: "Error",
-          description: "Failed to load contacts",
+          description: "Failed to load contacts. Please try again.",
           variant: "destructive",
         });
+        setContacts([]);
       } finally {
         setLoading(false);
       }
@@ -93,21 +104,24 @@ export default function ContactsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f8f9fa] flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-r-transparent" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa]">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="fixed top-0 left-0 right-0 bg-white z-50">
+      <div className="fixed top-0 left-0 right-0 bg-card z-50 border-b border-border">
         <div className="flex items-center justify-between p-4">
-          <div className="w-10 h-10 flex items-center justify-center bg-[#f0f2f5] rounded-full cursor-pointer"
-               onClick={() => navigate(`/company/${id}`)}>
-            <ChevronLeft className="h-6 w-6 text-gray-600" />
-          </div>
+          <Button
+            variant="ghost"
+            className="hover:bg-accent"
+            onClick={() => navigate(`/mobile/company/${id}`)}
+          >
+            <ChevronLeft className="h-6 w-6" />
+          </Button>
           <h1 className="text-lg font-semibold">Contacts</h1>
           <div className="w-10 h-10" /> {/* Spacer for alignment */}
         </div>
@@ -122,113 +136,163 @@ export default function ContactsPage() {
             placeholder="Search contacts..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full"
+            className="w-full bg-card"
           />
         </div>
 
         {/* Add Contact Button */}
-        <button 
-          className="w-full bg-white rounded-2xl p-4 shadow-sm flex items-center justify-center space-x-2 text-[#7496da] hover:bg-[#7496da]/5 transition-colors mb-6"
+        <Button 
+          variant={theme === 'dark' ? 'dark' : 'light'}
+          className="w-full rounded-2xl p-4 flex items-center justify-center space-x-2 mb-6"
           onClick={() => console.log('Add contact')}
         >
           <Plus className="h-5 w-5" />
           <span className="font-medium">Add New Contact</span>
-        </button>
+        </Button>
 
         {/* Contacts List */}
         <div className="space-y-4">
-          {filteredContacts.map((contact) => (
-            <div key={contact.id} className="bg-white rounded-2xl p-6 shadow-sm">
-              {/* Contact Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-[#7496da]/10 rounded-full flex items-center justify-center">
-                    <UserCircle className="h-6 w-6 text-[#7496da]" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">
-                      {contact.first_name} {contact.last_name}
-                    </h3>
-                    <div className="flex items-center gap-2">
-                      {contact.is_primary && (
-                        <span className="text-xs px-2 py-0.5 bg-[#7496da]/10 text-[#7496da] rounded-full font-medium">
-                          Primary Contact
-                        </span>
-                      )}
-                      {contact.job_title && (
-                        <span className="text-sm text-gray-500">
-                          {contact.job_title}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => console.log('Edit')}>
-                      Edit Contact
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      onClick={() => console.log('Toggle primary')}
-                      className="text-[#7496da]"
-                    >
-                      {contact.is_primary ? 'Remove Primary' : 'Make Primary'}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      className="text-red-600"
-                      onClick={() => console.log('Delete')}
-                    >
-                      Delete Contact
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-
-              {/* Contact Details */}
-              <div className="space-y-4">
-                {contact.mobile && (
-                  <div>
-                    <label className="text-sm text-gray-500">Mobile Phone</label>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-base">{contact.mobile}</span>
-                      <a href={`tel:${contact.mobile}`}>
-                        <Phone className="h-5 w-5 text-[#7496da]" />
-                      </a>
-                    </div>
-                  </div>
-                )}
-
-                {contact.telephone && (
-                  <div>
-                    <label className="text-sm text-gray-500">Office Phone</label>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-base">{contact.telephone}</span>
-                      <a href={`tel:${contact.telephone}`}>
-                        <Phone className="h-5 w-5 text-[#7496da]" />
-                      </a>
-                    </div>
-                  </div>
-                )}
-
-                {contact.email && (
-                  <div>
-                    <label className="text-sm text-gray-500">Email</label>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-base">{contact.email}</span>
-                      <a href={`mailto:${contact.email}`}>
-                        <Mail className="h-5 w-5 text-[#7496da]" />
-                      </a>
-                    </div>
-                  </div>
-                )}
-              </div>
+          {filteredContacts.length === 0 ? (
+            <div className="bg-card rounded-2xl p-6 text-center text-muted-foreground border border-border">
+              {contacts.length === 0 ? (
+                "No contacts found. Add your first contact!"
+              ) : (
+                "No contacts match your search."
+              )}
             </div>
-          ))}
+          ) : (
+            filteredContacts.map((contact) => (
+              <div key={contact.id} className="bg-card rounded-2xl p-6 border border-border">
+                {/* Contact Header */}
+                <div className="flex items-center justify-between mb-4">
+                  <div 
+                    className="flex items-center space-x-4 flex-1 cursor-pointer"
+                    onClick={() => navigate(`/mobile/company/${id}/contacts/${contact.id}`)}
+                  >
+                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                      <UserCircle className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <h3 className="font-medium">{contact.first_name} {contact.last_name}</h3>
+                        {contact.is_primary && (
+                          <span className="bg-[#a6e15a] text-black text-xs px-2 py-0.5 rounded-full">
+                            Primary
+                          </span>
+                        )}
+                      </div>
+                      {contact.job_title && (
+                        <p className="text-sm text-muted-foreground">{contact.job_title}</p>
+                      )}
+                    </div>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="h-8 w-8 p-0">
+                        <MoreVertical className="h-5 w-5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => navigate(`/mobile/company/${id}/contacts/${contact.id}`)}>
+                        View Details
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => console.log('Delete contact')} className="text-destructive">
+                        Delete Contact
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                {/* Quick Actions */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  {contact.mobile && (
+                    <Button
+                      variant="outline"
+                      asChild
+                      className="flex items-center justify-center space-x-2"
+                    >
+                      <a href={`tel:${contact.mobile}`}>
+                        <Phone className="h-5 w-5 text-primary" />
+                        <span>Call Mobile</span>
+                      </a>
+                    </Button>
+                  )}
+                  {contact.email && (
+                    <Button
+                      variant="outline"
+                      asChild
+                      className="flex items-center justify-center space-x-2"
+                    >
+                      <a href={`mailto:${contact.email}`}>
+                        <Mail className="h-5 w-5 text-primary" />
+                        <span>Send Email</span>
+                      </a>
+                    </Button>
+                  )}
+                </div>
+
+                {/* Contact Details */}
+                <div className="space-y-4">
+                  {contact.mobile && (
+                    <div>
+                      <label className="text-sm text-muted-foreground">Mobile Phone</label>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-base">{contact.mobile}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          asChild
+                          className="text-primary"
+                        >
+                          <a href={`tel:${contact.mobile}`}>
+                            <Phone className="h-5 w-5" />
+                          </a>
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {contact.telephone && (
+                    <div>
+                      <label className="text-sm text-muted-foreground">Telephone</label>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-base">{contact.telephone}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          asChild
+                          className="text-primary"
+                        >
+                          <a href={`tel:${contact.telephone}`}>
+                            <Phone className="h-5 w-5" />
+                          </a>
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {contact.email && (
+                    <div>
+                      <label className="text-sm text-muted-foreground">Email</label>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-base">{contact.email}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          asChild
+                          className="text-primary"
+                        >
+                          <a href={`mailto:${contact.email}`}>
+                            <Mail className="h-5 w-5" />
+                          </a>
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>
