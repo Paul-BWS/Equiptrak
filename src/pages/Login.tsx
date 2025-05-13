@@ -12,6 +12,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 
 // Define a version number for tracking deployments
 const APP_VERSION = "1.0.9";
+const BUILD_TIMESTAMP = new Date().getTime();
 // Set to true to show detailed error information
 const DEBUG_MODE = true;
 
@@ -27,6 +28,15 @@ export function Login() {
   const [debugInfo, setDebugInfo] = useState<string | null>(null);
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+
+  // Force reload if version mismatch
+  useEffect(() => {
+    const lastVersion = localStorage.getItem('app_version');
+    if (lastVersion !== APP_VERSION) {
+      localStorage.setItem('app_version', APP_VERSION);
+      window.location.reload();
+    }
+  }, []);
 
   useEffect(() => {
     console.log("Current user state:", user, "Redirecting:", redirecting);
@@ -178,7 +188,7 @@ export function Login() {
         <div className="w-full max-w-md space-y-6">
           <div className="text-center mb-8">
             <img
-              src="/images/logo.png"
+              src={`/images/logo.png?v=${BUILD_TIMESTAMP}`}
               alt="BWS Logo"
               style={{ width: 80, height: 80, objectFit: 'contain', margin: '0 auto 16px auto', display: 'block' }}
             />

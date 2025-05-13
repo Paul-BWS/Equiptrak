@@ -9,7 +9,8 @@
       "src": "package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "dist"
+        "distDir": "dist",
+        "buildCommand": "npm run build"
       }
     }
   ],
@@ -19,7 +20,17 @@
       "dest": "server/index.js"
     },
     {
-      "src": "/(.*\\.(js|css|svg|png|jpg|jpeg|gif|webp|ico))",
+      "src": "/(.*\\.(js|css|html))",
+      "headers": { 
+        "cache-control": "no-cache, no-store, must-revalidate, max-age=0",
+        "pragma": "no-cache",
+        "expires": "0",
+        "x-version": "1.0.9"
+      },
+      "dest": "/dist/$1"
+    },
+    {
+      "src": "/(.*\\.(svg|png|jpg|jpeg|gif|webp|ico))",
       "headers": { 
         "cache-control": "no-cache, no-store, must-revalidate",
         "pragma": "no-cache",
@@ -35,15 +46,6 @@
         "expires": "0"
       },
       "dest": "/dist/$1"
-    },
-    {
-      "src": "/",
-      "headers": { 
-        "cache-control": "no-cache, no-store, must-revalidate",
-        "pragma": "no-cache",
-        "expires": "0"
-      },
-      "dest": "/dist/index.html"
     }
   ],
   "env": {
