@@ -3,21 +3,43 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 
-// Force cache busting on version mismatch
+// Version handling
 const APP_VERSION = '1.0.9';
-const CACHE_TIMESTAMP = Date.now();
+const BUILD_TIME = new Date().toISOString();
 
-// Clear any old cached data
-if (localStorage.getItem('app_version') !== APP_VERSION) {
+// Clear cache and reload if version mismatch
+const lastVersion = localStorage.getItem('app_version');
+if (lastVersion !== APP_VERSION) {
+  console.log(`Version change detected: ${lastVersion} -> ${APP_VERSION}`);
+  // Clear cache
+  if ('caches' in window) {
+    caches.keys().then(names => {
+      names.forEach(name => {
+        caches.delete(name);
+      });
+    });
+  }
+  // Clear localStorage except for critical items
+  const criticalItems = ['theme'];
+  const itemsToKeep = {};
+  criticalItems.forEach(key => {
+    const value = localStorage.getItem(key);
+    if (value) itemsToKeep[key] = value;
+  });
   localStorage.clear();
+  Object.entries(itemsToKeep).forEach(([key, value]) => {
+    localStorage.setItem(key, value);
+  });
   localStorage.setItem('app_version', APP_VERSION);
-  // Force reload if version mismatch
+  localStorage.setItem('build_time', BUILD_TIME);
+  
+  // Reload the page if not on login
   if (window.location.pathname !== '/login') {
-    window.location.href = '/login';
+    window.location.reload();
   }
 }
 
-console.log("main.tsx - Application initialization started");
+console.log(`App Version: ${APP_VERSION}, Build Time: ${BUILD_TIME}`);
 
 // Add error boundary for root level errors
 window.onerror = function(message, source, lineno, colno, error) {
@@ -25,18 +47,14 @@ window.onerror = function(message, source, lineno, colno, error) {
   return false;
 };
 
-// Verify root element exists
+// Mount the application
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   console.error('Failed to find root element');
 } else {
-  console.log('Root element found, attempting to mount React');
+  ReactDOM.createRoot(rootElement).render(
+    <React.StrictMode>
+      <App key={`${APP_VERSION}-${BUILD_TIME}`} />
+    </React.StrictMode>
+  );
 }
-
-console.log("main.tsx - About to render React app");
-
-ReactDOM.createRoot(rootElement!).render(
-  <React.StrictMode>
-    <App key={`${APP_VERSION}-${CACHE_TIMESTAMP}`} />
-  </React.StrictMode>
-);
