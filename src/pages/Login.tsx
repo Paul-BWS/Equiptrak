@@ -12,7 +12,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 
 // Define a version number for tracking deployments
 const APP_VERSION = "1.0.9";
-const BUILD_TIMESTAMP = new Date().getTime();
+const BUILD_TIMESTAMP = Date.now(); // Use timestamp for cache busting
+const CACHE_BUSTER = `${APP_VERSION}-${BUILD_TIMESTAMP}`;
 // Set to true to show detailed error information
 const DEBUG_MODE = true;
 
@@ -188,7 +189,7 @@ export function Login() {
         <div className="w-full max-w-md space-y-6">
           <div className="text-center mb-8">
             <img
-              src={`/images/logo.png?v=${BUILD_TIMESTAMP}`}
+              src={`/images/logo.png?v=${CACHE_BUSTER}`}
               alt="BWS Logo"
               style={{ width: 80, height: 80, objectFit: 'contain', margin: '0 auto 16px auto', display: 'block' }}
             />

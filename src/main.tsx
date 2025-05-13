@@ -1,7 +1,21 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App.tsx';
+import App from './App';
 import './index.css';
+
+// Force cache busting on version mismatch
+const APP_VERSION = '1.0.9';
+const CACHE_TIMESTAMP = Date.now();
+
+// Clear any old cached data
+if (localStorage.getItem('app_version') !== APP_VERSION) {
+  localStorage.clear();
+  localStorage.setItem('app_version', APP_VERSION);
+  // Force reload if version mismatch
+  if (window.location.pathname !== '/login') {
+    window.location.href = '/login';
+  }
+}
 
 console.log("main.tsx - Application initialization started");
 
@@ -23,6 +37,6 @@ console.log("main.tsx - About to render React app");
 
 ReactDOM.createRoot(rootElement!).render(
   <React.StrictMode>
-    <App />
+    <App key={`${APP_VERSION}-${CACHE_TIMESTAMP}`} />
   </React.StrictMode>
 );
