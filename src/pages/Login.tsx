@@ -154,11 +154,8 @@ export function Login() {
           className="absolute inset-0 w-full h-full object-cover" 
           style={{ zIndex: 1 }}
         />
-        {/* Purple overlay for hue effect */}
-        <div className="absolute inset-0 bg-[#6c47ff] bg-opacity-20" style={{ zIndex: 2 }} />
         <div className="absolute inset-0 bg-black bg-opacity-20 flex flex-col justify-between" style={{ zIndex: 3 }}>
           <div className="p-6 flex justify-between items-start">
-            <span className="text-3xl font-bold text-white tracking-widest">BWS</span>
             <a
               href="https://www.basicwelding.co.uk"
               target="_blank"
