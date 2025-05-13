@@ -6,10 +6,11 @@ import './index.css';
 // Version handling
 const APP_VERSION = '1.0.9';
 const BUILD_TIME = new Date().toISOString();
+const FORCE_CACHE_CLEAR = true; // Added to force cache clearing
 
 // Clear cache and reload if version mismatch
-const lastVersion = localStorage.getItem('app_version');
-if (lastVersion !== APP_VERSION) {
+const lastVersion = localStorage.getItem('app_version') || '';
+if (lastVersion !== APP_VERSION || FORCE_CACHE_CLEAR) {
   console.log(`Version change detected: ${lastVersion} -> ${APP_VERSION}`);
   // Clear cache
   if ('caches' in window) {
@@ -21,7 +22,7 @@ if (lastVersion !== APP_VERSION) {
   }
   // Clear localStorage except for critical items
   const criticalItems = ['theme'];
-  const itemsToKeep = {};
+  const itemsToKeep: Record<string, string> = {};
   criticalItems.forEach(key => {
     const value = localStorage.getItem(key);
     if (value) itemsToKeep[key] = value;
@@ -33,10 +34,8 @@ if (lastVersion !== APP_VERSION) {
   localStorage.setItem('app_version', APP_VERSION);
   localStorage.setItem('build_time', BUILD_TIME);
   
-  // Reload the page if not on login
-  if (window.location.pathname !== '/login') {
-    window.location.reload();
-  }
+  // Force reload the page
+  window.location.reload();
 }
 
 console.log(`App Version: ${APP_VERSION}, Build Time: ${BUILD_TIME}`);
